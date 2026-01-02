@@ -1,0 +1,14 @@
+{
+  "changelog": {
+    "1.0.0": {
+      "date": "2025-12-23",
+      "title": "Initial version",
+      "changes": [
+        "🚀 LazyConverter v1.0.0",
+        "🎥 Conversion with FFmpeg + GPU",
+        "⚙️ MP4/MKV formats, custom resolutions",
+        "📱 Modern SwiftUI interface"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "LazyConverter",
+  "identifier": "com.argorar.LazyConverter",
+  "version": "1.0.0",
+  "downloads": {
+    "macos-universal": {
+      "url": "https://github.com/argorar/LazyConverter/releases"
+    }
+  }
+}
