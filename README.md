@@ -7,6 +7,8 @@
 
 LazyConverter is a **native macOS app** for fast, simple, and privacy‑friendly video conversion and basic editing. Everything runs locally on your Mac using FFmpeg.
 
+![interface](interface.png)
+
 ## ✨ Features
 
 ### 🎥 Video Conversion
