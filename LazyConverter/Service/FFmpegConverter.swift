@@ -1,0 +1,562 @@
+//
+//  AppLanguage.swift
+//  LazyConverter
+//
+//  Created by Sebastián Agudelo on 25/12/25.
+//
+
+import Foundation
+
+class FFmpegConverter {
+    static let shared = FFmpegConverter()
+    
+    private var process: Process?
+    private var progressCallback: ((Double) -> Void)?
+    
+    func convert(
+        inputURL: URL,
+        outputURL: URL,
+        format: VideoFormat,
+        resolution: VideoResolution,
+        quality: Int,
+        speedPercent: Double,
+        useGPU: Bool,
+        trimStart: Double? = nil,
+        trimEnd: Double? = nil,
+        videoInfo: VideoInfo?,
+        cropEnable: Bool,
+        cropRec: CGRect? = nil,
+        colorAdjustments: ColorAdjustments = .default,
+        frameRateSettings: FrameRateSettings,
+        progressCallback: @escaping (Double) -> Void,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        self.progressCallback = progressCallback
+        
+        print("🔹 FFmpegConverter.convert()")
+        print("    speed: \(Int(speedPercent))%")
+        print("    outputURL: \(outputURL.path)")
+        print("    format   : \(format)")
+        print("    resolution: \(resolution)")
+        print("    quality  : \(quality)")
+        print("    useGPU   : \(useGPU)")
+        
+        guard isFfmpegInstalled() else {
+            print("❌ FFmpeg no encontrado en rutas conocidas")
+            completionCallback(.failure(.ffmpegNotFound))
+            return
+        }
+        var effectiveDuration = 0.0
+        if let trimStart, let trimEnd {
+            effectiveDuration = trimEnd - trimStart
+        }
+        else {
+            effectiveDuration = videoInfo?.duration ?? 0.0
+        }
+        
+        // 3) Construir comando ffmpeg
+        let arguments = self.buildFFmpegCommand(
+                inputURL: inputURL,
+                outputURL: outputURL,
+                format: format,
+                resolution: resolution,
+                quality: quality,
+                speedPercent: speedPercent,
+                useGPU: useGPU,
+                startTime: trimStart,
+                endTime: trimEnd,
+                videoInfo: videoInfo,
+                cropEnable: cropEnable,
+                cropRect: cropRec,
+                colorAdjustments: colorAdjustments,
+                frameRateSettings: frameRateSettings
+                )
+        
+        // Log del comando ffmpeg
+        let ffmpegPath = self.findFFmpeg()
+        print("🔹 Ejecutando ffmpeg:")
+        print("    \(ffmpegPath) \\")
+        for arg in arguments {
+            print("      \"\(arg)\" \\")
+        }
+        
+        // 4) Ejecutar en background
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.executeFFmpeg(
+                executablePath: ffmpegPath,
+                arguments: arguments,
+                videoDuration: effectiveDuration,
+                completionCallback: completionCallback
+            )
+        }
+    }
+    
+    private func buildFFmpegCommand(
+        inputURL: URL,
+        outputURL: URL,
+        format: VideoFormat,
+        resolution: VideoResolution,
+        quality: Int,
+        speedPercent: Double,
+        useGPU: Bool,
+        startTime: Double? = nil,
+        endTime: Double? = nil,
+        videoInfo: VideoInfo?,
+        cropEnable: Bool,
+        cropRect: CGRect?,
+        colorAdjustments: ColorAdjustments,
+        frameRateSettings: FrameRateSettings,
+    ) -> [String] {
+        var videoFilters: [String] = []
+        var audioFilters: [String] = []
+        var arguments: [String] = []
+        
+        // 1. TRIM FILTER (prioridad máxima)
+        if let start = startTime, let end = endTime {
+            videoFilters.append("trim=start=\(start):end=\(end),setpts=PTS-STARTPTS")
+            if videoInfo?.hasAudio == true && speedPercent == 100.0 {
+                videoFilters.removeAll()
+                arguments += ["-ss", String(start), "-to", String(end)]
+            }
+        }
+        arguments += ["-i", inputURL.path]
+        
+        if let pixFmt = videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
+            arguments += ["-pix_fmt", pixFmt]
+        }
+        
+        // 2. SPEED FILTER
+        if speedPercent != 100.0 {
+            let speed = speedPercent / 100.0
+            videoFilters.append("setpts=\(1/speed)*PTS")
+        }
+        
+        // Resolución (después de velocidad)
+        if resolution != .original {
+            let resolutionValue = resolution.ffmpegParam
+            videoFilters.append("scale=\(resolutionValue):force_original_aspect_ratio=decrease")
+            print("📏 Escalando a: \(resolutionValue)")
+        }
+        
+        //crop
+        if cropEnable, let cropRect = cropRect, let videoSize = videoInfo?.videoSize {
+            
+            let x = Int(cropRect.origin.x * videoSize.width)
+            let y = Int(cropRect.origin.y * videoSize.height)
+            let w = Int(cropRect.size.width * videoSize.width)
+            let h = Int(cropRect.size.height * videoSize.height)
+
+            videoFilters.append("crop=\(w):\(h):\(x):\(y)")
+        }
+        
+        if let colorFilter = colorAdjustments.toFFmpegFilter() {
+            videoFilters.append(colorFilter)
+        }
+        
+        if let fpsFilters = frameRateSettings.toFFmpegFilter() {
+            videoFilters.append(fpsFilters)
+        }
+        
+        if !videoFilters.isEmpty {
+            arguments += ["-vf", videoFilters.joined(separator: ",")]
+        }
+        
+        if !audioFilters.isEmpty {
+            arguments += ["-af", audioFilters.joined(separator: ",")]
+        }
+        
+        let (videoCodec, audioCodec) = codecForFormat(format, useGPU: useGPU)
+        
+        arguments += ["-c:v", videoCodec]
+        
+        if format == .webm {
+            arguments += ["-b:v", "0",
+                          "-quality", "good",
+                          "-cpu-used", "0",
+                          "-row-mt", "1",
+                          "-tile-columns", "2",
+                          "-frame-parallel", "1",
+                          "-auto-alt-ref", "1",
+                          "-lag-in-frames", "25"]
+        }
+        else if format == .mp4 {
+            arguments += ["-preset", "veryslow",
+            "-tune", "film",
+            "-rc-lookahead", "60",
+            "-aq-mode", "3"]
+        }
+        else if format == .av1
+        {
+            arguments += ["-preset", "4",
+                          "-svtav1-params", "scd=1",
+                          "-svtav1-params", "scm=0"]
+        }
+        
+        
+        
+        arguments += ["-crf", "\(quality)"]  // 0-51 (menor=mejor)
+        
+        
+        if (videoInfo?.hasAudio == true && speedPercent == 100.0) {
+            arguments += ["-c:a", audioCodec]
+            arguments += ["-b:a", "128k"]
+        }
+        else {
+            arguments += ["-an"]
+        }
+
+        if let primaries = videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
+            arguments += ["-color_primaries", primaries]
+        }
+        if let trc = videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
+            arguments += ["-color_trc", trc]
+        }
+        if let colorspace = videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
+            arguments += ["-colorspace", colorspace]
+        }
+        if let range = videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
+            arguments += ["-color_range", range]
+        }
+        arguments += [
+            "-progress", "pipe:1",
+            "-y",
+            outputURL.path
+        ]
+            
+        print("🎬 FFmpeg Command:")
+        print("  \(arguments.joined(separator: " "))")
+        
+        return arguments
+    }
+
+    private func codecForFormat(_ format: VideoFormat, useGPU: Bool) -> (video: String, audio: String) {
+        let videoCodec = "h264_videotoolbox"
+        
+        switch format {
+        case .mp4:
+            return (videoCodec, "aac")
+        case .mkv:
+            return (videoCodec, "aac")
+        case .mov:
+            return (videoCodec, "aac")
+        case .av1:
+            return ("libsvtav1", "aac")
+        case .webm:
+            return ("libvpx-vp9", "libopus")
+        }
+    }
+
+    func buildColorFilters(brightness: Double, contrast: Double, gamma: Double, saturation: Double) -> String {
+        var filters: [String] = []
+        
+        let eqFilter = "eq=brightness=\(brightness):contrast=\(contrast):gamma=\(gamma):saturation=\(saturation)"
+        filters.append(eqFilter)
+        
+        return filters.joined(separator: ",")
+    }
+
+    private func executeFFmpeg(
+        executablePath: String,
+        arguments: [String],
+        videoDuration: TimeInterval,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executablePath)
+        process.arguments = arguments
+        self.process = process
+
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError  = errPipe
+
+        let outHandle = outPipe.fileHandleForReading
+        let errHandle = errPipe.fileHandleForReading
+
+        var stdoutBuffer = ""
+        var stderrBuffer = ""
+        var finished = false
+
+        func finish(_ result: Result<URL, FFmpegError>) {
+            guard !finished else { return }
+            finished = true
+
+            outHandle.readabilityHandler = nil
+            errHandle.readabilityHandler = nil
+
+            DispatchQueue.main.async { [weak self] in
+                if case .success = result {
+                    self?.progressCallback?(100.0)
+                }
+                completionCallback(result)
+            }
+        }
+
+        // stdout: progreso
+        outHandle.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty { return } // EOF
+
+            if let chunk = String( data: data, encoding: .utf8), !chunk.isEmpty {
+                stdoutBuffer += chunk
+
+                // procesar por líneas completas (key=value)
+                while let range = stdoutBuffer.range(of: "\n") {
+                    let line = String(stdoutBuffer[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    stdoutBuffer.removeSubrange(..<range.upperBound)
+
+                    if !line.isEmpty {
+                        self?.parseFFmpegOutput(line + "\n", videoDuration: videoDuration)
+
+                        if line.contains("progress=end") {
+                            print("✅ FFmpeg completado por progress=end")
+                            finish(.success(URL(fileURLWithPath: arguments.last ?? "")))
+                            return
+                        }
+                    }
+                }
+            }
+        }
+
+        // stderr: logs (banner, warnings, errores)
+        errHandle.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty { return } // EOF
+            if let chunk = String( data: data, encoding: .utf8), !chunk.isEmpty {
+                stderrBuffer += chunk
+            }
+        }
+
+        process.terminationHandler = { _ in
+            // Importante: al terminar, imprime stderr completo si existe
+            if !stderrBuffer.isEmpty {
+                print("📥 FFmpeg stderr completo:\n\(stderrBuffer)")
+            }
+
+            print("🔚 FFmpeg finalizado - Status: \(process.terminationStatus)")
+
+            if finished { return } // ya finalizó por progress=end
+
+            if process.terminationStatus == 0 {
+                finish(.success(URL(fileURLWithPath: arguments.last ?? "")))
+            } else {
+                finish(.failure(.conversionFailed))
+            }
+        }
+
+        do {
+            try process.run()
+            print("▶️ FFmpeg iniciado (PID: \(process.processIdentifier))")
+        } catch {
+            print("❌ Error al iniciar FFmpeg: \(error)")
+            finish(.failure(.executionFailed(error.localizedDescription)))
+        }
+    }
+
+    private func parseFFmpegOutput(_ output: String, videoDuration: TimeInterval) {
+        // output puede ser una o varias líneas key=value
+        let lines = output.split(whereSeparator: \.isNewline)
+
+        for raw in lines {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // 1) progreso por out_time_ms (en realidad microsegundos)
+            if line.hasPrefix("out_time_ms=") {
+                let value = line.dropFirst("out_time_ms=".count)
+                if let outTimeUs = Double(value) {
+                    let duration = max(0.001, videoDuration) // evita div/0
+                    let currentSeconds = outTimeUs / 1_000_000.0
+
+                    let ratio = min(0.999, max(0.0, currentSeconds / duration))
+                    let percent = ratio * 100.0
+
+                    DispatchQueue.main.async {
+                        self.progressCallback?(percent)
+                    }
+                }
+                continue
+            }
+
+            // 2) (Opcional) también soportar out_time_us
+            if line.hasPrefix("out_time_us=") {
+                let value = line.dropFirst("out_time_us=".count)
+                if let outTimeUs = Double(value) {
+                    let duration = max(0.001, videoDuration)
+                    let currentSeconds = outTimeUs / 1_000_000.0
+
+                    let ratio = min(0.999, max(0.0, currentSeconds / duration))
+                    let percent = ratio * 100.0
+
+                    DispatchQueue.main.async {
+                        self.progressCallback?(percent)
+                    }
+                }
+                continue
+            }
+
+            // 3) finalización
+            if line == "progress=end" {
+                DispatchQueue.main.async {
+                    self.progressCallback?(100.0)
+                }
+                continue
+            }
+        }
+    }
+
+    private func getDuration(of videoURL: URL, completion: @escaping (TimeInterval) -> Void) {
+        let ffprobePath = findFFprobe()
+        let path = videoURL.path
+        
+        let args = [
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path
+        ]
+        
+        print("🔹 Ejecutando ffprobe:")
+        print("    \(ffprobePath) \\")
+        for arg in args {
+            print("      \"\(arg)\" \\")
+        }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ffprobePath)
+        process.arguments = args
+        
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+        
+        DispatchQueue.global().async {
+            do {
+                try process.run()
+            } catch {
+                print("❌ Error al ejecutar ffprobe: \(error.localizedDescription)")
+                DispatchQueue.main.async { completion(0) }
+                return
+            }
+            
+            process.waitUntilExit()
+            
+            let outHandle = outPipe.fileHandleForReading
+            let data = outHandle.readDataToEndOfFile()
+            let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            
+            if let outString = String( data: data, encoding: .utf8) {
+                print("📤 [ffprobe stdout]:\n\(outString)")
+            }
+            if let errString = String( data: errData, encoding: .utf8), !errString.isEmpty {
+                print("📥 [ffprobe stderr]:\n\(errString)")
+            }
+            
+            guard process.terminationStatus == 0,
+                  let output = String( data: data, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                  let duration = Double(output) else {
+                print("❌ ffprobe terminó con status \(process.terminationStatus) o salida inválida")
+                DispatchQueue.main.async { completion(0) }
+                return
+            }
+            
+            print("⏱️ Duración detectada por ffprobe: \(duration) segundos")
+            DispatchQueue.main.async {
+                completion(duration)
+            }
+        }
+    }
+
+    private func supportsHardwareEncoding() -> Bool {
+        let testArgs = ["-f", "lavfi", "-i", "testsrc=duration=1", "-f", "null", "-"]
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: findFFmpeg())
+        process.arguments = testArgs + ["-c:v", "hevc_videotoolbox"]
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+    
+    func cancel() {
+        print("⏹️ Cancelando proceso ffmpeg...")
+        process?.terminate()
+        process = nil
+    }
+    
+    
+    func isFfmpegInstalled() -> Bool {
+        FileManager.default.fileExists(atPath: findFFmpeg())
+    }
+    
+    private func findFFmpeg() -> String {
+        // Buscar en Bundle (EMBEDDED)
+        if let bundlePath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) {
+            print("✅ FFmpeg encontrado en Bundle: \(bundlePath)")
+            return bundlePath
+        }
+        
+        // Fallback rutas sistema
+        let systemPaths = ["/usr/local/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg"]
+        for path in systemPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                print("✅ FFmpeg en sistema: \(path)")
+                return path
+            }
+        }
+        
+        fatalError("❌ FFmpeg no encontrado ni en Bundle ni en sistema")
+    }
+
+    private func findFFprobe() -> String {
+        // Buscar en Bundle (EMBEDDED)
+        if let bundlePath = Bundle.main.path(forResource: "ffprobe", ofType: nil) {
+            print("✅ FFprobe encontrado en Bundle: \(bundlePath)")
+            return bundlePath
+        }
+        
+        // Fallback rutas sistema
+        let systemPaths = ["/usr/local/bin/ffprobe", "/opt/homebrew/bin/ffprobe"]
+        for path in systemPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                print("✅ FFprobe en sistema: \(path)")
+                return path
+            }
+        }
+        
+        fatalError("❌ FFprobe no encontrado ni en Bundle ni en sistema")
+    }
+
+}
+
+
+enum FFmpegError: LocalizedError {
+    case ffmpegNotFound
+    case ffprobeNotFound
+    case cannotGetDuration
+    case conversionFailed
+    case executionFailed(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .ffmpegNotFound:
+            return "FFmpeg no está instalado. Instala con: brew install ffmpeg"
+        case .ffprobeNotFound:
+            return "FFprobe no está disponible"
+        case .cannotGetDuration:
+            return "No se pudo obtener la duración del video"
+        case .conversionFailed:
+            return "La conversión de video falló"
+        case .executionFailed(let reason):
+            return "Error al ejecutar FFmpeg: \(reason)"
+        }
+    }
+}
+
