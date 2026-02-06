@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LazyConverter - Simple Video Conversion for macOS</title>
+    <meta name="description" content="LazyConverter is a native macOS app that converts videos quickly, simply, and privately using local FFmpeg." />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-noise" aria-hidden="true"></div>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <div class="lang-toggle" aria-label="Language selector">
+          <button class="lang-btn active" type="button" data-lang="en">EN</button>
+          <button class="lang-btn" type="button" data-lang="es">ES</button>
+        </div>
+        <p class="eyebrow" data-i18n="eyebrow">macOS • SwiftUI • Local FFmpeg</p>
+        <h1 data-i18n="heroTitle">Convert videos effortlessly, right on your Mac.</h1>
+        <p class="lead" data-i18n="heroLead">
+          LazyConverter is a native app for fast conversion and light editing. Everything runs locally with FFmpeg.
+        </p>
+        <div class="hero-actions">
+          <a class="btn ghost" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer" data-i18n="ctaGithub">View on GitHub</a>
+          <a class="btn ghost" href="#features" data-i18n="ctaFeatures">See features</a>
+          <a class="btn primary" href="https://github.com/argorar/LazyConverter/releases/latest" target="_blank" rel="noreferrer" data-i18n="ctaDownload">Download</a>
+        </div>
+        <div class="hero-meta"></div>
+      </div>
+      <div class="hero-visual">
+        <div class="mock-frame">
+          <div class="mock-screen">
+            <img src="https://github.com/argorar/LazyConverter/raw/main/interface.png" alt="Captura de la interfaz de LazyConverter" />
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="features" class="section">
+        <div class="section-title">
+          <h2 data-i18n="featuresTitle">Key features</h2>
+          <p data-i18n="featuresSubtitle">A compact set of tools for conversion and light editing.</p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3 data-i18n="feature1Title">Flexible conversion</h3>
+            <p data-i18n="feature1Body">Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).</p>
+          </article>
+          <article class="card">
+            <h3 data-i18n="feature7Title">Interpolation</h3>
+            <p data-i18n="feature7Body">Improve motion smoothness for cleaner playback.</p>
+          </article>
+          <article class="card">
+            <h3 data-i18n="feature2Title">Speed and trimming</h3>
+            <p data-i18n="feature2Body">Change speed between 0.5x and 2x with real-time preview. Set trim start and end using the current playback time.</p>
+          </article>
+          <article class="card">
+            <h3 data-i18n="feature3Title">Visual crop</h3>
+            <p data-i18n="feature3Body">On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.</p>
+          </article>
+          <article class="card">
+            <h3 data-i18n="feature4Title">Auto analysis</h3>
+            <p data-i18n="feature4Body">Automatically detects resolution, duration, file size, and FPS when you load a video.</p>
+          </article>
+          <article class="card">
+            <h3 data-i18n="feature5Title">Smart preview</h3>
+            <p data-i18n="feature5Body">Native AVPlayer integration with time readout and crop overlay when enabled.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split">
+        <div class="section-title">
+          <h2 data-i18n="workflowTitle">Fast workflow</h2>
+          <p data-i18n="workflowSubtitle">Three steps from raw file to final export.</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num">1</span>
+            <p data-i18n="workflowStep1">Drag a video in or select the file.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">2</span>
+            <p data-i18n="workflowStep2">Adjust format, resolution, quality, and speed, trim, or crop options.</p>
+          </div>
+          <div class="step">
+            <span class="step-num">3</span>
+            <p data-i18n="workflowStep3">Convert and receive a notification when the process finishes.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="cta">
+          <div>
+            <h2 data-i18n="ctaTitle">Ready for macOS</h2>
+            <p data-i18n="ctaBody">LazyConverter is built for Mac users who want simple, fast, and private conversion.</p>
+          </div>
+          <a class="btn primary" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer" data-i18n="ctaRepo">Repository</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p data-i18n="footer">LazyConverter — Video conversion made simple on Mac.</p>
+    </footer>
+
+    <script>
+      const translations = {
+        en: {
+          eyebrow: "macOS • SwiftUI • Local FFmpeg",
+          heroTitle: "Convert videos effortlessly, right on your Mac.",
+          heroLead:
+            "LazyConverter is a native app for fast conversion and light editing. Everything runs locally with FFmpeg.",
+          ctaGithub: "View on GitHub",
+          ctaFeatures: "See features",
+          ctaDownload: "Download",
+          featuresTitle: "Key features",
+          featuresSubtitle: "A compact set of tools for conversion and light editing.",
+          feature1Title: "Flexible conversion",
+          feature1Body:
+            "Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).",
+          feature2Title: "Speed and trimming",
+          feature2Body:
+            "Change speed between 0.5x and 2x with real-time preview. Set trim start and end using the current playback time.",
+          feature3Title: "Visual crop",
+          feature3Body:
+            "On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.",
+          feature4Title: "Auto analysis",
+          feature4Body:
+            "Automatically detects resolution, duration, file size, and FPS when you load a video.",
+          feature5Title: "Smart preview",
+          feature5Body:
+            "Native AVPlayer integration with time readout and crop overlay when enabled.",
+          workflowTitle: "Fast workflow",
+          workflowSubtitle: "Three steps from raw file to final export.",
+          workflowStep1: "Drag a video in or select the file.",
+          workflowStep2: "Adjust format, resolution, quality, and speed, trim, or crop options.",
+          workflowStep3: "Convert and receive a notification when the process finishes.",
+          ctaTitle: "Ready for macOS",
+          ctaBody: "LazyConverter is built for Mac users who want simple, fast, and private conversion.",
+          ctaRepo: "Repository",
+          footer: "LazyConverter — Video conversion made simple on Mac."
+        },
+        es: {
+          eyebrow: "macOS • SwiftUI • FFmpeg local",
+          heroTitle: "Convierte videos sin esfuerzo, directo en tu Mac.",
+          heroLead:
+            "LazyConverter es una app nativa para conversión rápida y edición básica. Todo se procesa localmente con FFmpeg.",
+          ctaGithub: "Ver en GitHub",
+          ctaFeatures: "Ver características",
+          ctaDownload: "Descargar",
+          featuresTitle: "Características clave",
+          featuresSubtitle: "Un set compacto de herramientas para conversión y edición ligera.",
+          feature1Title: "Conversión flexible",
+          feature1Body:
+            "Exporta a MP4, MKV y otros formatos comunes. Ajusta resolución (original, 4K, 1080p, 720p, etc.).",
+          feature2Title: "Velocidad y recorte",
+          feature2Body:
+            "Cambia la velocidad entre 0,5x y 2x con vista previa en tiempo real. Define inicio y fin del recorte usando la reproducción actual.",
+          feature3Title: "Recorte visual (crop)",
+          feature3Body:
+            "Overlay visual con handles para definir el área de exportación. Coordenadas normalizadas para cualquier resolución.",
+          feature4Title: "Autoanálisis",
+          feature4Body:
+            "Detecta resolución, duración, tamaño de archivo y FPS automáticamente al cargar el video.",
+          feature5Title: "Vista previa inteligente",
+          feature5Body:
+            "Integración nativa con AVPlayer, lectura de tiempo y overlay de crop cuando está habilitado.",
+          workflowTitle: "Flujo de trabajo rápido",
+          workflowSubtitle: "Tres pasos para pasar de archivo crudo a exportación final.",
+          workflowStep1: "Arrastra un video o selecciona el archivo.",
+          workflowStep2: "Ajusta formato, resolución, calidad y opciones de velocidad, recorte o crop.",
+          workflowStep3: "Convierte y recibe una notificación cuando el proceso termina.",
+          ctaTitle: "Lista para macOS",
+          ctaBody: "LazyConverter está pensada para usuarios de Mac que quieren conversión simple, rápida y privada.",
+          ctaRepo: "Repositorio",
+          footer: "LazyConverter — Conversión de video simple en Mac."
+        }
+      };
+
+      const toggleButtons = document.querySelectorAll(".lang-btn");
+      const elements = document.querySelectorAll("[data-i18n]");
+
+      const applyLang = (lang) => {
+        const dict = translations[lang] || translations.en;
+        elements.forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (dict[key]) {
+            el.textContent = dict[key];
+          }
+        });
+        toggleButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.lang === lang));
+        document.documentElement.lang = lang;
+      };
+
+      toggleButtons.forEach((btn) =>
+        btn.addEventListener("click", () => {
+          document.body.classList.add("lang-fade");
+          window.setTimeout(() => {
+            applyLang(btn.dataset.lang);
+            document.body.classList.remove("lang-fade");
+          }, 160);
+        })
+      );
+
+      applyLang("en");
+      window.addEventListener("load", () => {
+        const downloadBtn = document.getElementById("download-btn");
+        if (downloadBtn) downloadBtn.focus();
+      });
+    </script>
+  </body>
+</html>
+          feature7Title: "Interpolation",
+          feature7Body: "Improve motion smoothness for cleaner playback.",
+          feature7Title: "Interpolación",
+          feature7Body: "Mejora la suavidad del movimiento para una reproducción más limpia.",
