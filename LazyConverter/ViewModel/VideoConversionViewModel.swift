@@ -169,7 +169,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         print("  📍 Start: \(trimStartSeconds != nil ? "\(trimStartSeconds!)s" : "NONE")")
         print("  🎯 End:   \(trimEndSeconds != nil ? "\(trimEndSeconds!)s" : "NONE")")
 
-        FFmpegConverter.shared.convert(
+        let request = FFmpegConversionRequest(
             inputURL: inputURL,
             outputURL: outputURL,
             format: selectedFormat,
@@ -196,6 +196,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 }
             }
         )
+        
+        FFmpegConverter.shared.convert(request)
     }
 
     
@@ -315,4 +317,3 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         self.latestDownloadURL = latest.downloads?.macosUniversal.url
     }
 }
-

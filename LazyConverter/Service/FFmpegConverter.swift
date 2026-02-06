@@ -13,64 +13,47 @@ class FFmpegConverter {
     private var process: Process?
     private var progressCallback: ((Double) -> Void)?
     
-    func convert(
-        inputURL: URL,
-        outputURL: URL,
-        format: VideoFormat,
-        resolution: VideoResolution,
-        quality: Int,
-        speedPercent: Double,
-        useGPU: Bool,
-        trimStart: Double? = nil,
-        trimEnd: Double? = nil,
-        videoInfo: VideoInfo?,
-        cropEnable: Bool,
-        cropRec: CGRect? = nil,
-        colorAdjustments: ColorAdjustments = .default,
-        frameRateSettings: FrameRateSettings,
-        progressCallback: @escaping (Double) -> Void,
-        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
-    ) {
-        self.progressCallback = progressCallback
+    func convert(_ request: FFmpegConversionRequest) {
+        self.progressCallback = request.progressCallback
         
         print("🔹 FFmpegConverter.convert()")
-        print("    speed: \(Int(speedPercent))%")
-        print("    outputURL: \(outputURL.path)")
-        print("    format   : \(format)")
-        print("    resolution: \(resolution)")
-        print("    quality  : \(quality)")
-        print("    useGPU   : \(useGPU)")
+        print("    speed: \(Int(request.speedPercent))%")
+        print("    outputURL: \(request.outputURL.path)")
+        print("    format   : \(request.format)")
+        print("    resolution: \(request.resolution)")
+        print("    quality  : \(request.quality)")
+        print("    useGPU   : \(request.useGPU)")
         
         guard isFfmpegInstalled() else {
             print("❌ FFmpeg no encontrado en rutas conocidas")
-            completionCallback(.failure(.ffmpegNotFound))
+            request.completionCallback(.failure(.ffmpegNotFound))
             return
         }
         var effectiveDuration = 0.0
-        if let trimStart, let trimEnd {
+        if let trimStart = request.trimStart, let trimEnd = request.trimEnd {
             effectiveDuration = trimEnd - trimStart
         }
         else {
-            effectiveDuration = videoInfo?.duration ?? 0.0
+            effectiveDuration = request.videoInfo?.duration ?? 0.0
         }
         
         // 3) Construir comando ffmpeg
         let arguments = self.buildFFmpegCommand(
-                inputURL: inputURL,
-                outputURL: outputURL,
-                format: format,
-                resolution: resolution,
-                quality: quality,
-                speedPercent: speedPercent,
-                useGPU: useGPU,
-                startTime: trimStart,
-                endTime: trimEnd,
-                videoInfo: videoInfo,
-                cropEnable: cropEnable,
-                cropRect: cropRec,
-                colorAdjustments: colorAdjustments,
-                frameRateSettings: frameRateSettings
-                )
+            inputURL: request.inputURL,
+            outputURL: request.outputURL,
+            format: request.format,
+            resolution: request.resolution,
+            quality: request.quality,
+            speedPercent: request.speedPercent,
+            useGPU: request.useGPU,
+            startTime: request.trimStart,
+            endTime: request.trimEnd,
+            videoInfo: request.videoInfo,
+            cropEnable: request.cropEnable,
+            cropRect: request.cropRec,
+            colorAdjustments: request.colorAdjustments,
+            frameRateSettings: request.frameRateSettings
+        )
         
         // Log del comando ffmpeg
         let ffmpegPath = self.findFFmpeg()
@@ -86,7 +69,7 @@ class FFmpegConverter {
                 executablePath: ffmpegPath,
                 arguments: arguments,
                 videoDuration: effectiveDuration,
-                completionCallback: completionCallback
+                completionCallback: request.completionCallback
             )
         }
     }
@@ -559,4 +542,3 @@ enum FFmpegError: LocalizedError {
         }
     }
 }
-

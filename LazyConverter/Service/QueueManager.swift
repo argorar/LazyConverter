@@ -83,7 +83,7 @@ class QueueManager: ObservableObject {
         let outputURL = outputDir.appendingPathComponent(outputFilename)
         
         await withCheckedContinuation { continuation in
-            FFmpegConverter.shared.convert(
+            let request = FFmpegConversionRequest(
                 inputURL: item.url,
                 outputURL: outputURL,
                 format: item.format,
@@ -110,6 +110,8 @@ class QueueManager: ObservableObject {
                     }
                 }
             )
+            
+            FFmpegConverter.shared.convert(request)
         }
     }
     
