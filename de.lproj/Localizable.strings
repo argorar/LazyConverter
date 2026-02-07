@@ -15,6 +15,7 @@
 "advanced.options" = "Optionen";
 "advanced.gpu" = "GPU-Verarbeitung";
 "advanced.language" = "Sprache";
+"advanced.theme" = "Thema";
 "button.start" = "Start";
 "button.end" = "Ende";
 "button.clear" = "Löschen";
@@ -67,3 +68,5 @@
 "framerate.target" = "Ziel-Bildrate";
 "framerate.interpolate.warning" = "Bewegungsinterpolation benötigt mehr Verarbeitungszeit";
 "loop.title" = "Schleife";
+"theme.dark" = "Dunkel";
+"theme.light" = "Hell";

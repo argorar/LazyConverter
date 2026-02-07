@@ -38,22 +38,7 @@ class FFmpegConverter {
         }
         
         // 3) Construir comando ffmpeg
-        let arguments = self.buildFFmpegCommand(
-            inputURL: request.inputURL,
-            outputURL: request.outputURL,
-            format: request.format,
-            resolution: request.resolution,
-            quality: request.quality,
-            speedPercent: request.speedPercent,
-            useGPU: request.useGPU,
-            startTime: request.trimStart,
-            endTime: request.trimEnd,
-            videoInfo: request.videoInfo,
-            cropEnable: request.cropEnable,
-            cropRect: request.cropRec,
-            colorAdjustments: request.colorAdjustments,
-            frameRateSettings: request.frameRateSettings
-        )
+        let arguments = self.buildFFmpegCommand(request)
         
         // Log del comando ffmpeg
         let ffmpegPath = self.findFFmpeg()
@@ -118,55 +103,40 @@ class FFmpegConverter {
         }
     }
     
-    private func buildFFmpegCommand(
-        inputURL: URL,
-        outputURL: URL,
-        format: VideoFormat,
-        resolution: VideoResolution,
-        quality: Int,
-        speedPercent: Double,
-        useGPU: Bool,
-        startTime: Double? = nil,
-        endTime: Double? = nil,
-        videoInfo: VideoInfo?,
-        cropEnable: Bool,
-        cropRect: CGRect?,
-        colorAdjustments: ColorAdjustments,
-        frameRateSettings: FrameRateSettings,
-    ) -> [String] {
+    private func buildFFmpegCommand(_ request: FFmpegConversionRequest) -> [String] {
         var videoFilters: [String] = []
         var audioFilters: [String] = []
         var arguments: [String] = []
         
         // 1. TRIM FILTER (prioridad máxima)
-        if let start = startTime, let end = endTime {
+        if let start = request.trimStart, let end = request.trimEnd {
             videoFilters.append("trim=start=\(start):end=\(end),setpts=PTS-STARTPTS")
-            if videoInfo?.hasAudio == true && speedPercent == 100.0 {
+            if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 {
                 videoFilters.removeAll()
                 arguments += ["-ss", String(start), "-to", String(end)]
             }
         }
-        arguments += ["-i", inputURL.path]
+        arguments += ["-i", request.inputURL.path]
         
-        if let pixFmt = videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
+        if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
             arguments += ["-pix_fmt", pixFmt]
         }
         
         // 2. SPEED FILTER
-        if speedPercent != 100.0 {
-            let speed = speedPercent / 100.0
+        if request.speedPercent != 100.0 {
+            let speed = request.speedPercent / 100.0
             videoFilters.append("setpts=\(1/speed)*PTS")
         }
         
         // Resolución (después de velocidad)
-        if resolution != .original {
-            let resolutionValue = resolution.ffmpegParam
+        if request.resolution != .original {
+            let resolutionValue = request.resolution.ffmpegParam
             videoFilters.append("scale=\(resolutionValue):force_original_aspect_ratio=decrease")
             print("📏 Escalando a: \(resolutionValue)")
         }
         
         //crop
-        if cropEnable, let cropRect = cropRect, let videoSize = videoInfo?.videoSize {
+        if request.cropEnable, let cropRect = request.cropRec, let videoSize = request.videoInfo?.videoSize {
             
             let x = Int(cropRect.origin.x * videoSize.width)
             let y = Int(cropRect.origin.y * videoSize.height)
@@ -176,11 +146,11 @@ class FFmpegConverter {
             videoFilters.append("crop=\(w):\(h):\(x):\(y)")
         }
         
-        if let colorFilter = colorAdjustments.toFFmpegFilter() {
+        if let colorFilter = request.colorAdjustments.toFFmpegFilter() {
             videoFilters.append(colorFilter)
         }
         
-        if let fpsFilters = frameRateSettings.toFFmpegFilter() {
+        if let fpsFilters = request.frameRateSettings.toFFmpegFilter() {
             videoFilters.append(fpsFilters)
         }
         
@@ -192,11 +162,11 @@ class FFmpegConverter {
             arguments += ["-af", audioFilters.joined(separator: ",")]
         }
         
-        let (videoCodec, audioCodec) = codecForFormat(format, useGPU: useGPU)
+        let (videoCodec, audioCodec) = codecForFormat(request.format, useGPU: request.useGPU)
         
         arguments += ["-c:v", videoCodec]
         
-        if format == .webm {
+        if request.format == .webm {
             arguments += ["-b:v", "0",
                           "-quality", "good",
                           "-cpu-used", "0",
@@ -206,13 +176,13 @@ class FFmpegConverter {
                           "-auto-alt-ref", "1",
                           "-lag-in-frames", "25"]
         }
-        else if format == .mp4 {
+        else if request.format == .mp4 {
             arguments += ["-preset", "veryslow",
             "-tune", "film",
             "-rc-lookahead", "60",
             "-aq-mode", "3"]
         }
-        else if format == .av1
+        else if request.format == .av1
         {
             arguments += ["-preset", "4",
                           "-svtav1-params", "scd=1",
@@ -221,10 +191,10 @@ class FFmpegConverter {
         
         
         
-        arguments += ["-crf", "\(quality)"]  // 0-51 (menor=mejor)
+        arguments += ["-crf", "\(request.quality)"]  // 0-51 (menor=mejor)
         
         
-        if (videoInfo?.hasAudio == true && speedPercent == 100.0) {
+        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0) {
             arguments += ["-c:a", audioCodec]
             arguments += ["-b:a", "128k"]
         }
@@ -232,22 +202,22 @@ class FFmpegConverter {
             arguments += ["-an"]
         }
 
-        if let primaries = videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
+        if let primaries = request.videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
             arguments += ["-color_primaries", primaries]
         }
-        if let trc = videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
+        if let trc = request.videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
             arguments += ["-color_trc", trc]
         }
-        if let colorspace = videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
+        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
             arguments += ["-colorspace", colorspace]
         }
-        if let range = videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
+        if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
             arguments += ["-color_range", range]
         }
         arguments += [
             "-progress", "pipe:1",
             "-y",
-            outputURL.path
+            request.outputURL.path
         ]
             
         print("🎬 FFmpeg Command:")

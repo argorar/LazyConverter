@@ -11,6 +11,7 @@ import SwiftUI
 struct SettingsPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
+    @EnvironmentObject var theme: ThemeManager
     
     private func formatTime(_ time: Double) -> String {
         guard !time.isNaN && !time.isInfinite && time >= 0 else { return "--:--.--" }
@@ -304,6 +305,20 @@ struct SettingsPanel: View {
                     .frame(maxWidth: 260)
                     .onChange(of: lang.language) { oldValue, newValue in
                         lang.saveUserLanguage()
+                    }
+                }
+                HStack {
+                    Text(lang.t("advanced.theme"))
+                    Spacer()
+                    Picker("", selection: $theme.theme) {
+                        ForEach(AppTheme.allCases) { themeOption in
+                            Text(lang.t("theme.\(themeOption.rawValue)")).tag(themeOption)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 260)
+                    .onChange(of: theme.theme) { oldValue, newValue in
+                        theme.saveUserTheme()
                     }
                 }
             }

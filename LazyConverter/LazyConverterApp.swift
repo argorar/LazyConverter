@@ -14,11 +14,15 @@ import AVKit
 
 @main
 struct LazyConverterApp: App {
+    @StateObject private var languageManager = LanguageManager()
+    @StateObject private var themeManager = ThemeManager()
+    
     var body: some Scene {
         WindowGroup {
-            let languageManager = LanguageManager()
             MainContentView()
                 .environmentObject(languageManager)
+                .environmentObject(themeManager)
+                .preferredColorScheme(themeManager.theme.colorScheme)
                 .frame(minWidth: 900, minHeight: 600)
         }
         .windowStyle(.hiddenTitleBar)
@@ -77,7 +81,55 @@ final class LanguageManager: ObservableObject {
     }
 }
 
+enum AppTheme: String, CaseIterable, Identifiable, Codable {
+    case dark
+    case light
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .dark: return "Dark"
+        case .light: return "Light"
+        }
+    }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .dark: return .dark
+        case .light: return .light
+        }
+    }
+}
+
+final class ThemeManager: ObservableObject {
+    @AppStorage("selectedTheme") private var storedThemeData: Data = Data()
+    
+    @Published var theme: AppTheme = .dark {
+        didSet {
+            publishTheme()
+        }
+    }
+    
+    init() {
+        if !storedThemeData.isEmpty,
+           let decoded = try? JSONDecoder().decode(AppTheme.self, from: storedThemeData) {
+            theme = decoded
+        } else {
+            theme = .dark
+        }
+        publishTheme()
+    }
+    
+    func saveUserTheme() {
+        if let data = try? JSONEncoder().encode(theme) {
+            storedThemeData = data
+        }
+    }
+    
+    private func publishTheme() {}
+}
+
 #Preview {
     MainContentView()
 }
-

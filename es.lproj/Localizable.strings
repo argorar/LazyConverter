@@ -15,6 +15,7 @@
 "advanced.options" = "Opciones";
 "advanced.gpu" = "Procesamiento GPU";
 "advanced.language" = "Idioma";
+"advanced.theme" = "Tema";
 "button.start" = "Inicio";
 "button.end" = "Fin";
 "button.clear" = "Limpiar";
@@ -67,3 +68,5 @@
 "framerate.target" = "FPS objetivo";
 "framerate.interpolate.warning" = "La interpolación de movimiento requiere más tiempo de procesamiento";
 "loop.title" = "Bucle";
+"theme.dark" = "Oscuro";
+"theme.light" = "Claro";
