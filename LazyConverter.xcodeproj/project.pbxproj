@@ -11,7 +11,6 @@
 		685ED3472F01A92500053874 /* AVKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 685ED3462F01A92500053874 /* AVKit.framework */; settings = {ATTRIBUTES = (Required, ); }; };
 		685ED3492F01A96900053874 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 685ED3482F01A96900053874 /* AVFoundation.framework */; };
 		68E424F72F08780300D80375 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 68E424F52F08780300D80375 /* Localizable.strings */; };
-		68E424FA2F08781500D80375 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 68E424F82F08781500D80375 /* Localizable.strings */; };
 		68FBEBE12EFD7379003E8CA4 /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = 68FBEBDF2EFD7379003E8CA4 /* ffmpeg */; };
 		68FBEBE22EFD7379003E8CA4 /* ffprobe in Resources */ = {isa = PBXBuildFile; fileRef = 68FBEBE02EFD7379003E8CA4 /* ffprobe */; };
 /* End PBXBuildFile section */
@@ -19,10 +18,11 @@
 /* Begin PBXFileReference section */
 		680BBC862F003E95004DDE8B /* lazy.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = lazy.icon; sourceTree = "<group>"; };
 		6817341E2EFBA7BC008EFEF2 /* LazyConverter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LazyConverter.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		68273F002F36FE8F00410061 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		685ED3462F01A92500053874 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
 		685ED3482F01A96900053874 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		68BD1F582F37744200EDD361 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		68E424F62F08780300D80375 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
-		68E424F92F08781500D80375 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		68FBEBDF2EFD7379003E8CA4 /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		68FBEBE02EFD7379003E8CA4 /* ffprobe */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffprobe; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -56,7 +56,6 @@
 				68FBEBDF2EFD7379003E8CA4 /* ffmpeg */,
 				68FBEBE02EFD7379003E8CA4 /* ffprobe */,
 				680BBC862F003E95004DDE8B /* lazy.icon */,
-				68E424F82F08781500D80375 /* Localizable.strings */,
 				685ED3452F01A92500053874 /* Frameworks */,
 				68E424F52F08780300D80375 /* Localizable.strings */,
 			);
@@ -126,6 +125,7 @@
 				en,
 				Base,
 				es,
+				de,
 			);
 			mainGroup = 681734152EFBA7BC008EFEF2;
 			minimizedProjectReferenceProxies = 1;
@@ -148,7 +148,6 @@
 				68E424F72F08780300D80375 /* Localizable.strings in Resources */,
 				68FBEBE22EFD7379003E8CA4 /* ffprobe in Resources */,
 				680BBC872F003E95004DDE8B /* lazy.icon in Resources */,
-				68E424FA2F08781500D80375 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -168,15 +167,9 @@
 		68E424F52F08780300D80375 /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
+				68BD1F582F37744200EDD361 /* en */,
 				68E424F62F08780300D80375 /* es */,
-			);
-			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
-		68E424F82F08781500D80375 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				68E424F92F08781500D80375 /* en */,
+				68273F002F36FE8F00410061 /* de */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
