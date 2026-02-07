@@ -143,6 +143,7 @@ struct VideoPanel: View {
             quality: Int(viewModel.quality),
             speedPercent: viewModel.speedPercent,
             useGPU: viewModel.useGPU,
+            loopEnabled: viewModel.loopEnabled,
             trimStart: viewModel.trimStart,
             trimEnd: viewModel.trimEnd,
             cropEnabled: viewModel.cropEnabled,

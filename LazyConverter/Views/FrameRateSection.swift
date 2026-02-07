@@ -57,29 +57,6 @@ struct FrameRateSection: View {
                     }
                 }
                 .padding(.top, 4)
-            }
-
-            if viewModel.frameRateSettings.mode == .interpolate {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(lang.t("framerate.quality"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Picker(lang.t("framerate.quality"), selection: $viewModel.frameRateSettings.quality) {
-                        ForEach(InterpolationQuality.allCases, id: \.self) { quality in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(quality.displayName)
-                                    .font(.system(size: 12))
-                                Text(quality.description)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
-                            }
-                            .tag(quality)
-                        }
-                    }
-                    .pickerStyle(.radioGroup)
-                }
-                .padding(.top, 4)
                 
                 // Warning
                 HStack(spacing: 6) {

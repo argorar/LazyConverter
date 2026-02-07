@@ -65,5 +65,5 @@
 "framerate.keep" = "Mantener original";
 "framerate.interpolate" = "Interpolar";
 "framerate.target" = "FPS objetivo";
-"framerate.quality" = "Calidad";
 "framerate.interpolate.warning" = "La interpolación de movimiento requiere más tiempo de procesamiento";
+"loop.title" = "Bucle";

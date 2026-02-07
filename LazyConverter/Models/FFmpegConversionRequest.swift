@@ -16,6 +16,7 @@ struct FFmpegConversionRequest {
     let quality: Int
     let speedPercent: Double
     let useGPU: Bool
+    let loopEnabled: Bool
     let trimStart: Double?
     let trimEnd: Double?
     let videoInfo: VideoInfo?
@@ -34,6 +35,7 @@ struct FFmpegConversionRequest {
         quality: Int,
         speedPercent: Double,
         useGPU: Bool,
+        loopEnabled: Bool,
         trimStart: Double? = nil,
         trimEnd: Double? = nil,
         videoInfo: VideoInfo?,
@@ -51,6 +53,7 @@ struct FFmpegConversionRequest {
         self.quality = quality
         self.speedPercent = speedPercent
         self.useGPU = useGPU
+        self.loopEnabled = loopEnabled
         self.trimStart = trimStart
         self.trimEnd = trimEnd
         self.videoInfo = videoInfo

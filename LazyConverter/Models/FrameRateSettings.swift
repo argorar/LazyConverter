@@ -10,7 +10,6 @@ import Foundation
 struct FrameRateSettings: Codable, Equatable {
     var mode: FrameRateMode = .keep
     var targetFrameRate: FrameRate = .fps60
-    var quality: InterpolationQuality = .medium
     
     var isActive: Bool {
         return mode != .keep
@@ -25,17 +24,7 @@ struct FrameRateSettings: Codable, Equatable {
    
                 case .interpolate:
                     let fps = targetFrameRate.ffmpegValue
-                    
-                    switch quality {
-                    case .fast:
-                        return "minterpolate=fps=\(fps):mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
-                        
-                    case .medium:
-                        return "minterpolate=fps=\(fps):mi_mode=mci:mc_mode=aobmc:me=epzs:vsbmc=1"
-                        
-                    case .high:
-                        return "minterpolate=fps=\(fps):mi_mode=mci:mc_mode=aobmc:me=umh:vsbmc=1:scd=fdiff"
-                    }
+                    return "minterpolate=fps=\(fps):mi_mode=mci:mc_mode=obmc:me=epzs:me_mode=bidir:vsbmc=1:scd=fdiff"
                 }
     }
 }
@@ -113,28 +102,6 @@ enum FrameRate: Double, CaseIterable, Codable {
         case .fps59_94: return "60000/1001"
         case .fps60: return "60"
         case .fps120: return "120"
-        }
-    }
-}
-
-enum InterpolationQuality: String, CaseIterable, Codable {
-    case fast = "fast"
-    case medium = "medium"
-    case high = "high"
-    
-    var displayName: String {
-        switch self {
-        case .fast: return "Fast (mci)"
-        case .medium: return "Medium (blend)"
-        case .high: return "High (minterpolate)"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .fast: return "Quick conversion, basic blending"
-        case .medium: return "Balanced quality and speed"
-        case .high: return "Best quality, slower processing"
         }
     }
 }

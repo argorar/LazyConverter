@@ -30,6 +30,7 @@ struct SettingsPanel: View {
             SpeedSliderPanel(viewModel: viewModel)
             FrameRateSection(viewModel: viewModel)
             trimSection
+            loopSection
             colorAdjustmentsSection
             advancedOptionsSection
             Spacer()
@@ -266,6 +267,25 @@ struct SettingsPanel: View {
         .padding(12)
         .background(Color(nsColor: .separatorColor).opacity(0.3))
         .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private var loopSection: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "repeat")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.accentColor)
+            Text(lang.t("loop.title"))
+                .font(.system(size: 14, weight: .semibold))
+            Toggle("", isOn: $viewModel.loopEnabled)
+                .toggleStyle(.switch)
+                .labelsHidden()
+            Spacer()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .separatorColor).opacity(0.5))
+        .cornerRadius(8)
     }
     
     @ViewBuilder

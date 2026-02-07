@@ -26,6 +26,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var videoInfo: VideoInfo?
     @Published var cropEnabled: Bool = false
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
+    @Published var loopEnabled: Bool = false
     @Published var liveCurrentTime: Double = 0
     @Published var trimStart: Double? = nil
     @Published var trimEnd: Double? = nil
@@ -90,6 +91,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             quality: Int(quality),
             speedPercent: speedPercent,
             useGPU: useGPU,
+            loopEnabled: loopEnabled,
             trimStart: trimStart,
             trimEnd: trimEnd,
             cropEnabled: cropEnabled,
@@ -130,6 +132,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         errorMessage = nil
         isProcessing = false
         cropEnabled = false
+        loopEnabled = false
         resetColorAdjustments()
     }
     
@@ -177,6 +180,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             quality: Int(quality),
             speedPercent: speedPercent,
             useGPU: useGPU,
+            loopEnabled: loopEnabled,
             trimStart: trimStartSeconds,
             trimEnd: trimEndSeconds,
             videoInfo: videoInfo,

@@ -65,12 +65,56 @@ class FFmpegConverter {
         
         // 4) Ejecutar en background
         DispatchQueue.global(qos: .userInitiated).async {
-            self.executeFFmpeg(
-                executablePath: ffmpegPath,
-                arguments: arguments,
-                videoDuration: effectiveDuration,
-                completionCallback: request.completionCallback
-            )
+            if request.loopEnabled {
+                let tempOutputURL = self.makeTemporaryOutputURL(
+                    in: request.outputURL.deletingLastPathComponent(),
+                    baseName: request.outputURL.deletingPathExtension().lastPathComponent,
+                    fileExtension: request.outputURL.pathExtension
+                )
+                
+                var firstPassArgs = arguments
+                if !firstPassArgs.isEmpty {
+                    firstPassArgs[firstPassArgs.count - 1] = tempOutputURL.path
+                }
+                
+                self.executeFFmpeg(
+                    executablePath: ffmpegPath,
+                    arguments: firstPassArgs,
+                    videoDuration: effectiveDuration,
+                    completionCallback: { result in
+                        switch result {
+                        case .success:
+                            let boomerangArgs = self.buildBoomerangCommand(
+                                inputURL: tempOutputURL,
+                                outputURL: request.outputURL,
+                                format: request.format,
+                                quality: request.quality,
+                                useGPU: request.useGPU,
+                                hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                            )
+                            
+                            self.executeFFmpeg(
+                                executablePath: ffmpegPath,
+                                arguments: boomerangArgs,
+                                videoDuration: effectiveDuration * 2,
+                                completionCallback: { secondResult in
+                                    try? FileManager.default.removeItem(at: tempOutputURL)
+                                    request.completionCallback(secondResult)
+                                }
+                            )
+                        case .failure(let error):
+                            request.completionCallback(.failure(error))
+                        }
+                    }
+                )
+            } else {
+                self.executeFFmpeg(
+                    executablePath: ffmpegPath,
+                    arguments: arguments,
+                    videoDuration: effectiveDuration,
+                    completionCallback: request.completionCallback
+                )
+            }
         }
     }
     
@@ -210,6 +254,52 @@ class FFmpegConverter {
         print("  \(arguments.joined(separator: " "))")
         
         return arguments
+    }
+
+    private func buildBoomerangCommand(
+        inputURL: URL,
+        outputURL: URL,
+        format: VideoFormat,
+        quality: Int,
+        useGPU: Bool,
+        hasAudio: Bool
+    ) -> [String] {
+        var arguments: [String] = ["-i", inputURL.path]
+        let (videoCodec, audioCodec) = codecForFormat(format, useGPU: useGPU)
+        
+        if hasAudio {
+            arguments += [
+                "-filter_complex",
+                "[0:v]reverse[vrev];[0:a]areverse[arev];[0:v][0:a][vrev][arev]concat=n=2:v=1:a=1[v][a]",
+                "-map", "[v]",
+                "-map", "[a]",
+                "-c:v", videoCodec,
+                "-c:a", audioCodec,
+                "-b:a", "128k"
+            ]
+        } else {
+            arguments += [
+                "-filter_complex",
+                "[0:v]reverse[vrev];[0:v][vrev]concat=n=2:v=1:a=0[v]",
+                "-map", "[v]",
+                "-c:v", videoCodec
+            ]
+        }
+        
+        arguments += ["-crf", "\(quality)"]
+        arguments += [
+            "-progress", "pipe:1",
+            "-y",
+            outputURL.path
+        ]
+        
+        return arguments
+    }
+
+    private func makeTemporaryOutputURL(in directory: URL, baseName: String, fileExtension: String) -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let filename = "\(baseName)_tmp_\(timestamp).\(fileExtension)"
+        return directory.appendingPathComponent(filename)
     }
 
     private func codecForFormat(_ format: VideoFormat, useGPU: Bool) -> (video: String, audio: String) {

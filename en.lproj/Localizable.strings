@@ -65,5 +65,5 @@
 "framerate.keep" = "Keep Original";
 "framerate.interpolate" = "Interpolate";
 "framerate.target" = "Target Frame Rate";
-"framerate.quality" = "Quality";
 "framerate.interpolate.warning" = "Motion interpolation requires more processing time";
+"loop.title" = "Loop";

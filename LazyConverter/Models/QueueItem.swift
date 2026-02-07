@@ -23,6 +23,7 @@ struct QueueItem: Identifiable, Equatable {
     let quality: Int
     let speedPercent: Double
     let useGPU: Bool
+    let loopEnabled: Bool
     let trimStart: Double?
     let trimEnd: Double?
     let cropEnabled: Bool
@@ -38,6 +39,7 @@ struct QueueItem: Identifiable, Equatable {
         self.quality = settings.quality
         self.speedPercent = settings.speedPercent
         self.useGPU = settings.useGPU
+        self.loopEnabled = settings.loopEnabled
         self.trimStart = settings.trimStart
         self.trimEnd = settings.trimEnd
         self.cropEnabled = settings.cropEnabled
@@ -81,6 +83,7 @@ struct ConversionSettings {
     let quality: Int
     let speedPercent: Double
     let useGPU: Bool
+    let loopEnabled: Bool
     let trimStart: Double?
     let trimEnd: Double?
     let cropEnabled: Bool
