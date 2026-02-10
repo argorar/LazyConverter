@@ -15,6 +15,7 @@
 "advanced.options" = "Opciones";
 "advanced.gpu" = "Procesamiento GPU";
 "advanced.language" = "Idioma";
+"advanced.output" = "Destino";
 "advanced.theme" = "Tema";
 "button.start" = "Inicio";
 "button.end" = "Fin";
@@ -70,3 +71,7 @@
 "loop.title" = "Bucle";
 "theme.dark" = "Oscuro";
 "theme.light" = "Claro";
+"output.downloads" = "Descargas";
+"output.documents" = "Documentos";
+"output.movies" = "Videos";
+"output.desktop" = "Escritorio";

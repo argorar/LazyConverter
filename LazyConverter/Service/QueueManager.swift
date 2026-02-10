@@ -78,7 +78,7 @@ class QueueManager: ObservableObject {
         queue[index] = item
         
         // Output path
-        let outputDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        let outputDir = item.outputDirectory.resolveURL()
         let outputFilename = (item.filename as NSString).deletingPathExtension + "_converted.\(item.format.rawValue)"
         let outputURL = outputDir.appendingPathComponent(outputFilename)
         

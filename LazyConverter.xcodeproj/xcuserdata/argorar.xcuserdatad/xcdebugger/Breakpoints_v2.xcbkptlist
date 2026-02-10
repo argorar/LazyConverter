@@ -14,8 +14,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "433"
-            endingLineNumber = "433"
+            startingLineNumber = "424"
+            endingLineNumber = "424"
             landmarkName = "parseFFmpegOutput(_:videoDuration:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -193,6 +193,22 @@
             startingLineNumber = "88"
             endingLineNumber = "88"
             landmarkName = "convert(_:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8F1AA88C-9E05-4C60-8848-0257D0A074FB"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LazyConverter/Service/FFmpegConverter.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "299"
+            endingLineNumber = "299"
+            landmarkName = "executeFFmpeg(executablePath:arguments:videoDuration:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

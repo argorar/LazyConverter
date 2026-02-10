@@ -24,6 +24,7 @@ struct QueueItem: Identifiable, Equatable {
     let speedPercent: Double
     let useGPU: Bool
     let loopEnabled: Bool
+    let outputDirectory: OutputDirectory
     let trimStart: Double?
     let trimEnd: Double?
     let cropEnabled: Bool
@@ -40,6 +41,7 @@ struct QueueItem: Identifiable, Equatable {
         self.speedPercent = settings.speedPercent
         self.useGPU = settings.useGPU
         self.loopEnabled = settings.loopEnabled
+        self.outputDirectory = settings.outputDirectory
         self.trimStart = settings.trimStart
         self.trimEnd = settings.trimEnd
         self.cropEnabled = settings.cropEnabled
@@ -84,6 +86,7 @@ struct ConversionSettings {
     let speedPercent: Double
     let useGPU: Bool
     let loopEnabled: Bool
+    let outputDirectory: OutputDirectory
     let trimStart: Double?
     let trimEnd: Double?
     let cropEnabled: Bool

@@ -12,6 +12,7 @@ import SwiftUI
 import Foundation
 
 class VideoConversionViewModel: NSObject, ObservableObject {
+    @AppStorage("selectedOutputDirectory") private var storedOutputDirectory: String = OutputDirectory.downloads.rawValue
     
     @Published var selectedFileName: String?
     @Published var selectedFormat: VideoFormat = .mp4
@@ -36,6 +37,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var queueManager = QueueManager()
     @Published var showQueueWindow = false
     @Published var frameRateSettings = FrameRateSettings()
+    @Published var outputDirectory: OutputDirectory = .downloads
     
     @Published var selectedFileURL: URL? {
         didSet {
@@ -48,6 +50,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     var lang: LanguageManager?
     override init() {
         super.init()
+        outputDirectory = OutputDirectory(rawValue: storedOutputDirectory) ?? .downloads
     }
     
     var brightness: Binding<Double> {
@@ -92,6 +95,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             speedPercent: speedPercent,
             useGPU: useGPU,
             loopEnabled: loopEnabled,
+            outputDirectory: outputDirectory,
             trimStart: trimStart,
             trimEnd: trimEnd,
             cropEnabled: cropEnabled,
@@ -135,6 +139,10 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         loopEnabled = false
         resetColorAdjustments()
     }
+
+    func persistOutputDirectory() {
+        storedOutputDirectory = outputDirectory.rawValue
+    }
     
     func startConversion() {
         guard let inputURL = selectedFileURL else {
@@ -148,8 +156,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         errorMessage = nil
         
         // Crear ruta de salida
-        let fileManager = FileManager.default
-        let tempDir = fileManager.temporaryDirectory
+        let outputDir = outputDirectory.resolveURL()
         let timestamp = Int(Date().timeIntervalSince1970)
     
         var extention = "mp4"
@@ -162,7 +169,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             extention = selectedFormat.rawValue
         }
         let outputFileName = "converted_\(timestamp).\(extention)"
-        let outputURL = tempDir.appendingPathComponent(outputFileName)
+        let outputURL = outputDir.appendingPathComponent(outputFileName)
         self.outputFileURL = outputURL
         
         let trimStartSeconds: Double? = trimStart

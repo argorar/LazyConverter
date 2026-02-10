@@ -308,6 +308,20 @@ struct SettingsPanel: View {
                     }
                 }
                 HStack {
+                    Text(lang.t("advanced.output"))
+                    Spacer()
+                    Picker("", selection: $viewModel.outputDirectory) {
+                        ForEach(OutputDirectory.allCases) { option in
+                            Text(lang.t("output.\(option.rawValue)")).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                    .onChange(of: viewModel.outputDirectory) { oldValue, newValue in
+                        viewModel.persistOutputDirectory()
+                    }
+                }
+                HStack {
                     Text(lang.t("advanced.theme"))
                     Spacer()
                     Picker("", selection: $theme.theme) {

@@ -289,15 +289,6 @@ class FFmpegConverter {
         }
     }
 
-    func buildColorFilters(brightness: Double, contrast: Double, gamma: Double, saturation: Double) -> String {
-        var filters: [String] = []
-        
-        let eqFilter = "eq=brightness=\(brightness):contrast=\(contrast):gamma=\(gamma):saturation=\(saturation)"
-        filters.append(eqFilter)
-        
-        return filters.joined(separator: ",")
-    }
-
     private func executeFFmpeg(
         executablePath: String,
         arguments: [String],
@@ -536,7 +527,7 @@ class FFmpegConverter {
     
     
     func isFfmpegInstalled() -> Bool {
-        FileManager.default.fileExists(atPath: findFFmpeg())
+        FileManager.default.isExecutableFile(atPath: findFFmpeg())
     }
     
     private func findFFmpeg() -> String {

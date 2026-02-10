@@ -144,6 +144,7 @@ struct VideoPanel: View {
             speedPercent: viewModel.speedPercent,
             useGPU: viewModel.useGPU,
             loopEnabled: viewModel.loopEnabled,
+            outputDirectory: viewModel.outputDirectory,
             trimStart: viewModel.trimStart,
             trimEnd: viewModel.trimEnd,
             cropEnabled: viewModel.cropEnabled,
