@@ -77,12 +77,21 @@ struct SettingsPanel: View {
     @ViewBuilder
     private var formatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker(lang.t("format.title"), selection: $viewModel.selectedFormat) {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("format.title"))
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+            }
+            Picker("", selection: $viewModel.selectedFormat) {
                 ForEach(VideoFormat.allCases, id: \.self) { format in
                     Text(format.displayName).tag(format)
                 }
             }
             .pickerStyle(.segmented)
+            .frame(maxWidth: .infinity)
         }
         .padding(12)
         .frame(maxWidth: .infinity)

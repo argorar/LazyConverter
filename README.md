@@ -32,7 +32,7 @@ Automatically shows:
 - Resolution (width × height)
 - Duration
 - File size
-- **Frame rate (FPS)**
+- Frame rate (FPS)
 
 ### ▶️ Smart Preview
 - Native **AVPlayer** integration
@@ -43,11 +43,16 @@ Automatically shows:
 
 1. **Drag & drop** a video file or click to select
 2. **Adjust settings**:
-   - Format (MP4/MKV)
+   - Format (MP4/MKV/AV1/WebM)
    - Resolution & quality
-   - Speed, trim, crop (optional)
-3. **Click Convert** → outputs to temp folder
+   - Speed, trim, crop, color, interpolation
+3. **Click Convert**
 4. **Success banner** appears when done
+
+## ⬇️ Downloads
+
+- **LazyConverter-Standalone**: Includes FFmpeg and FFprobe inside the app bundle. Works out of the box.
+- **LazyConverter**: Smaller app that uses your installed FFmpeg/FFprobe (`/usr/local/bin` or `/opt/homebrew/bin`).
 
 
 <div align="center">
@@ -56,4 +61,3 @@ Automatically shows:
 **LazyConverter · Convert videos without effort**
 
 </div>
-

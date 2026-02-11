@@ -48,12 +48,14 @@ struct CropOverlayView: View {
                             .blendMode(.destinationOut)
                     )
                     .compositingGroup()
+                    .allowsHitTesting(false)
 
                 // Borde del crop
                 Rectangle()
                     .stroke(Color.white, lineWidth: 2)
                     .frame(width: cropPixelRect.width, height: cropPixelRect.height)
                     .position(x: cropPixelRect.midX, y: cropPixelRect.midY)
+                    .allowsHitTesting(false)
 
                 // Handles
                 handleView(corner: .topLeft, rect: cropPixelRect, videoFrame: videoFrame)
@@ -80,6 +82,7 @@ struct CropOverlayView: View {
                         .cornerRadius(4)
                 }
                 .position(x: cropPixelRect.midX, y: cropPixelRect.minY - 20)
+                .allowsHitTesting(false)
             }
             .focusable(true)
             .focused($isFocused)
@@ -257,4 +260,3 @@ struct CropOverlayView: View {
         }
     }
 }
-
