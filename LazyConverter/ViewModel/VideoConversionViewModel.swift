@@ -23,6 +23,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var progress: Double = 0
     @Published var statusMessage = ""
     @Published var errorMessage: String?
+    @Published var errorLog: String?
     @Published var speedPercent: Double = 100.0 // 0.0 - 200.0
     @Published var videoInfo: VideoInfo?
     @Published var cropEnabled: Bool = false
@@ -134,6 +135,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         progress = 0
         statusMessage = ""
         errorMessage = nil
+        errorLog = nil
         isProcessing = false
         cropEnabled = false
         loopEnabled = false
@@ -154,6 +156,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         progress = 0
         statusMessage = lang?.t("status.preparing_conversion") ?? "Preparing conversion..."
         errorMessage = nil
+        errorLog = nil
         
         // Crear ruta de salida
         let outputDir = outputDirectory.resolveURL()
@@ -248,6 +251,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         case .failure(let error):
             isProcessing = false
             errorMessage = error.errorDescription
+            errorLog = FFmpegConverter.shared.lastErrorLog
             statusMessage = lang?.t("status.conversion_error") ?? "Conversion error"
         }
     }

@@ -10,6 +10,7 @@ import SwiftUI
 struct BottomControlsPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
+    @State private var showErrorLog = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -25,6 +26,15 @@ struct BottomControlsPanel: View {
                         
                         Spacer()
                         
+                        if let log = viewModel.errorLog, !log.isEmpty {
+                            Button(action: { showErrorLog = true }) {
+                                Text(lang.t("error.view_log"))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        
                         Button(action: { viewModel.errorMessage = nil }) {
                             Image(systemName: "xmark.circle")
                                 .foregroundColor(.red)
@@ -35,6 +45,30 @@ struct BottomControlsPanel: View {
                 .padding(12)
                 .background(Color.red.opacity(0.1))
                 .cornerRadius(8)
+                .sheet(isPresented: $showErrorLog) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(lang.t("error.log_title"))
+                            .font(.system(size: 14, weight: .semibold))
+                        ScrollView {
+                            Text(viewModel.errorLog ?? "")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                        }
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .cornerRadius(6)
+                        
+                        HStack {
+                            Spacer()
+                            Button(lang.t("error.log_close")) {
+                                showErrorLog = false
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .frame(minWidth: 520, minHeight: 300)
+                }
             }
             
             // Progress Bar
@@ -214,4 +248,3 @@ struct BottomControlsPanel: View {
         }
     }
 }
-

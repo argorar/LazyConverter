@@ -12,6 +12,7 @@ class FFmpegConverter {
     
     private var process: Process?
     private var progressCallback: ((Double) -> Void)?
+    private(set) var lastErrorLog: String?
     
     func convert(_ request: FFmpegConversionRequest) {
         self.progressCallback = request.progressCallback
@@ -177,10 +178,7 @@ class FFmpegConverter {
                           "-lag-in-frames", "25"]
         }
         else if request.format == .mp4 {
-            arguments += ["-preset", "veryslow",
-            "-tune", "film",
-            "-rc-lookahead", "60",
-            "-aq-mode", "3"]
+            arguments += ["-preset", "veryslow"]
         }
         else if request.format == .av1
         {
@@ -189,9 +187,7 @@ class FFmpegConverter {
                           "-svtav1-params", "scm=0"]
         }
         
-        
-        
-        arguments += ["-crf", "\(request.quality)"]  // 0-51 (menor=mejor)
+        arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
         
         
         if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0) {
@@ -256,7 +252,7 @@ class FFmpegConverter {
             ]
         }
         
-        arguments += ["-crf", "\(quality)"]
+        arguments += qualityArguments(videoCodec: videoCodec, crf: quality)
         arguments += [
             "-progress", "pipe:1",
             "-y",
@@ -287,6 +283,17 @@ class FFmpegConverter {
         case .webm:
             return ("libvpx-vp9", "libopus")
         }
+    }
+
+    private func qualityArguments(videoCodec: String, crf: Int) -> [String] {
+        if videoCodec == "h264_videotoolbox" {
+            // Map CRF 1-51 (lower is better) to q:v 1-100 (higher is better)
+            let clampedCrf = max(1, min(51, crf))
+            let normalized = (51.0 - Double(clampedCrf)) / 50.0
+            let qv = Int(round(normalized * 99.0 + 1.0))
+            return ["-q:v", "\(qv)"]
+        }
+        return ["-crf", "\(crf)"]
     }
 
     private func executeFFmpeg(
@@ -373,8 +380,10 @@ class FFmpegConverter {
             if finished { return } // ya finalizó por progress=end
 
             if process.terminationStatus == 0 {
+                self.lastErrorLog = nil
                 finish(.success(URL(fileURLWithPath: arguments.last ?? "")))
             } else {
+                self.lastErrorLog = stderrBuffer.isEmpty ? nil : stderrBuffer
                 finish(.failure(.conversionFailed))
             }
         }
@@ -384,6 +393,7 @@ class FFmpegConverter {
             print("▶️ FFmpeg iniciado (PID: \(process.processIdentifier))")
         } catch {
             print("❌ Error al iniciar FFmpeg: \(error)")
+            self.lastErrorLog = error.localizedDescription
             finish(.failure(.executionFailed(error.localizedDescription)))
         }
     }
@@ -579,17 +589,29 @@ enum FFmpegError: LocalizedError {
     case executionFailed(String)
     
     var errorDescription: String? {
+        func localized(_ key: String, fallback: String) -> String {
+            let userDefaults = UserDefaults.standard
+            if let data = userDefaults.data(forKey: "selectedLanguage"),
+               let language = try? JSONDecoder().decode(AppLanguage.self, from: data),
+               let path = Bundle.main.path(forResource: language.rawValue, ofType: "lproj"),
+               let bundle = Bundle(path: path) {
+                return NSLocalizedString(key, tableName: nil, bundle: bundle, value: fallback, comment: "")
+            }
+            return NSLocalizedString(key, tableName: nil, bundle: .main, value: fallback, comment: "")
+        }
+        
         switch self {
         case .ffmpegNotFound:
-            return "FFmpeg no está instalado. Instala con: brew install ffmpeg"
+            return localized("error.ffmpeg_not_found", fallback: "FFmpeg is not installed. Install with: brew install ffmpeg")
         case .ffprobeNotFound:
-            return "FFprobe no está disponible"
+            return localized("error.ffprobe_not_found", fallback: "FFprobe is not available")
         case .cannotGetDuration:
-            return "No se pudo obtener la duración del video"
+            return localized("error.cannot_get_duration", fallback: "Unable to get video duration")
         case .conversionFailed:
-            return "La conversión de video falló"
+            return localized("error.conversion_failed", fallback: "Video conversion failed")
         case .executionFailed(let reason):
-            return "Error al ejecutar FFmpeg: \(reason)"
+            let format = localized("error.execution_failed_format", fallback: "Error executing FFmpeg: %@")
+            return String(format: format, reason)
         }
     }
 }

@@ -36,6 +36,14 @@
 "progress.title" = "Working..";
 "progress.status" = "progress..";
 "error.no_file_selected" = "No file selected";
+"error.ffmpeg_not_found" = "FFmpeg is not installed. Install with: brew install ffmpeg";
+"error.ffprobe_not_found" = "FFprobe is not available";
+"error.cannot_get_duration" = "Unable to get video duration";
+"error.conversion_failed" = "Video conversion failed";
+"error.execution_failed_format" = "Error executing FFmpeg: %@";
+"error.view_log" = "View log";
+"error.log_title" = "FFmpeg Error Log";
+"error.log_close" = "Close";
 "status.preparing_conversion" = "Preparing conversion…";
 "status.conversion_cancelled" = "Conversion cancelled";
 "status.processing_progress_time" = "Processing…";

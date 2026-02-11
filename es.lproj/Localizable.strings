@@ -36,6 +36,14 @@
 "progress.title" = "Trabajando..";
 "progress.status" = "progreso..";
 "error.no_file_selected" = "No hay archivo seleccionado";
+"error.ffmpeg_not_found" = "FFmpeg no está instalado. Instala con: brew install ffmpeg";
+"error.ffprobe_not_found" = "FFprobe no está disponible";
+"error.cannot_get_duration" = "No se pudo obtener la duración del video";
+"error.conversion_failed" = "La conversión de video falló";
+"error.execution_failed_format" = "Error al ejecutar FFmpeg: %@";
+"error.view_log" = "Ver log";
+"error.log_title" = "Log de error de FFmpeg";
+"error.log_close" = "Cerrar";
 "status.preparing_conversion" = "Preparando conversión…";
 "status.conversion_cancelled" = "Conversión cancelada";
 "status.processing_progress_time" = "Procesando…";
