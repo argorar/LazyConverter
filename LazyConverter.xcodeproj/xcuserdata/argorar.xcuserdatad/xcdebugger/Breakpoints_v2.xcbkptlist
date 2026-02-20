@@ -16,8 +16,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "419"
             endingLineNumber = "419"
-            landmarkName = "parseFFmpegOutput(_:videoDuration:)"
-            landmarkType = "7">
+            landmarkName = "finish(_:)"
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -48,8 +48,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "118"
             endingLineNumber = "118"
-            landmarkName = "canConvert"
-            landmarkType = "24">
+            landmarkName = "resetCrop()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -62,9 +62,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "135"
-            endingLineNumber = "135"
-            landmarkName = "clearSelection()"
+            startingLineNumber = "134"
+            endingLineNumber = "134"
+            landmarkName = "addCurrentVideoToQueue()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -78,25 +78,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "271"
-            endingLineNumber = "271"
-            landmarkName = "formatTime(secondsElapsed:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "182C0253-2EAA-4BB0-9DC4-01C83E81A0A7"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "285"
-            endingLineNumber = "285"
-            landmarkName = "checkForUpdates()"
+            startingLineNumber = "255"
+            endingLineNumber = "255"
+            landmarkName = "nearestDynamicKeyframe(to:toleranceFrames:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -110,9 +94,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "284"
-            endingLineNumber = "284"
-            landmarkName = "checkForUpdates()"
+            startingLineNumber = "268"
+            endingLineNumber = "268"
+            landmarkName = "ensureStartDynamicKeyframe()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -126,9 +110,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "299"
-            endingLineNumber = "299"
-            landmarkName = "getCurrentVersion()"
+            startingLineNumber = "278"
+            endingLineNumber = "278"
+            landmarkName = "ensureEndDynamicKeyframeForConversion()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -158,9 +142,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "220"
-            endingLineNumber = "220"
-            landmarkName = "stopConversion()"
+            startingLineNumber = "214"
+            endingLineNumber = "214"
+            landmarkName = "recordDynamicCrop(at:frameRate:cropRect:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -174,9 +158,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "226"
-            endingLineNumber = "226"
-            landmarkName = "updateStatusMessage(progress:)"
+            startingLineNumber = "220"
+            endingLineNumber = "220"
+            landmarkName = "recordDynamicCrop(at:frameRate:cropRect:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -208,7 +192,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "294"
             endingLineNumber = "294"
-            landmarkName = "qualityArguments(videoCodec:crf:)"
+            landmarkName = "resolvedClipBounds(_:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

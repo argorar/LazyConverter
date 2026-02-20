@@ -20,7 +20,7 @@ struct MainContentView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 8) {
-                HeaderView()
+                HeaderView(viewModel: viewModel)
                     .padding(.leading, 8)
                 
                 Divider()

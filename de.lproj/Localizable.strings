@@ -26,8 +26,12 @@
 "update.message" = "LazyConverter hat eine neue Version verfügbar.";
 "update.download" = "Herunterladen";
 "update.cancel" = "Abbrechen";
+"update.button" = "Update";
 "crop.enable" = "Zuschneiden";
+"crop.dynamic" = "Dynamisch";
 "crop.reset" = "Zuschneidebereich zurücksetzen";
+"crop.keyframes" = "Schlüsselbilder";
+"crop.dynamicInfo" = "Dynamic speichert Crop-Schlüsselbilder über die Zeit und interpoliert die Bewegung dazwischen.";
 "speed.title" = "Videogeschwindigkeit";
 "action.convert" = "Konvertieren";
 "action.stop" = "Stopp";

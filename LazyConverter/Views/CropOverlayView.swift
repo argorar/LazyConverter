@@ -11,6 +11,7 @@ struct CropOverlayView: View {
     @Binding var cropRect: CGRect
     let videoSize: CGSize
     let playerFrame: CGRect
+    let onCropDragged: ((CGRect) -> Void)?
     @FocusState private var isFocused: Bool
 
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight, body }
@@ -257,6 +258,7 @@ struct CropOverlayView: View {
 
         DispatchQueue.main.async {
             cropRect = rect
+            onCropDragged?(rect)
         }
     }
 }

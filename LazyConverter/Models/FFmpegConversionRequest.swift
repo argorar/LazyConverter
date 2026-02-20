@@ -21,6 +21,8 @@ struct FFmpegConversionRequest {
     let trimEnd: Double?
     let videoInfo: VideoInfo?
     let cropEnable: Bool
+    let cropDynamicEnabled: Bool
+    let cropDynamicKeyframes: [CropDynamicKeyframe]
     let cropRec: CGRect?
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
@@ -40,6 +42,8 @@ struct FFmpegConversionRequest {
         trimEnd: Double? = nil,
         videoInfo: VideoInfo?,
         cropEnable: Bool,
+        cropDynamicEnabled: Bool = false,
+        cropDynamicKeyframes: [CropDynamicKeyframe] = [],
         cropRec: CGRect? = nil,
         colorAdjustments: ColorAdjustments = .default,
         frameRateSettings: FrameRateSettings,
@@ -58,6 +62,8 @@ struct FFmpegConversionRequest {
         self.trimEnd = trimEnd
         self.videoInfo = videoInfo
         self.cropEnable = cropEnable
+        self.cropDynamicEnabled = cropDynamicEnabled
+        self.cropDynamicKeyframes = cropDynamicKeyframes
         self.cropRec = cropRec
         self.colorAdjustments = colorAdjustments
         self.frameRateSettings = frameRateSettings

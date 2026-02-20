@@ -10,6 +10,7 @@ import SwiftUI
 
 struct HeaderView: View {
     @EnvironmentObject var lang: LanguageManager
+    @ObservedObject var viewModel: VideoConversionViewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -25,6 +26,20 @@ struct HeaderView: View {
                     
                     Spacer()
                     
+                    
+                    if viewModel.hasUpdateAvailable {
+                        Button(lang.t("update.button")) {
+                            viewModel.openUpdateDialog()
+                        }
+                        .font(.system(size: 12, weight: .semibold, design: .default))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor)
+                        .cornerRadius(6)
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 6)
+                    }
                     
                     Text(Bundle.main.appVersion)
                         .font(.system(size: 12, weight: .semibold, design: .default))

@@ -96,6 +96,8 @@ class QueueManager: ObservableObject {
                 trimEnd: item.trimEnd,
                 videoInfo: nil,
                 cropEnable: item.cropEnabled,
+                cropDynamicEnabled: false,
+                cropDynamicKeyframes: [],
                 cropRec: item.cropRect,
                 colorAdjustments: item.colorAdjustments,
                 frameRateSettings: item.frameRateSettings,

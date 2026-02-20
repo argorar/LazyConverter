@@ -19,6 +19,7 @@ struct VideoPreviewPanel: View {
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
     @State private var timer: Timer? = nil
+    @State private var isSeekingToTrimBound = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -33,7 +34,21 @@ struct VideoPreviewPanel: View {
                         GeometryReader { geo in
                             CropOverlayView(cropRect: $viewModel.cropRect,
                                 videoSize: CGSize(width: Double((videoInfo?.videoSize.width ?? 200)), height: Double((videoInfo?.videoSize.height ?? 500))),
-                                playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height)
+                                playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height),
+                                onCropDragged: { cropRect in
+                                    let playerTime = player?.currentTime().seconds
+                                    let currentFrameTime: Double
+                                    if let playerTime, playerTime.isFinite {
+                                        currentFrameTime = playerTime
+                                    } else {
+                                        currentFrameTime = currentTime
+                                    }
+                                    viewModel.recordDynamicCrop(
+                                        at: max(0, currentFrameTime),
+                                        frameRate: videoInfo?.frameRate,
+                                        cropRect: cropRect
+                                    )
+                                }
                             )
                         }
                     }
@@ -94,10 +109,25 @@ struct VideoPreviewPanel: View {
             setupPlayerObserver()
         }
         .onChange(of: viewModel.speedPercent) { oldValue, newValue in
-            updatePlayerRate(newValue)
+            updatePlayerRate(newValue, allowStartPlayback: false)
         }
         .onChange(of: viewModel.colorAdjustments){ oldValue, newValue in
             applyVideoFilters()
+        }
+        .onChange(of: viewModel.trimStart) { oldValue, newValue in
+            if let player = player {
+                enforceTrimBoundsIfNeeded(for: player)
+            }
+        }
+        .onChange(of: viewModel.trimEnd) { oldValue, newValue in
+            if let player = player {
+                enforceTrimBoundsIfNeeded(for: player)
+            }
+        }
+        .onChange(of: viewModel.cropDynamicEnabled) { oldValue, newValue in
+            guard newValue, let player = player else { return }
+            let start = max(0, viewModel.trimStart ?? 0)
+            seekToTrimBound(player: player, seconds: start, keepPlaying: false)
         }
     }
     
@@ -133,14 +163,22 @@ struct VideoPreviewPanel: View {
             
             // Detectar PLAY (rate > 0)
             if rate > 0.01 {
+                enforceTrimBoundsIfNeeded(for: player)
                 updatePlayerRate(viewModel.speedPercent)
             }
         }
     
     
-    private func updatePlayerRate(_ speedPercent: Double) {
+    private func updatePlayerRate(_ speedPercent: Double, allowStartPlayback: Bool = true) {
+        guard let player = player else { return }
+        
+        let isPlaying = player.rate > 0.01
+        if !allowStartPlayback && !isPlaying {
+            return
+        }
+        
         let rate = Float(speedPercent / 100.0)  // 50% = 0.5x, 200% = 2.0x
-        player?.rate = rate
+        player.rate = rate
     }
     
     private func startLiveTimer() {
@@ -156,10 +194,53 @@ struct VideoPreviewPanel: View {
     
     private func updateLiveTime() {
         if let player = player {
+            enforceTrimBoundsIfNeeded(for: player)
+            if isSeekingToTrimBound { return }
+            
             let newTime = player.currentTime().seconds
             if !newTime.isNaN && newTime >= 0 {
                 currentTime = newTime
                 viewModel.liveCurrentTime = newTime
+            }
+        }
+    }
+    
+    private func enforceTrimBoundsIfNeeded(for player: AVPlayer) {
+        guard !isSeekingToTrimBound else { return }
+        
+        let currentSeconds = player.currentTime().seconds
+        guard !currentSeconds.isNaN && !currentSeconds.isInfinite else { return }
+        
+        let tolerance = 0.02
+        let start = viewModel.trimStart
+        let end = viewModel.trimEnd
+        
+        if let start, currentSeconds < (start - tolerance) {
+            seekToTrimBound(player: player, seconds: start, keepPlaying: player.rate > 0.01)
+            return
+        }
+        
+        if let end, currentSeconds > (end + tolerance) {
+            seekToTrimBound(player: player, seconds: end, keepPlaying: false)
+        }
+    }
+    
+    private func seekToTrimBound(player: AVPlayer, seconds: Double, keepPlaying: Bool) {
+        isSeekingToTrimBound = true
+        
+        let target = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+            DispatchQueue.main.async {
+                self.currentTime = max(0, seconds)
+                self.viewModel.liveCurrentTime = max(0, seconds)
+                
+                if keepPlaying {
+                    self.updatePlayerRate(self.viewModel.speedPercent)
+                } else {
+                    player.pause()
+                }
+                
+                self.isSeekingToTrimBound = false
             }
         }
     }

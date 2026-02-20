@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreGraphics
 
 class FFmpegConverter {
     static let shared = FFmpegConverter()
@@ -30,13 +31,7 @@ class FFmpegConverter {
             request.completionCallback(.failure(.ffmpegNotFound))
             return
         }
-        var effectiveDuration = 0.0
-        if let trimStart = request.trimStart, let trimEnd = request.trimEnd {
-            effectiveDuration = trimEnd - trimStart
-        }
-        else {
-            effectiveDuration = request.videoInfo?.duration ?? 0.0
-        }
+        let effectiveDuration = resolvedOutputDuration(request)
         
         // 3) Construir comando ffmpeg
         let arguments = self.buildFFmpegCommand(request)
@@ -108,13 +103,37 @@ class FFmpegConverter {
         var videoFilters: [String] = []
         var audioFilters: [String] = []
         var arguments: [String] = []
+        let usingDynamicCrop = request.cropEnable && request.cropDynamicEnabled && !request.cropDynamicKeyframes.isEmpty
+        let speed = request.speedPercent / 100.0
+        let hasSpeedChange = request.speedPercent != 100.0 && speed > 0
+        var hasMergedSetpts = false
         
         // 1. TRIM FILTER (prioridad máxima)
-        if let start = request.trimStart, let end = request.trimEnd {
-            videoFilters.append("trim=start=\(start):end=\(end),setpts=PTS-STARTPTS")
+        if let clipBounds = resolvedClipBounds(request) {
             if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 {
-                videoFilters.removeAll()
-                arguments += ["-ss", String(start), "-to", String(end)]
+                if request.trimStart != nil {
+                    arguments += ["-ss", dot(clipBounds.start)]
+                }
+                if request.trimEnd != nil {
+                    arguments += ["-to", dot(clipBounds.end)]
+                }
+            } else if !usingDynamicCrop {
+                var trimComponents: [String] = []
+                if request.trimStart != nil {
+                    trimComponents.append("start=\(dot(clipBounds.start))")
+                }
+                if request.trimEnd != nil {
+                    trimComponents.append("end=\(dot(clipBounds.end))")
+                }
+                
+                if !trimComponents.isEmpty {
+                    let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
+                    let setptsFilter = hasSpeedChange
+                        ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                        : "setpts=PTS-STARTPTS"
+                    videoFilters.append("trim=\(trimComponents.joined(separator: ":")),\(setptsFilter)")
+                    hasMergedSetpts = true
+                }
             }
         }
         arguments += ["-i", request.inputURL.path]
@@ -123,28 +142,41 @@ class FFmpegConverter {
             arguments += ["-pix_fmt", pixFmt]
         }
         
-        // 2. SPEED FILTER
-        if request.speedPercent != 100.0 {
-            let speed = request.speedPercent / 100.0
-            videoFilters.append("setpts=\(1/speed)*PTS")
-        }
-        
-        // Resolución (después de velocidad)
+        // Resolución
         if request.resolution != .original {
             let resolutionValue = request.resolution.ffmpegParam
             videoFilters.append("scale=\(resolutionValue):force_original_aspect_ratio=decrease")
             print("📏 Escalando a: \(resolutionValue)")
         }
         
-        //crop
-        if request.cropEnable, let cropRect = request.cropRec, let videoSize = request.videoInfo?.videoSize {
-            
-            let x = Int(cropRect.origin.x * videoSize.width)
-            let y = Int(cropRect.origin.y * videoSize.height)
-            let w = Int(cropRect.size.width * videoSize.width)
-            let h = Int(cropRect.size.height * videoSize.height)
-
-            videoFilters.append("crop=\(w):\(h):\(x):\(y)")
+        // crop
+        if request.cropEnable {
+            if request.cropDynamicEnabled, let videoInfo = request.videoInfo {
+                let sourceDuration = max(0.0, videoInfo.duration)
+                let clipStart = resolvedClipStart(request, sourceDuration: sourceDuration)
+                let clipEnd = resolvedClipEnd(request, sourceDuration: sourceDuration, start: clipStart)
+                let clipDuration = max(0.0, clipEnd - clipStart)
+                let setptsFilter = SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                
+                if let dynamicCrop = CropDynamicKeyframe.buildDynamicCropFilter(
+                    keyframes: request.cropDynamicKeyframes,
+                    sourceSize: videoInfo.videoSize,
+                    sourceDuration: sourceDuration,
+                    trimStart: request.trimStart,
+                    trimEnd: request.trimEnd,
+                    setptsFilter: setptsFilter
+                ) {
+                    videoFilters.append(dynamicCrop)
+                    hasMergedSetpts = true
+                }
+            } else if let cropRect = request.cropRec, let videoSize = request.videoInfo?.videoSize {
+                let x = Int(cropRect.origin.x * videoSize.width)
+                let y = Int(cropRect.origin.y * videoSize.height)
+                let w = Int(cropRect.size.width * videoSize.width)
+                let h = Int(cropRect.size.height * videoSize.height)
+                
+                videoFilters.append("crop=\(w):\(h):\(x):\(y)")
+            }
         }
         
         if let colorFilter = request.colorAdjustments.toFFmpegFilter() {
@@ -153,6 +185,12 @@ class FFmpegConverter {
         
         if let fpsFilters = request.frameRateSettings.toFFmpegFilter() {
             videoFilters.append(fpsFilters)
+        }
+        
+        // Aplicar velocidad al final solo si no se incluyó en un setpts fusionado.
+        if hasSpeedChange && !hasMergedSetpts {
+            let duration = resolvedOutputDuration(request)
+            videoFilters.append(SpeedMapPoint.buildSpeedSetptsFilter(duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
         }
         
         if !videoFilters.isEmpty {
@@ -177,7 +215,7 @@ class FFmpegConverter {
                           "-auto-alt-ref", "1",
                           "-lag-in-frames", "25"]
         }
-        else if request.format == .mp4 {
+        else if request.format == .mp4, videoCodec != "h264_videotoolbox" {
             arguments += ["-preset", "veryslow"]
         }
         else if request.format == .av1
@@ -220,6 +258,53 @@ class FFmpegConverter {
         print("  \(arguments.joined(separator: " "))")
         
         return arguments
+    }
+
+    private func dot(_ value: Double) -> String {
+        let invariant = String(format: "%.15g", locale: Locale(identifier: "en_US_POSIX"), value)
+        return invariant.replacingOccurrences(of: ",", with: ".")
+    }
+    
+    private func resolvedClipStart(_ request: FFmpegConversionRequest, sourceDuration: Double) -> Double {
+        if sourceDuration <= 0 {
+            return max(0.0, request.trimStart ?? 0.0)
+        }
+        let rawStart = max(0.0, request.trimStart ?? 0.0)
+        return min(rawStart, sourceDuration)
+    }
+    
+    private func resolvedClipEnd(_ request: FFmpegConversionRequest, sourceDuration: Double, start: Double) -> Double {
+        let rawEnd: Double
+        if let trimEnd = request.trimEnd {
+            rawEnd = max(0.0, trimEnd)
+        } else if sourceDuration > 0 {
+            rawEnd = sourceDuration
+        } else {
+            rawEnd = start
+        }
+        
+        if sourceDuration > 0 {
+            return min(max(rawEnd, start), sourceDuration)
+        }
+        
+        return max(rawEnd, start)
+    }
+    
+    private func resolvedClipBounds(_ request: FFmpegConversionRequest) -> (start: Double, end: Double)? {
+        guard request.trimStart != nil || request.trimEnd != nil else { return nil }
+        
+        let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
+        let start = resolvedClipStart(request, sourceDuration: sourceDuration)
+        let end = resolvedClipEnd(request, sourceDuration: sourceDuration, start: start)
+        
+        return (start, end)
+    }
+    
+    private func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
+        if let bounds = resolvedClipBounds(request) {
+            return max(0.0, bounds.end - bounds.start)
+        }
+        return max(0.0, request.videoInfo?.duration ?? 0.0)
     }
 
     private func buildBoomerangCommand(

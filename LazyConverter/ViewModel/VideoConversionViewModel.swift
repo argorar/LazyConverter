@@ -27,18 +27,45 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var speedPercent: Double = 100.0 // 0.0 - 200.0
     @Published var videoInfo: VideoInfo?
     @Published var cropEnabled: Bool = false
+    @Published var cropDynamicEnabled: Bool = false {
+        didSet {
+            if cropDynamicEnabled == false {
+                cropDynamicKeyframes.removeAll()
+                dynamicStartFrameIndex = nil
+                dynamicAutoEndFrameIndex = nil
+            } else {
+                ensureStartDynamicKeyframe()
+            }
+        }
+    }
+    @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
     @Published var loopEnabled: Bool = false
     @Published var liveCurrentTime: Double = 0
-    @Published var trimStart: Double? = nil
-    @Published var trimEnd: Double? = nil
+    @Published var trimStart: Double? = nil {
+        didSet {
+            if cropDynamicEnabled {
+                ensureStartDynamicKeyframe()
+            }
+        }
+    }
+    @Published var trimEnd: Double? = nil {
+        didSet {
+            if cropDynamicEnabled {
+                ensureStartDynamicKeyframe()
+            }
+        }
+    }
     @Published var showUpdateDialog = false
     @Published var latestDownloadURL: String? = nil
+    @Published var hasUpdateAvailable = false
     @Published var colorAdjustments = ColorAdjustments.default
     @Published var queueManager = QueueManager()
     @Published var showQueueWindow = false
     @Published var frameRateSettings = FrameRateSettings()
     @Published var outputDirectory: OutputDirectory = .downloads
+    private var dynamicStartFrameIndex: Int?
+    private var dynamicAutoEndFrameIndex: Int?
     
     @Published var selectedFileURL: URL? {
         didSet {
@@ -86,6 +113,13 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         colorAdjustments = .default
     }
     
+    func resetCrop() {
+        cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        cropDynamicKeyframes.removeAll()
+        dynamicStartFrameIndex = nil
+        dynamicAutoEndFrameIndex = nil
+    }
+    
     func addCurrentVideoToQueue() {
         guard let url = selectedFileURL else { return }
         
@@ -122,6 +156,9 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         selectedFileURL = url
         selectedFileName = url.lastPathComponent
         errorMessage = nil
+        cropDynamicKeyframes.removeAll()
+        dynamicStartFrameIndex = nil
+        dynamicAutoEndFrameIndex = nil
     }
     
     func clearSelection() {
@@ -138,8 +175,144 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         errorLog = nil
         isProcessing = false
         cropEnabled = false
+        cropDynamicEnabled = false
+        cropDynamicKeyframes.removeAll()
+        dynamicStartFrameIndex = nil
+        dynamicAutoEndFrameIndex = nil
         loopEnabled = false
         resetColorAdjustments()
+    }
+
+    func recordDynamicCrop(at time: Double, frameRate: Double?, cropRect: CGRect) {
+        guard cropDynamicEnabled else { return }
+        
+        let resolvedFrameRate = max(1.0, frameRate ?? videoInfo?.frameRate ?? 30.0)
+        let boundaryTolerance = 0.5 / resolvedFrameRate
+        
+        let trimStartValue = trimStart
+        let trimEndValue = trimEnd
+        let hasTrim = trimStartValue != nil || trimEndValue != nil
+        
+        var capturedTime = max(0, time)
+        
+        if hasTrim {
+            let fallbackEnd = max(capturedTime, videoInfo?.duration ?? capturedTime)
+            let rawLowerBound = trimStartValue ?? 0.0
+            let rawUpperBound = trimEndValue ?? fallbackEnd
+            let lowerBound = min(rawLowerBound, rawUpperBound)
+            let upperBound = max(rawLowerBound, rawUpperBound)
+            
+            if capturedTime < (lowerBound - boundaryTolerance) || capturedTime > (upperBound + boundaryTolerance) {
+
+                return
+            }
+            
+            capturedTime = min(max(capturedTime, lowerBound), upperBound)
+        }
+        
+        let frameIndex = max(0, Int(round(capturedTime * resolvedFrameRate)))
+        let targetFrameIndex: Int
+        if let existingFrameIndex = nearestDynamicKeyframe(to: frameIndex, toleranceFrames: 1) {
+            targetFrameIndex = existingFrameIndex
+        } else {
+            targetFrameIndex = frameIndex
+        }
+        
+        let storedTime: Double
+        if let existing = cropDynamicKeyframes[targetFrameIndex] {
+            storedTime = existing.time
+        } else {
+            storedTime = capturedTime
+        }
+        
+        cropDynamicKeyframes[targetFrameIndex] = CropDynamicKeyframe(
+            frameIndex: targetFrameIndex,
+            time: storedTime,
+            cropRect: cropRect
+        )
+
+    }
+
+    private func nearestDynamicKeyframe(to frameIndex: Int, toleranceFrames: Int) -> Int? {
+        guard !cropDynamicKeyframes.isEmpty else { return nil }
+        
+        var bestIndex: Int?
+        var bestDistance = Int.max
+        
+        for existingIndex in cropDynamicKeyframes.keys {
+            let distance = abs(existingIndex - frameIndex)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = existingIndex
+            }
+        }
+        
+        guard let bestIndex, bestDistance <= toleranceFrames else { return nil }
+        return bestIndex
+    }
+
+    private func ensureStartDynamicKeyframe() {
+        guard cropDynamicEnabled else { return }
+
+        let fps = max(1.0, videoInfo?.frameRate ?? 30.0)
+        let bounds = resolvedDynamicBoundsTimes()
+        let startTime = bounds.start
+        let startFrame = max(0, Int(round(startTime * fps)))
+
+        if let previousStartFrame = dynamicStartFrameIndex, previousStartFrame != startFrame {
+            cropDynamicKeyframes.removeValue(forKey: previousStartFrame)
+        }
+
+        upsertBoundaryDynamicKeyframe(frameIndex: startFrame, time: startTime)
+        dynamicStartFrameIndex = startFrame
+
+    }
+
+    private func ensureEndDynamicKeyframeForConversion() {
+        guard cropDynamicEnabled else { return }
+
+        let fps = max(1.0, videoInfo?.frameRate ?? 30.0)
+        let bounds = resolvedDynamicBoundsTimes()
+        let endTime = bounds.end
+        let endFrame = max(0, Int(round(endTime * fps)))
+
+        if let previousEndFrame = dynamicAutoEndFrameIndex, previousEndFrame != endFrame {
+            cropDynamicKeyframes.removeValue(forKey: previousEndFrame)
+        }
+
+        cropDynamicKeyframes[endFrame] = CropDynamicKeyframe(
+            frameIndex: endFrame,
+            time: endTime,
+            cropRect: cropRect
+        )
+        dynamicAutoEndFrameIndex = endFrame
+
+    }
+
+    private func resolvedDynamicBoundsTimes() -> (start: Double, end: Double) {
+        let sourceDuration = max(0.0, videoInfo?.duration ?? 0.0)
+        let rawStart = max(0.0, trimStart ?? 0.0)
+        let defaultEnd = sourceDuration > 0 ? sourceDuration : rawStart
+        let rawEnd = max(0.0, trimEnd ?? defaultEnd)
+
+        return (start: min(rawStart, rawEnd), end: max(rawStart, rawEnd))
+    }
+    
+    private func upsertBoundaryDynamicKeyframe(frameIndex: Int, time: Double) {
+        if let existing = cropDynamicKeyframes[frameIndex] {
+            cropDynamicKeyframes[frameIndex] = CropDynamicKeyframe(
+                frameIndex: frameIndex,
+                time: time,
+                cropRect: existing.cropRect
+            )
+            return
+        }
+        
+        cropDynamicKeyframes[frameIndex] = CropDynamicKeyframe(
+            frameIndex: frameIndex,
+            time: time,
+            cropRect: cropRect
+        )
     }
 
     func persistOutputDirectory() {
@@ -150,6 +323,11 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         guard let inputURL = selectedFileURL else {
             errorMessage = lang?.t("error.no_file_selected") ?? "No file selected"
             return
+        }
+
+        if cropDynamicEnabled {
+            ensureStartDynamicKeyframe()
+            ensureEndDynamicKeyframeForConversion()
         }
         
         isProcessing = true
@@ -195,6 +373,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             trimEnd: trimEndSeconds,
             videoInfo: videoInfo,
             cropEnable: cropEnabled,
+            cropDynamicEnabled: cropDynamicEnabled,
+            cropDynamicKeyframes: Array(cropDynamicKeyframes.values),
             cropRec: cropRect,
             colorAdjustments: colorAdjustments,
             frameRateSettings: frameRateSettings,
@@ -280,16 +460,19 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     private var outputFileURL: URL?
     
     func checkForUpdates() async {
-        await MainActor.run {
-            self.statusMessage = self.lang?.t("status.checking_updates") ?? "Checking for updates..."
-        }
-        
         do {
             let latest = try await fetchLatestInfo()
             let currentVersion = getCurrentVersion()
             
             if isNewerVersion(latest.version, than: currentVersion) {
-                showUpdateAlert(latest: latest)
+                await MainActor.run {
+                    self.hasUpdateAvailable = true
+                    self.latestDownloadURL = latest.downloads?.macosUniversal.url
+                }
+            } else {
+                await MainActor.run {
+                    self.hasUpdateAvailable = false
+                }
             }
         } catch {
             print("Error checking updates: \(error)")
@@ -327,8 +510,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     }
     
     @MainActor
-    private func showUpdateAlert(latest: LatestInfo) {
+    func openUpdateDialog() {
+        guard hasUpdateAvailable else { return }
         self.showUpdateDialog = true
-        self.latestDownloadURL = latest.downloads?.macosUniversal.url
     }
 }

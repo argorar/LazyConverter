@@ -12,6 +12,11 @@ struct SettingsPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
     @EnvironmentObject var theme: ThemeManager
+    @State private var showCropHelp = false
+    
+    private var cropHelpText: String {
+        "\(lang.t("crop.extraInfo"))\n\(lang.t("crop.dynamicInfo"))"
+    }
     
     private func formatTime(_ time: Double) -> String {
         guard !time.isNaN && !time.isInfinite && time >= 0 else { return "--:--.--" }
@@ -60,13 +65,35 @@ struct SettingsPanel: View {
                 .toggleStyle(.switch)
                 .labelsHidden()
             if viewModel.cropEnabled {
-                Button(lang.t("crop.reset")) {
-                    viewModel.cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
-                }
-                Text(lang.t("crop.extraInfo"))
-                    .font(.system(size: 14))
+                Toggle(lang.t("crop.dynamic"), isOn: $viewModel.cropDynamicEnabled)
+                    .toggleStyle(.switch)
+                Text("\(lang.t("crop.keyframes")): \(viewModel.cropDynamicKeyframes.count)")
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundColor(.secondary)
             }
             Spacer()
+            if viewModel.cropEnabled {
+                Button(action: { viewModel.resetCrop() }) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(lang.t("crop.reset"))
+
+                Button(action: { showCropHelp.toggle() }) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(cropHelpText)
+                .popover(isPresented: $showCropHelp, arrowEdge: .top) {
+                    Text(cropHelpText)
+                        .font(.system(size: 13))
+                        .padding(12)
+                }
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity)
