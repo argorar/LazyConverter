@@ -6,103 +6,92 @@
 //
 
 import Foundation
-import CoreGraphics
 
 struct CropDynamicKeyframe: Equatable {
-    let frameIndex: Int
     let time: Double
-    let cropRect: CGRect
+    let crop: String
 }
 
 extension CropDynamicKeyframe {
     static func buildDynamicCropFilter(
         keyframes: [CropDynamicKeyframe],
-        sourceSize: CGSize,
         sourceDuration: Double,
         trimStart: Double?,
         trimEnd: Double?,
         setptsFilter: String
     ) -> String? {
-        let sorted = keyframes.sorted { lhs, rhs in
-            if lhs.frameIndex == rhs.frameIndex { return lhs.time < rhs.time }
-            return lhs.frameIndex < rhs.frameIndex
-        }
-        
-        guard !sorted.isEmpty else { return nil }
-        
-        let sourceWidth = max(1, Int(sourceSize.width))
-        let sourceHeight = max(1, Int(sourceSize.height))
-        
         let clipStart = resolvedClipStart(trimStart: trimStart, sourceDuration: sourceDuration)
         let clipEnd = resolvedClipEnd(trimEnd: trimEnd, sourceDuration: sourceDuration, start: clipStart)
-        let clipDuration = max(0.0, clipEnd - clipStart)
+        return buildDynamicCropFilter(
+            start: clipStart,
+            end: clipEnd,
+            setptsFilter: setptsFilter,
+            cropMap: keyframes
+        )
+    }
+
+    
+    private static func buildDynamicCropFilter(
+        start: Double,
+        end: Double,
+        setptsFilter: String,
+        cropMap: [CropDynamicKeyframe]
+    ) -> String? {
+        guard end > start else { return nil }
+        let clipDuration = max(0.0, end - start)
         guard clipDuration > 0 else { return nil }
-        
-        let trimFilter = "trim=start=\(dot(clipStart)):end=\(dot(clipEnd))"
-        
-        struct CropPoint {
-            let initialTime: Double
-            let x: Double
-            let y: Double
-            let w: Double
-            let h: Double
+
+        let epsilon = 0.000001
+        let sorted = cropMap
+            .filter { point in point.time >= (start - epsilon) && point.time <= (end + epsilon) }
+            .sorted { lhs, rhs in lhs.time < rhs.time }
+        guard !sorted.isEmpty else { return nil }
+
+        let firstTime = sorted[0].time
+        guard let firstCrop = parseCrop(sorted[0].crop) else { return nil }
+        if sorted.count == 1 {
+            return "trim=0:\(dot(clipDuration)),crop='x=\(dot(firstCrop.x)):y=\(dot(firstCrop.y)):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
         }
-        
-        let points: [CropPoint] = sorted.map { keyframe in
-            let rect = clampRect(keyframe.cropRect)
-            return CropPoint(
-                initialTime: keyframe.time,
-                x: Double(Int(rect.origin.x * CGFloat(sourceWidth))),
-                y: Double(Int(rect.origin.y * CGFloat(sourceHeight))),
-                w: Double(Int(rect.width * CGFloat(sourceWidth))),
-                h: Double(Int(rect.height * CGFloat(sourceHeight)))
-            )
-        }
-        
-        guard let firstPoint = points.first else { return nil }
-        
-        if points.count == 1 {
-            return "\(trimFilter),\(setptsFilter),crop='x=\(dot(firstPoint.x)):y=\(dot(firstPoint.y)):w=\(dot(firstPoint.w)):h=\(dot(firstPoint.h)):exact=1'"
-        }
-        
-        let firstTime = firstPoint.initialTime - clipStart
-        let nSects = points.count - 1
+
+        let nSects = sorted.count - 1
         let easeType = "easeInOutSine"
         var cropXExprParts: [String] = []
         var cropYExprParts: [String] = []
-        
         for sect in 0..<nSects {
-            let left = points[sect]
-            let right = points[sect + 1]
-            
-            let startTime = (left.initialTime - clipStart) - firstTime
-            var endTime = (right.initialTime - clipStart) - firstTime
-            
-            if sect == nSects - 1 {
+            guard
+                let leftCrop = parseCrop(sorted[sect].crop),
+                let rightCrop = parseCrop(sorted[sect + 1].crop)
+            else {
+                continue
+            }
+
+            let startTime = sorted[sect].time - firstTime
+            var endTime = sorted[sect + 1].time - firstTime
+            if sect + 2 > nSects {
                 endTime = clipDuration
             }
-            
+
             let sectDuration = endTime - startTime
             if sectDuration <= 0.0000001 { continue }
-            
+
             let easeP = "((t-\(dot(startTime)))/\(dot(sectDuration)))"
             guard
                 let easeX = getEasingExpression(
                     easingFunc: easeType,
-                    easeA: "(\(dot(left.x)))",
-                    easeB: "(\(dot(right.x)))",
+                    easeA: "(\(dot(leftCrop.x)))",
+                    easeB: "(\(dot(rightCrop.x)))",
                     easeP: easeP
                 ),
                 let easeY = getEasingExpression(
                     easingFunc: easeType,
-                    easeA: "(\(dot(left.y)))",
-                    easeB: "(\(dot(right.y)))",
+                    easeA: "(\(dot(leftCrop.y)))",
+                    easeB: "(\(dot(rightCrop.y)))",
                     easeP: easeP
                 )
             else {
                 continue
             }
-            
+
             if sect == nSects - 1 {
                 cropXExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeX)")
                 cropYExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeY)")
@@ -111,24 +100,28 @@ extension CropDynamicKeyframe {
                 cropYExprParts.append("(gte(t, \(dot(startTime)))*lt(t, \(dot(endTime))))*\(easeY)")
             }
         }
-        
+
         guard !cropXExprParts.isEmpty, !cropYExprParts.isEmpty else { return nil }
-        
-        let cropW = dot(firstPoint.w)
-        let cropH = dot(firstPoint.h)
+
         let cropXExpr = cropXExprParts.joined(separator: "+")
         let cropYExpr = cropYExprParts.joined(separator: "+")
-        
-        return "\(trimFilter),\(setptsFilter),crop='x=\(cropXExpr):y=\(cropYExpr):w=\(cropW):h=\(cropH):exact=1'"
+        return "trim=0:\(dot(clipDuration)),crop='x=\(cropXExpr):y=\(cropYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
     }
-    
-    private static func clampRect(_ rect: CGRect) -> CGRect {
-        var r = rect
-        r.origin.x = max(0, min(1, r.origin.x))
-        r.origin.y = max(0, min(1, r.origin.y))
-        r.size.width = max(0.0001, min(1 - r.origin.x, r.size.width))
-        r.size.height = max(0.0001, min(1 - r.origin.y, r.size.height))
-        return r
+
+    private static func parseCrop(_ crop: String) -> (x: Double, y: Double, w: Double, h: Double)? {
+        let parts = crop.split(separator: ":")
+        guard parts.count == 4 else { return nil }
+
+        guard
+            let x = Double(parts[0]),
+            let y = Double(parts[1]),
+            let w = Double(parts[2]),
+            let h = Double(parts[3])
+        else {
+            return nil
+        }
+
+        return (x, y, w, h)
     }
     
     private static func resolvedClipStart(trimStart: Double?, sourceDuration: Double) -> Double {

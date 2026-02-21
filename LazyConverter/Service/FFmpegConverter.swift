@@ -110,14 +110,15 @@ class FFmpegConverter {
         
         // 1. TRIM FILTER (prioridad máxima)
         if let clipBounds = resolvedClipBounds(request) {
-            if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 {
+            let trimAtInput = usingDynamicCrop || (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0)
+            if trimAtInput {
                 if request.trimStart != nil {
                     arguments += ["-ss", dot(clipBounds.start)]
                 }
                 if request.trimEnd != nil {
                     arguments += ["-to", dot(clipBounds.end)]
                 }
-            } else if !usingDynamicCrop {
+            } else {
                 var trimComponents: [String] = []
                 if request.trimStart != nil {
                     trimComponents.append("start=\(dot(clipBounds.start))")
@@ -160,7 +161,6 @@ class FFmpegConverter {
                 
                 if let dynamicCrop = CropDynamicKeyframe.buildDynamicCropFilter(
                     keyframes: request.cropDynamicKeyframes,
-                    sourceSize: videoInfo.videoSize,
                     sourceDuration: sourceDuration,
                     trimStart: request.trimStart,
                     trimEnd: request.trimEnd,

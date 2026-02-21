@@ -224,11 +224,11 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         } else {
             storedTime = capturedTime
         }
-        
+
+        guard let cropValue = cropString(from: cropRect) else { return }
         cropDynamicKeyframes[targetFrameIndex] = CropDynamicKeyframe(
-            frameIndex: targetFrameIndex,
             time: storedTime,
-            cropRect: cropRect
+            crop: cropValue
         )
 
     }
@@ -280,10 +280,10 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             cropDynamicKeyframes.removeValue(forKey: previousEndFrame)
         }
 
+        guard let cropValue = cropString(from: cropRect) else { return }
         cropDynamicKeyframes[endFrame] = CropDynamicKeyframe(
-            frameIndex: endFrame,
             time: endTime,
-            cropRect: cropRect
+            crop: cropValue
         )
         dynamicAutoEndFrameIndex = endFrame
 
@@ -301,18 +301,37 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     private func upsertBoundaryDynamicKeyframe(frameIndex: Int, time: Double) {
         if let existing = cropDynamicKeyframes[frameIndex] {
             cropDynamicKeyframes[frameIndex] = CropDynamicKeyframe(
-                frameIndex: frameIndex,
                 time: time,
-                cropRect: existing.cropRect
+                crop: existing.crop
             )
             return
         }
-        
+
+        guard let cropValue = cropString(from: cropRect) else { return }
         cropDynamicKeyframes[frameIndex] = CropDynamicKeyframe(
-            frameIndex: frameIndex,
             time: time,
-            cropRect: cropRect
+            crop: cropValue
         )
+    }
+
+    private func cropString(from normalizedRect: CGRect) -> String? {
+        guard let videoSize = videoInfo?.videoSize else { return nil }
+        let rect = clampNormalizedRect(normalizedRect)
+
+        let x = Int(rect.origin.x * videoSize.width)
+        let y = Int(rect.origin.y * videoSize.height)
+        let w = Int(rect.size.width * videoSize.width)
+        let h = Int(rect.size.height * videoSize.height)
+        return "\(x):\(y):\(w):\(h)"
+    }
+
+    private func clampNormalizedRect(_ rect: CGRect) -> CGRect {
+        var normalized = rect
+        normalized.origin.x = max(0, min(1, normalized.origin.x))
+        normalized.origin.y = max(0, min(1, normalized.origin.y))
+        normalized.size.width = max(0.0001, min(1 - normalized.origin.x, normalized.size.width))
+        normalized.size.height = max(0.0001, min(1 - normalized.origin.y, normalized.size.height))
+        return normalized
     }
 
     func persistOutputDirectory() {
