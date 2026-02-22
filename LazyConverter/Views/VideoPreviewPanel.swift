@@ -33,8 +33,9 @@ struct VideoPreviewPanel: View {
                     if viewModel.cropEnabled {
                         GeometryReader { geo in
                             CropOverlayView(cropRect: $viewModel.cropRect,
-                                videoSize: CGSize(width: Double((videoInfo?.videoSize.width ?? 200)), height: Double((videoInfo?.videoSize.height ?? 500))),
+                                videoSize: CGSize(width: Double(abs(videoInfo?.videoSize.width ?? 200)), height: Double(abs(videoInfo?.videoSize.height ?? 500))),
                                 playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height),
+                                showTrackerTarget: viewModel.cropTrackerEnabled,
                                 onCropDragged: { cropRect in
                                     let playerTime = player?.currentTime().seconds
                                     let currentFrameTime: Double

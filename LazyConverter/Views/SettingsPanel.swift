@@ -15,7 +15,7 @@ struct SettingsPanel: View {
     @State private var showCropHelp = false
     
     private var cropHelpText: String {
-        "\(lang.t("crop.extraInfo"))\n\(lang.t("crop.dynamicInfo"))"
+        "\(lang.t("crop.extraInfo"))\n\(lang.t("crop.dynamicInfo"))\n\(lang.t("crop.trackerInfo"))"
     }
     
     private func formatTime(_ time: Double) -> String {
@@ -55,43 +55,63 @@ struct SettingsPanel: View {
     
     @ViewBuilder
     private var cropSection: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Image(systemName: "crop")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.accentColor)
-            Text(lang.t("crop.enable"))
-                .font(.system(size: 14, weight: .semibold))
-            Toggle("", isOn: $viewModel.cropEnabled)
-                .toggleStyle(.switch)
-                .labelsHidden()
-            if viewModel.cropEnabled {
-                Toggle(lang.t("crop.dynamic"), isOn: $viewModel.cropDynamicEnabled)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "crop")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("crop.enable"))
+                    .font(.system(size: 14, weight: .semibold))
+                Toggle("", isOn: $viewModel.cropEnabled)
                     .toggleStyle(.switch)
-                Text("\(lang.t("crop.keyframes")): \(viewModel.cropDynamicKeyframes.count)")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            if viewModel.cropEnabled {
-                Button(action: { viewModel.resetCrop() }) {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help(lang.t("crop.reset"))
+                    .labelsHidden()
+                Spacer()
+                if viewModel.cropEnabled {
+                    if viewModel.cropDynamicEnabled {
+                        Text("\(lang.t("crop.keyframes")): \(viewModel.cropDynamicKeyframes.count)")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
 
-                Button(action: { showCropHelp.toggle() }) {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.secondary)
+                    Button(action: { viewModel.resetCrop() }) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(lang.t("crop.reset"))
+
+                    Button(action: { showCropHelp.toggle() }) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(cropHelpText)
+                    .popover(isPresented: $showCropHelp, arrowEdge: .top) {
+                        Text(cropHelpText)
+                            .font(.system(size: 13))
+                            .padding(12)
+                    }
                 }
-                .buttonStyle(.plain)
-                .help(cropHelpText)
-                .popover(isPresented: $showCropHelp, arrowEdge: .top) {
-                    Text(cropHelpText)
-                        .font(.system(size: 13))
-                        .padding(12)
+            }
+
+            if viewModel.cropEnabled {
+                HStack(alignment: .center, spacing: 8) {
+                    Toggle(lang.t("crop.dynamic"), isOn: $viewModel.cropDynamicEnabled)
+                        .toggleStyle(.switch)
+                    Toggle(lang.t("crop.tracker"), isOn: $viewModel.cropTrackerEnabled)
+                        .toggleStyle(.switch)
+                    if viewModel.isTrackingCrop {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(lang.t("crop.tracking"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                    Spacer()
                 }
             }
         }

@@ -11,6 +11,7 @@ struct CropOverlayView: View {
     @Binding var cropRect: CGRect
     let videoSize: CGSize
     let playerFrame: CGRect
+    let showTrackerTarget: Bool
     let onCropDragged: ((CGRect) -> Void)?
     @FocusState private var isFocused: Bool
 
@@ -33,6 +34,13 @@ struct CropOverlayView: View {
                 y: cropRect.origin.y * videoFrame.height + videoFrame.minY,
                 width: cropRect.size.width * videoFrame.width,
                 height: cropRect.size.height * videoFrame.height
+            )
+            let trackerTarget = CropTrackerTarget.normalizedTargetRect(in: cropRect, videoSize: videoSize)
+            let trackerPixelRect = CGRect(
+                x: trackerTarget.origin.x * videoFrame.width + videoFrame.minX,
+                y: trackerTarget.origin.y * videoFrame.height + videoFrame.minY,
+                width: trackerTarget.size.width * videoFrame.width,
+                height: trackerTarget.size.height * videoFrame.height
             )
 
             ZStack {
@@ -57,6 +65,18 @@ struct CropOverlayView: View {
                     .frame(width: cropPixelRect.width, height: cropPixelRect.height)
                     .position(x: cropPixelRect.midX, y: cropPixelRect.midY)
                     .allowsHitTesting(false)
+
+                if showTrackerTarget {
+                    Rectangle()
+                        .fill(Color.red.opacity(0.18))
+                        .frame(width: trackerPixelRect.width, height: trackerPixelRect.height)
+                        .position(x: trackerPixelRect.midX, y: trackerPixelRect.midY)
+                        .overlay(
+                            Rectangle()
+                                .stroke(Color.red, lineWidth: 2)
+                        )
+                        .allowsHitTesting(false)
+                }
 
                 // Handles
                 handleView(corner: .topLeft, rect: cropPixelRect, videoFrame: videoFrame)

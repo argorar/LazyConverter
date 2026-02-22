@@ -26,18 +26,34 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var errorLog: String?
     @Published var speedPercent: Double = 100.0 // 0.0 - 200.0
     @Published var videoInfo: VideoInfo?
-    @Published var cropEnabled: Bool = false
+    @Published var cropEnabled: Bool = false {
+        didSet {
+            if !cropEnabled {
+                cropTrackerEnabled = false
+                cropDynamicEnabled = false
+            }
+        }
+    }
     @Published var cropDynamicEnabled: Bool = false {
         didSet {
             if cropDynamicEnabled == false {
                 cropDynamicKeyframes.removeAll()
                 dynamicStartFrameIndex = nil
                 dynamicAutoEndFrameIndex = nil
+                cropTrackerEnabled = false
             } else {
                 ensureStartDynamicKeyframe()
             }
         }
     }
+    @Published var cropTrackerEnabled: Bool = false {
+        didSet {
+            if cropTrackerEnabled {
+                cropDynamicEnabled = true
+            }
+        }
+    }
+    @Published var isTrackingCrop: Bool = false
     @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
     @Published var loopEnabled: Bool = false
@@ -66,6 +82,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var outputDirectory: OutputDirectory = .downloads
     private var dynamicStartFrameIndex: Int?
     private var dynamicAutoEndFrameIndex: Int?
+    private var activeTrackerJobID: UUID?
     
     @Published var selectedFileURL: URL? {
         didSet {
@@ -115,9 +132,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     
     func resetCrop() {
         cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        cropTrackerEnabled = false
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
+        isTrackingCrop = false
+        activeTrackerJobID = nil
     }
     
     func addCurrentVideoToQueue() {
@@ -159,6 +179,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
+        isTrackingCrop = false
+        activeTrackerJobID = nil
     }
     
     func clearSelection() {
@@ -176,10 +198,13 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         isProcessing = false
         cropEnabled = false
         cropDynamicEnabled = false
+        cropTrackerEnabled = false
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
         loopEnabled = false
+        isTrackingCrop = false
+        activeTrackerJobID = nil
         resetColorAdjustments()
     }
 
@@ -317,11 +342,13 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     private func cropString(from normalizedRect: CGRect) -> String? {
         guard let videoSize = videoInfo?.videoSize else { return nil }
         let rect = clampNormalizedRect(normalizedRect)
+        let width = abs(videoSize.width)
+        let height = abs(videoSize.height)
 
-        let x = Int(rect.origin.x * videoSize.width)
-        let y = Int(rect.origin.y * videoSize.height)
-        let w = Int(rect.size.width * videoSize.width)
-        let h = Int(rect.size.height * videoSize.height)
+        let x = Int(rect.origin.x * width)
+        let y = Int(rect.origin.y * height)
+        let w = Int(rect.size.width * width)
+        let h = Int(rect.size.height * height)
         return "\(x):\(y):\(w):\(h)"
     }
 
@@ -344,17 +371,77 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             return
         }
 
-        if cropDynamicEnabled {
-            ensureStartDynamicKeyframe()
-            ensureEndDynamicKeyframeForConversion()
+        prepareConversionState()
+
+        if cropEnabled && cropTrackerEnabled {
+            runTrackerAndConvert(inputURL: inputURL)
+            return
         }
-        
+
+        continueConversion(using: inputURL)
+    }
+
+    private func prepareConversionState() {
         isProcessing = true
         progress = 0
         statusMessage = lang?.t("status.preparing_conversion") ?? "Preparing conversion..."
         errorMessage = nil
         errorLog = nil
-        
+    }
+
+    private func runTrackerAndConvert(inputURL: URL) {
+        isTrackingCrop = true
+        statusMessage = lang?.t("status.tracking_crop") ?? "Tracking selected area..."
+        let jobID = UUID()
+        activeTrackerJobID = jobID
+
+        let initialRect = cropRect
+        let trimStartValue = trimStart
+        let trimEndValue = trimEnd
+        let info = videoInfo
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let trackedKeyframes = try CropTrackerService.track(
+                    inputURL: inputURL,
+                    initialCropRect: initialRect,
+                    trimStart: trimStartValue,
+                    trimEnd: trimEndValue,
+                    videoInfo: info
+                )
+
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    guard self.activeTrackerJobID == jobID, self.isProcessing else { return }
+                    self.activeTrackerJobID = nil
+                    self.isTrackingCrop = false
+                    self.cropDynamicEnabled = true
+                    self.applyTrackedKeyframes(trackedKeyframes)
+                    self.continueConversion(using: inputURL)
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    guard self.activeTrackerJobID == jobID else { return }
+                    self.activeTrackerJobID = nil
+                    self.isTrackingCrop = false
+                    self.isProcessing = false
+                    self.statusMessage = self.lang?.t("status.conversion_error") ?? "Conversion error"
+                    self.errorMessage = self.lang?.t("error.tracker_failed") ?? "Unable to track selected area"
+                    self.errorLog = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func continueConversion(using inputURL: URL) {
+        activeTrackerJobID = nil
+
+        if cropDynamicEnabled && (!cropTrackerEnabled || cropDynamicKeyframes.isEmpty) {
+            ensureStartDynamicKeyframe()
+            ensureEndDynamicKeyframeForConversion()
+        }
+
         // Crear ruta de salida
         let outputDir = outputDirectory.resolveURL()
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -413,10 +500,26 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         FFmpegConverter.shared.convert(request)
     }
 
+    private func applyTrackedKeyframes(_ keyframes: [CropDynamicKeyframe]) {
+        let fps = max(1.0, videoInfo?.frameRate ?? 30.0)
+        var mapped: [Int: CropDynamicKeyframe] = [:]
+
+        for keyframe in keyframes {
+            let index = max(0, Int(round(keyframe.time * fps)))
+            mapped[index] = keyframe
+        }
+
+        cropDynamicKeyframes = mapped
+        dynamicStartFrameIndex = mapped.keys.min()
+        dynamicAutoEndFrameIndex = mapped.keys.max()
+    }
+
     
     func stopConversion() {
         FFmpegConverter.shared.cancel()
         isProcessing = false
+        isTrackingCrop = false
+        activeTrackerJobID = nil
         statusMessage = lang?.t("status.conversion_cancelled") ?? "Conversion cancelled"
     }
 
@@ -429,6 +532,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         switch result {
         case .success(let outputURL):
             isProcessing = false
+            isTrackingCrop = false
             progress = 100
             statusMessage = lang?.t("status.conversion_completed") ?? "Conversion completed"
             
@@ -449,6 +553,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             
         case .failure(let error):
             isProcessing = false
+            isTrackingCrop = false
             errorMessage = error.errorDescription
             errorLog = FFmpegConverter.shared.lastErrorLog
             statusMessage = lang?.t("status.conversion_error") ?? "Conversion error"

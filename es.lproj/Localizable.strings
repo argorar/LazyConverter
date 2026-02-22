@@ -29,9 +29,12 @@
 "update.button" = "Actualizar";
 "crop.enable" = "Crop";
 "crop.dynamic" = "Dinámico";
+"crop.tracker" = "Tracker";
 "crop.reset" = "Reiniciar área de crop";
 "crop.keyframes" = "Fotogramas clave";
 "crop.dynamicInfo" = "Dynamic guarda fotogramas clave de crop en el tiempo e interpola el movimiento entre ellos.";
+"crop.trackerInfo" = "Tracker sigue los pixeles del área seleccionada y genera keyframes dinámicos automáticamente al convertir.";
+"crop.tracking" = "Rastreando...";
 "speed.title" = "Velocidad del video";
 "action.convert" = "Convertir";
 "action.stop" = "Detener";
@@ -44,6 +47,7 @@
 "error.ffprobe_not_found" = "FFprobe no está disponible";
 "error.cannot_get_duration" = "No se pudo obtener la duración del video";
 "error.conversion_failed" = "La conversión de video falló";
+"error.tracker_failed" = "No se pudo rastrear el área seleccionada";
 "error.execution_failed_format" = "Error al ejecutar FFmpeg: %@";
 "error.view_log" = "Ver log";
 "error.log_title" = "Log de error de FFmpeg";
@@ -54,6 +58,7 @@
 "status.conversion_completed" = "¡Conversión completada!";
 "status.conversion_error" = "Error en la conversión";
 "status.checking_updates" = "Verificando actualizaciones…";
+"status.tracking_crop" = "Rastreando área seleccionada…";
 "color.adjustments" = "Ajustes de color: El resultado puede ser diferente a la vista previa";
 "reset" = "reinicializar";
 "crop.extraInfo" = "shift + feclas para mover";
