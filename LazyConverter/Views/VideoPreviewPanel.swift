@@ -65,6 +65,15 @@ struct VideoPreviewPanel: View {
             
             // BOTÓN + KEYFRAME LIVE
             HStack(spacing: 12) {
+                if let trimStart = viewModel.trimStart {
+                    Button(lang.t("button.start")) {
+                        guard let player = player else { return }
+                        seekToTrimBound(player: player, seconds: trimStart, keepPlaying: false)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
                 // KEYFRAME EN VIVO (Actualiza cada 0.1s)
                 HStack(spacing: 4) {
                     Text(lang.t("frame.current"))
@@ -84,6 +93,15 @@ struct VideoPreviewPanel: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.accentColor.opacity(0.8))
                     }
+                }
+
+                if let trimEnd = viewModel.trimEnd {
+                    Button(lang.t("button.end")) {
+                        guard let player = player else { return }
+                        seekToTrimBound(player: player, seconds: trimEnd, keepPlaying: false)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
             }
             

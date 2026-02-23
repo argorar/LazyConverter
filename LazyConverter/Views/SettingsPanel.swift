@@ -230,18 +230,38 @@ struct SettingsPanel: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(viewModel.trimStart != nil ? formatTime(viewModel.trimStart!) : "--:--.--")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(viewModel.trimStart != nil ? .green : .secondary)
+                    HStack(spacing: 6) {
+                        Text(viewModel.trimStart.map(formatTime) ?? "--:--.--")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(viewModel.trimStart != nil ? .green : .secondary)
+                        if viewModel.trimStart != nil {
+                            Button(action: { viewModel.trimStart = nil }) {
+                                Image(systemName: "xmark.circle")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 HStack {
                     Text(lang.t("trim.end"))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text(viewModel.trimEnd != nil ? formatTime(viewModel.trimEnd!) : "--:--.--")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(viewModel.trimEnd != nil ? .blue : .secondary)
+                    HStack(spacing: 6) {
+                        Text(viewModel.trimEnd.map(formatTime) ?? "--:--.--")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(viewModel.trimEnd != nil ? .blue : .secondary)
+                        if viewModel.trimEnd != nil {
+                            Button(action: { viewModel.trimEnd = nil }) {
+                                Image(systemName: "xmark.circle")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 if let start = viewModel.trimStart, let end = viewModel.trimEnd {
                     let duration = end - start
