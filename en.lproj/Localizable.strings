@@ -85,6 +85,11 @@
 "framerate.interpolate" = "Interpolate";
 "framerate.target" = "Target Frame Rate";
 "framerate.interpolate.warning" = "Motion interpolation requires more processing time";
+"stabilization.title" = "Stabilization";
+"stabilization.low" = "Low";
+"stabilization.medium" = "Medium";
+"stabilization.high" = "High";
+"stabilization.description" = "Stronger levels reduce camera shake but may crop more and take longer to process.";
 "loop.title" = "Loop";
 "theme.dark" = "Dark";
 "theme.light" = "Light";

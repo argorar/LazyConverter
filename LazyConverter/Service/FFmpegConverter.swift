@@ -25,92 +25,258 @@ class FFmpegConverter {
         print("    resolution: \(request.resolution)")
         print("    quality  : \(request.quality)")
         print("    useGPU   : \(request.useGPU)")
+        print("    stabilization: \(request.stabilizationLevel?.rawValue ?? "none")")
         
         guard isFfmpegInstalled() else {
             print("❌ FFmpeg no encontrado en rutas conocidas")
             request.completionCallback(.failure(.ffmpegNotFound))
             return
         }
-        let effectiveDuration = resolvedOutputDuration(request)
         
-        // 3) Construir comando ffmpeg
-        let arguments = self.buildFFmpegCommand(request)
-        
-        // Log del comando ffmpeg
-        let ffmpegPath = self.findFFmpeg()
-        print("🔹 Ejecutando ffmpeg:")
-        print("    \(ffmpegPath) \\")
-        for arg in arguments {
-            print("      \"\(arg)\" \\")
-        }
-        
-        // 4) Ejecutar en background
         DispatchQueue.global(qos: .userInitiated).async {
-            if request.loopEnabled {
-                let tempOutputURL = self.makeTemporaryOutputURL(
-                    in: request.outputURL.deletingLastPathComponent(),
-                    baseName: request.outputURL.deletingPathExtension().lastPathComponent,
-                    fileExtension: request.outputURL.pathExtension
-                )
-                
-                var firstPassArgs = arguments
-                if !firstPassArgs.isEmpty {
-                    firstPassArgs[firstPassArgs.count - 1] = tempOutputURL.path
-                }
-                
-                self.executeFFmpeg(
-                    executablePath: ffmpegPath,
-                    arguments: firstPassArgs,
-                    videoDuration: effectiveDuration,
-                    completionCallback: { result in
-                        switch result {
-                        case .success:
-                            let boomerangArgs = self.buildBoomerangCommand(
-                                inputURL: tempOutputURL,
-                                outputURL: request.outputURL,
-                                format: request.format,
-                                quality: request.quality,
-                                useGPU: request.useGPU,
-                                hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
-                            )
-                            
-                            self.executeFFmpeg(
-                                executablePath: ffmpegPath,
-                                arguments: boomerangArgs,
-                                videoDuration: effectiveDuration * 2,
-                                completionCallback: { secondResult in
-                                    try? FileManager.default.removeItem(at: tempOutputURL)
-                                    request.completionCallback(secondResult)
-                                }
-                            )
-                        case .failure(let error):
-                            request.completionCallback(.failure(error))
-                        }
-                    }
-                )
-            } else {
-                self.executeFFmpeg(
-                    executablePath: ffmpegPath,
-                    arguments: arguments,
-                    videoDuration: effectiveDuration,
-                    completionCallback: request.completionCallback
-                )
-            }
+            let ffmpegPath = self.findFFmpeg()
+            self.runConversionPipeline(
+                request: request,
+                executablePath: ffmpegPath,
+                completionCallback: request.completionCallback
+            )
         }
     }
     
-    private func buildFFmpegCommand(_ request: FFmpegConversionRequest) -> [String] {
+    private func runConversionPipeline(
+        request: FFmpegConversionRequest,
+        executablePath: String,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        let effectiveDuration = resolvedOutputDuration(request)
+        if let stabilizationLevel = request.stabilizationLevel {
+            runStabilizationTwoPassPipeline(
+                request: request,
+                stabilizationLevel: stabilizationLevel,
+                executablePath: executablePath,
+                videoDuration: effectiveDuration,
+                completionCallback: completionCallback
+            )
+            return
+        }
+
+        let mainArguments = buildFFmpegCommand(
+            request,
+            stabilizationTransformURL: nil,
+            outputURL: request.outputURL,
+            stabilizationEnabledOverride: false
+        )
+        logCommand(executablePath: executablePath, arguments: mainArguments)
+        executeMainAndOptionalLoop(
+            request: request,
+            executablePath: executablePath,
+            arguments: mainArguments,
+            videoDuration: effectiveDuration,
+            completionCallback: completionCallback
+        )
+    }
+
+    private func runStabilizationTwoPassPipeline(
+        request: FFmpegConversionRequest,
+        stabilizationLevel: VideoStabilizationLevel,
+        executablePath: String,
+        videoDuration: Double,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        let outputDirectory = request.outputURL.deletingLastPathComponent()
+        let outputName = request.outputURL.deletingPathExtension().lastPathComponent
+        let intermediateURL = makeTemporaryOutputURL(
+            in: outputDirectory,
+            baseName: "\(outputName)_prestab",
+            fileExtension: request.outputURL.pathExtension
+        )
+        let transformsURL = makeTemporaryTransformURL(
+            in: outputDirectory,
+            baseName: outputName
+        )
+        let stabilizedURL = request.loopEnabled
+            ? makeTemporaryOutputURL(
+                in: outputDirectory,
+                baseName: "\(outputName)_stabilized",
+                fileExtension: request.outputURL.pathExtension
+            )
+            : request.outputURL
+
+        let cleanup: () -> Void = {
+            try? FileManager.default.removeItem(at: intermediateURL)
+            try? FileManager.default.removeItem(at: transformsURL)
+            if request.loopEnabled {
+                try? FileManager.default.removeItem(at: stabilizedURL)
+            }
+        }
+
+        let baseArguments = buildFFmpegCommand(
+            request,
+            stabilizationTransformURL: nil,
+            outputURL: intermediateURL,
+            stabilizationEnabledOverride: false
+        )
+        logCommand(executablePath: executablePath, arguments: baseArguments)
+        executeFFmpeg(
+            executablePath: executablePath,
+            arguments: baseArguments,
+            videoDuration: videoDuration,
+            completionCallback: { baseResult in
+                switch baseResult {
+                case .failure(let error):
+                    cleanup()
+                    completionCallback(.failure(error))
+                case .success:
+                    let detectArguments = self.buildStabilizationDetectCommand(
+                        inputURL: intermediateURL,
+                        transformsURL: transformsURL,
+                        level: stabilizationLevel
+                    )
+                    self.logCommand(executablePath: executablePath, arguments: detectArguments)
+                    self.executeFFmpeg(
+                        executablePath: executablePath,
+                        arguments: detectArguments,
+                        videoDuration: videoDuration,
+                        reportProgress: false,
+                        completionCallback: { detectResult in
+                            switch detectResult {
+                            case .failure(let error):
+                                cleanup()
+                                completionCallback(.failure(error))
+                            case .success:
+                                let transformArguments = self.buildStabilizationTransformCommand(
+                                    request: request,
+                                    stabilizationLevel: stabilizationLevel,
+                                    inputURL: intermediateURL,
+                                    outputURL: stabilizedURL,
+                                    transformsURL: transformsURL
+                                )
+                                self.logCommand(executablePath: executablePath, arguments: transformArguments)
+                                self.executeFFmpeg(
+                                    executablePath: executablePath,
+                                    arguments: transformArguments,
+                                    videoDuration: videoDuration,
+                                    completionCallback: { transformResult in
+                                        switch transformResult {
+                                        case .failure(let error):
+                                            cleanup()
+                                            completionCallback(.failure(error))
+                                        case .success:
+                                            if request.loopEnabled {
+                                                let boomerangArgs = self.buildBoomerangCommand(
+                                                    inputURL: stabilizedURL,
+                                                    outputURL: request.outputURL,
+                                                    format: request.format,
+                                                    quality: request.quality,
+                                                    useGPU: request.useGPU,
+                                                    hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                                                )
+                                                self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
+                                                self.executeFFmpeg(
+                                                    executablePath: executablePath,
+                                                    arguments: boomerangArgs,
+                                                    videoDuration: videoDuration * 2,
+                                                    completionCallback: { boomerangResult in
+                                                        cleanup()
+                                                        completionCallback(boomerangResult)
+                                                    }
+                                                )
+                                            } else {
+                                                cleanup()
+                                                completionCallback(.success(request.outputURL))
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        )
+    }
+
+    private func executeMainAndOptionalLoop(
+        request: FFmpegConversionRequest,
+        executablePath: String,
+        arguments: [String],
+        videoDuration: Double,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        if request.loopEnabled {
+            let tempOutputURL = makeTemporaryOutputURL(
+                in: request.outputURL.deletingLastPathComponent(),
+                baseName: request.outputURL.deletingPathExtension().lastPathComponent,
+                fileExtension: request.outputURL.pathExtension
+            )
+
+            var firstPassArgs = arguments
+            if !firstPassArgs.isEmpty {
+                firstPassArgs[firstPassArgs.count - 1] = tempOutputURL.path
+            }
+
+            logCommand(executablePath: executablePath, arguments: firstPassArgs)
+            executeFFmpeg(
+                executablePath: executablePath,
+                arguments: firstPassArgs,
+                videoDuration: videoDuration,
+                completionCallback: { firstResult in
+                    switch firstResult {
+                    case .success:
+                        let boomerangArgs = self.buildBoomerangCommand(
+                            inputURL: tempOutputURL,
+                            outputURL: request.outputURL,
+                            format: request.format,
+                            quality: request.quality,
+                            useGPU: request.useGPU,
+                            hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                        )
+                        self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
+                        self.executeFFmpeg(
+                            executablePath: executablePath,
+                            arguments: boomerangArgs,
+                            videoDuration: videoDuration * 2,
+                            completionCallback: { secondResult in
+                                try? FileManager.default.removeItem(at: tempOutputURL)
+                                completionCallback(secondResult)
+                            }
+                        )
+                    case .failure(let error):
+                        try? FileManager.default.removeItem(at: tempOutputURL)
+                        completionCallback(.failure(error))
+                    }
+                }
+            )
+            return
+        }
+
+        executeFFmpeg(
+            executablePath: executablePath,
+            arguments: arguments,
+            videoDuration: videoDuration,
+            completionCallback: completionCallback
+        )
+    }
+
+    private func buildFFmpegCommand(
+        _ request: FFmpegConversionRequest,
+        stabilizationTransformURL: URL? = nil,
+        outputURL: URL? = nil,
+        stabilizationEnabledOverride: Bool? = nil
+    ) -> [String] {
         var videoFilters: [String] = []
         var audioFilters: [String] = []
         var arguments: [String] = []
+        var deferredStaticCropFilter: String?
         let usingDynamicCrop = request.cropEnable && request.cropDynamicEnabled && !request.cropDynamicKeyframes.isEmpty
+        let stabilizationEnabled = stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
         let speed = request.speedPercent / 100.0
         let hasSpeedChange = request.speedPercent != 100.0 && speed > 0
         var hasMergedSetpts = false
         
         // 1. TRIM FILTER (prioridad máxima)
         if let clipBounds = resolvedClipBounds(request) {
-            let trimAtInput = usingDynamicCrop || (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0)
+            let trimAtInput = usingDynamicCrop || (!stabilizationEnabled && request.videoInfo?.hasAudio == true && request.speedPercent == 100.0)
             if trimAtInput {
                 if request.trimStart != nil {
                     arguments += ["-ss", dot(clipBounds.start)]
@@ -128,12 +294,21 @@ class FFmpegConverter {
                 }
                 
                 if !trimComponents.isEmpty {
-                    let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
-                    let setptsFilter = hasSpeedChange
-                        ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
-                        : "setpts=PTS-STARTPTS"
-                    videoFilters.append("trim=\(trimComponents.joined(separator: ":")),\(setptsFilter)")
-                    hasMergedSetpts = true
+                    let trimFilter = "trim=\(trimComponents.joined(separator: ":"))"
+                    if stabilizationEnabled {
+                        videoFilters.append(trimFilter)
+                        if !hasSpeedChange {
+                            videoFilters.append("setpts=PTS-STARTPTS")
+                            hasMergedSetpts = true
+                        }
+                    } else {
+                        let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
+                        let setptsFilter = hasSpeedChange
+                            ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                            : "setpts=PTS-STARTPTS"
+                        videoFilters.append("\(trimFilter),\(setptsFilter)")
+                        hasMergedSetpts = true
+                    }
                 }
             }
         }
@@ -175,8 +350,20 @@ class FFmpegConverter {
                 let w = Int(cropRect.size.width * videoSize.width)
                 let h = Int(cropRect.size.height * videoSize.height)
                 
-                videoFilters.append("crop=\(w):\(h):\(x):\(y)")
+                deferredStaticCropFilter = "crop=\(w):\(h):\(x):\(y)"
             }
+        }
+
+        if let stabilizationLevel = request.stabilizationLevel, let stabilizationTransformURL, stabilizationEnabled {
+            let filter = stabilizationLevel.buildTransformFilter(
+                transformsPath: stabilizationTransformURL.path
+            )
+            videoFilters.append(filter)
+        }
+
+        if let deferredStaticCropFilter {
+            // Apply static crop after stabilization to avoid strong warping on tiny cropped regions.
+            videoFilters.append(deferredStaticCropFilter)
         }
         
         if let colorFilter = request.colorAdjustments.toFFmpegFilter() {
@@ -251,7 +438,7 @@ class FFmpegConverter {
         arguments += [
             "-progress", "pipe:1",
             "-y",
-            request.outputURL.path
+            (outputURL ?? request.outputURL).path
         ]
             
         print("🎬 FFmpeg Command:")
@@ -307,6 +494,110 @@ class FFmpegConverter {
         return max(0.0, request.videoInfo?.duration ?? 0.0)
     }
 
+    private func buildStabilizationDetectCommand(
+        inputURL: URL,
+        transformsURL: URL,
+        level: VideoStabilizationLevel
+    ) -> [String] {
+        var arguments: [String] = [
+            "-i", inputURL.path
+        ]
+        let detectFilter = level.buildDetectFilter(
+            transformsPath: transformsURL.path
+        )
+        arguments += [
+            "-vf", detectFilter,
+            "-an",
+            "-f", "null",
+            "-"
+        ]
+
+        return arguments
+    }
+
+    private func buildStabilizationTransformCommand(
+        request: FFmpegConversionRequest,
+        stabilizationLevel: VideoStabilizationLevel,
+        inputURL: URL,
+        outputURL: URL,
+        transformsURL: URL
+    ) -> [String] {
+        var arguments: [String] = [
+            "-i", inputURL.path
+        ]
+
+        if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
+            arguments += ["-pix_fmt", pixFmt]
+        }
+
+        let transformFilter = stabilizationLevel.buildTransformFilter(
+            transformsPath: transformsURL.path
+        )
+        arguments += ["-vf", transformFilter]
+
+        let (videoCodec, audioCodec) = codecForFormat(request.format, useGPU: request.useGPU)
+        arguments += ["-c:v", videoCodec]
+
+        if request.format == .webm {
+            arguments += ["-b:v", "0",
+                          "-quality", "good",
+                          "-cpu-used", "0",
+                          "-row-mt", "1",
+                          "-tile-columns", "2",
+                          "-frame-parallel", "1",
+                          "-auto-alt-ref", "1",
+                          "-lag-in-frames", "25"]
+        }
+        else if request.format == .mp4, videoCodec != "h264_videotoolbox" {
+            arguments += ["-preset", "veryslow"]
+        }
+        else if request.format == .av1
+        {
+            arguments += ["-preset", "4",
+                          "-svtav1-params", "scd=1",
+                          "-svtav1-params", "scm=0"]
+        }
+
+        arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
+
+        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0) {
+            arguments += ["-c:a", audioCodec]
+            arguments += ["-b:a", "128k"]
+        }
+        else {
+            arguments += ["-an"]
+        }
+
+        if let primaries = request.videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
+            arguments += ["-color_primaries", primaries]
+        }
+        if let trc = request.videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
+            arguments += ["-color_trc", trc]
+        }
+        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
+            arguments += ["-colorspace", colorspace]
+        }
+        if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
+            arguments += ["-color_range", range]
+        }
+
+        arguments += [
+            "-progress", "pipe:1",
+            "-y",
+            outputURL.path
+        ]
+
+        return arguments
+    }
+
+    private func logCommand(executablePath: String, arguments: [String]) {
+        print("🔹 Ejecutando ffmpeg:")
+        print("    \(executablePath) \\")
+        for arg in arguments {
+            print("      \"\(arg)\" \\")
+        }
+    }
+
     private func buildBoomerangCommand(
         inputURL: URL,
         outputURL: URL,
@@ -353,6 +644,12 @@ class FFmpegConverter {
         return directory.appendingPathComponent(filename)
     }
 
+    private func makeTemporaryTransformURL(in directory: URL, baseName: String) -> URL {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let filename = "\(baseName)_stab_\(timestamp).trf"
+        return directory.appendingPathComponent(filename)
+    }
+
     private func codecForFormat(_ format: VideoFormat, useGPU: Bool) -> (video: String, audio: String) {
         let videoCodec = "h264_videotoolbox"
         
@@ -385,6 +682,7 @@ class FFmpegConverter {
         executablePath: String,
         arguments: [String],
         videoDuration: TimeInterval,
+        reportProgress: Bool = true,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
     ) {
         let process = Process()
@@ -412,7 +710,7 @@ class FFmpegConverter {
             errHandle.readabilityHandler = nil
 
             DispatchQueue.main.async { [weak self] in
-                if case .success = result {
+                if reportProgress, case .success = result {
                     self?.progressCallback?(100.0)
                 }
                 completionCallback(result)
@@ -433,7 +731,9 @@ class FFmpegConverter {
                     stdoutBuffer.removeSubrange(..<range.upperBound)
 
                     if !line.isEmpty {
-                        self?.parseFFmpegOutput(line + "\n", videoDuration: videoDuration)
+                        if reportProgress {
+                            self?.parseFFmpegOutput(line + "\n", videoDuration: videoDuration)
+                        }
 
                         if line.contains("progress=end") {
                             print("✅ FFmpeg completado por progress=end")

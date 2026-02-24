@@ -16,8 +16,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "419"
             endingLineNumber = "419"
-            landmarkName = "finish(_:)"
-            landmarkType = "9">
+            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -64,7 +64,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "resetCrop()"
+            landmarkName = "resetColorAdjustments()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -96,7 +96,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "267"
             endingLineNumber = "267"
-            landmarkName = "nearestDynamicKeyframe(to:toleranceFrames:)"
+            landmarkName = "recordDynamicCrop(at:frameRate:cropRect:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -128,7 +128,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "54"
             endingLineNumber = "54"
-            landmarkName = "convert(_:)"
+            landmarkName = "runConversionPipeline(request:executablePath:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -144,8 +144,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "214"
             endingLineNumber = "214"
-            landmarkName = "VideoConversionViewModel"
-            landmarkType = "3">
+            landmarkName = "clearSelection()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -176,7 +176,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "88"
             endingLineNumber = "88"
-            landmarkName = "convert(_:)"
+            landmarkName = "runStabilizationTwoPassPipeline(request:stabilizationLevel:executablePath:videoDuration:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -192,7 +192,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "294"
             endingLineNumber = "294"
-            landmarkName = "resolvedClipBounds(_:)"
+            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

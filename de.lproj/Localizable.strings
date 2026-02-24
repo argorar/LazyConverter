@@ -85,6 +85,11 @@
 "framerate.interpolate" = "Interpolieren";
 "framerate.target" = "Ziel-Bildrate";
 "framerate.interpolate.warning" = "Bewegungsinterpolation benötigt mehr Verarbeitungszeit";
+"stabilization.title" = "Stabilisierung";
+"stabilization.low" = "Niedrig";
+"stabilization.medium" = "Mittel";
+"stabilization.high" = "Hoch";
+"stabilization.description" = "Höhere Stufen reduzieren Wackeln stärker, können aber mehr zuschneiden und länger dauern.";
 "loop.title" = "Schleife";
 "theme.dark" = "Dunkel";
 "theme.light" = "Hell";

@@ -94,6 +94,7 @@ class QueueManager: ObservableObject {
                 quality: item.quality,
                 speedPercent: item.speedPercent,
                 useGPU: item.useGPU,
+                stabilizationLevel: nil,
                 loopEnabled: item.loopEnabled,
                 trimStart: item.trimStart,
                 trimEnd: item.trimEnd,

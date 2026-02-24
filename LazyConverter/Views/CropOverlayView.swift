@@ -15,7 +15,6 @@ struct CropOverlayView: View {
     let playerFrame: CGRect
     let showTrackerTarget: Bool
     let onCropDragged: ((CGRect) -> Void)?
-    @FocusState private var isFocused: Bool
 
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight, body }
     
@@ -122,9 +121,8 @@ struct CropOverlayView: View {
                 trackerPivotDragGesture(videoFrame: videoFrame, trackerPixelRect: trackerPixelRect)
             )
             .focusable(true)
-            .focused($isFocused)
+            .focusEffectDisabled()
             .onAppear {
-                isFocused = true
                 baseCropRect = cropRect
                 lastTrackerPixelRect = trackerPixelRect
                 isCommandPressed = NSEvent.modifierFlags.contains(.command)

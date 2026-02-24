@@ -278,6 +278,11 @@ struct VideoPreviewPanel: View {
             return event
         }
 
+        if event.charactersIgnoringModifiers?.lowercased() == "m" {
+            toggleMute()
+            return nil
+        }
+
         switch event.keyCode {
         case 49: // Space
             if modifiers.contains(.shift) {

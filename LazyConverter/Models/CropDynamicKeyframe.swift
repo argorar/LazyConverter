@@ -54,7 +54,6 @@ extension CropDynamicKeyframe {
         }
 
         let nSects = sorted.count - 1
-        // For dense maps (tracker), linear interpolation follows motion better than per-segment easing.
         let easeType = sorted.count > 8 ? "linear" : "easeInOutSine"
         var cropXExprParts: [String] = []
         var cropYExprParts: [String] = []

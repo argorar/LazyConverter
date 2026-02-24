@@ -36,6 +36,7 @@ struct SettingsPanel: View {
             SpeedSliderPanel(viewModel: viewModel)
             FrameRateSection(viewModel: viewModel)
             trimSection
+            stabilizationSection
             loopSection
             colorAdjustmentsSection
             advancedOptionsSection
@@ -344,6 +345,49 @@ struct SettingsPanel: View {
         .padding(12)
         .background(Color(nsColor: .separatorColor).opacity(0.3))
         .cornerRadius(12)
+    }
+
+    @ViewBuilder
+    private var stabilizationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "camera.aperture")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("stabilization.title"))
+                    .font(.system(size: 14, weight: .semibold))
+                Toggle("", isOn: stabilizationToggleBinding)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                Spacer()
+            }
+
+            if viewModel.stabilizationEnabled {
+                Picker("", selection: $viewModel.stabilizationLevel) {
+                    Text(lang.t("stabilization.low")).tag(VideoStabilizationLevel.low)
+                    Text(lang.t("stabilization.medium")).tag(VideoStabilizationLevel.medium)
+                    Text(lang.t("stabilization.high")).tag(VideoStabilizationLevel.high)
+                }
+                .pickerStyle(.segmented)
+
+                Text(lang.t("stabilization.description"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .separatorColor).opacity(0.5))
+        .cornerRadius(8)
+    }
+
+    private var stabilizationToggleBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.stabilizationEnabled },
+            set: { enabled in
+                viewModel.stabilizationEnabled = enabled
+            }
+        )
     }
 
     @ViewBuilder

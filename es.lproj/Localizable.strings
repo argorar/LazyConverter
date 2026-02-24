@@ -85,6 +85,11 @@
 "framerate.interpolate" = "Interpolar";
 "framerate.target" = "FPS objetivo";
 "framerate.interpolate.warning" = "La interpolación de movimiento requiere más tiempo de procesamiento";
+"stabilization.title" = "Estabilización";
+"stabilization.low" = "Baja";
+"stabilization.medium" = "Media";
+"stabilization.high" = "Alta";
+"stabilization.description" = "Niveles más altos reducen más el movimiento, pero pueden recortar más y tardar más en procesar.";
 "loop.title" = "Bucle";
 "theme.dark" = "Oscuro";
 "theme.light" = "Claro";
