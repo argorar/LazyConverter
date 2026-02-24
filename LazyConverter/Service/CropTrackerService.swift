@@ -31,33 +31,38 @@ enum CropTrackerServiceError: LocalizedError {
 }
 
 enum CropTrackerService {
-    // Reduce sampling density to generate ~30% fewer tracking points.
     private static let trackingSampleFactor: Double = 0.70
 
     static func track(
         inputURL: URL,
         initialCropRect: CGRect,
+        trackerPivot: CGPoint = CropTrackerTarget.defaultPivot,
         trimStart: Double?,
         trimEnd: Double?,
         videoInfo: VideoInfo?
-    ) throws -> [CropDynamicKeyframe] {
+    ) async throws -> [CropDynamicKeyframe] {
         let asset = AVURLAsset(url: inputURL)
-        guard let videoTrack = asset.tracks(withMediaType: .video).first else {
+        guard let videoTrack = try await loadPrimaryVideoTrack(from: asset) else {
             throw CropTrackerServiceError.noVideoTrack
         }
 
-        let duration = resolvedDuration(asset: asset, videoInfo: videoInfo)
+        let duration = await resolvedDuration(asset: asset, videoInfo: videoInfo)
         let bounds = resolvedBounds(duration: duration, trimStart: trimStart, trimEnd: trimEnd)
         guard bounds.end > bounds.start else {
             throw CropTrackerServiceError.invalidRange
         }
 
         let normalizedInitial = clampNormalizedRect(initialCropRect)
-        let pixelSize = resolvedPixelSize(videoTrack: videoTrack, videoInfo: videoInfo)
+        let normalizedPivot = CropTrackerTarget.clampUnitPoint(trackerPivot)
+        let pixelSize = await resolvedPixelSize(videoTrack: videoTrack, videoInfo: videoInfo)
         let fixedCropSize = normalizedInitial.size
-        let initialTargetRect = CropTrackerTarget.normalizedTargetRect(in: normalizedInitial, videoSize: pixelSize)
+        let initialTargetRect = CropTrackerTarget.normalizedTargetRect(
+            in: normalizedInitial,
+            videoSize: pixelSize,
+            pivot: normalizedPivot
+        )
         let targetSizePixels = CropTrackerTarget.squareSizePixels(cropRect: normalizedInitial, videoSize: pixelSize)
-        let sourceFPS = max(1.0, videoInfo?.frameRate ?? Double(videoTrack.nominalFrameRate))
+        let sourceFPS = await resolvedSourceFPS(videoTrack: videoTrack, videoInfo: videoInfo)
         let sampleFPS = resolvedSampleFPS(sourceFPS: sourceFPS, duration: bounds.end - bounds.start)
 
         let generator = AVAssetImageGenerator(asset: asset)
@@ -67,7 +72,7 @@ enum CropTrackerService {
         generator.requestedTimeToleranceAfter = tolerance
 
         let visionInitial = toVisionRect(initialTargetRect)
-        var request = VNTrackObjectRequest(detectedObjectObservation: VNDetectedObjectObservation(boundingBox: visionInitial))
+        let request = VNTrackObjectRequest(detectedObjectObservation: VNDetectedObjectObservation(boundingBox: visionInitial))
         request.trackingLevel = .accurate
         request.preferBackgroundProcessing = false
         let minimumConfidence = resolvedMinimumConfidence()
@@ -85,7 +90,7 @@ enum CropTrackerService {
         var processedFrames = 0
 
         for sample in sampleTimes {
-            guard let frame = copyFrame(at: sample, generator: generator) else { continue }
+            guard let frame = await copyFrame(at: sample, generator: generator) else { continue }
             processedFrames += 1
 
             let handler = VNImageRequestHandler(cgImage: frame.image, options: [:])
@@ -102,7 +107,11 @@ enum CropTrackerService {
                     )
                     lastTargetRect = stabilizedTargetRect
                     let targetCenter = CGPoint(x: stabilizedTargetRect.midX, y: stabilizedTargetRect.midY)
-                    lastRect = cropRectCentered(on: targetCenter, cropSize: fixedCropSize)
+                    lastRect = cropRectAnchored(
+                        on: targetCenter,
+                        cropSize: fixedCropSize,
+                        pivot: normalizedPivot
+                    )
                 }
             } catch {
                 // Keep last tracked rect if Vision fails on this frame.
@@ -130,8 +139,18 @@ enum CropTrackerService {
         return keyframes
     }
 
-    private static func resolvedDuration(asset: AVAsset, videoInfo: VideoInfo?) -> Double {
-        let fromAsset = asset.duration.seconds
+    private static func loadPrimaryVideoTrack(from asset: AVAsset) async throws -> AVAssetTrack? {
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        return tracks.first
+    }
+
+    private static func resolvedDuration(asset: AVAsset, videoInfo: VideoInfo?) async -> Double {
+        let fromAsset: Double
+        if let duration = try? await asset.load(.duration) {
+            fromAsset = duration.seconds
+        } else {
+            fromAsset = 0.0
+        }
         let fromInfo = videoInfo?.duration ?? 0
         return max(0.0, fromAsset.isFinite && fromAsset > 0 ? fromAsset : fromInfo)
     }
@@ -146,13 +165,27 @@ enum CropTrackerService {
         return (start, end)
     }
 
-    private static func resolvedPixelSize(videoTrack: AVAssetTrack, videoInfo: VideoInfo?) -> CGSize {
+    private static func resolvedPixelSize(videoTrack: AVAssetTrack, videoInfo: VideoInfo?) async -> CGSize {
         if let infoSize = videoInfo?.videoSize, abs(infoSize.width) > 1, abs(infoSize.height) > 1 {
             return CGSize(width: abs(infoSize.width), height: abs(infoSize.height))
         }
 
-        let transformed = videoTrack.naturalSize.applying(videoTrack.preferredTransform)
+        let naturalSize = (try? await videoTrack.load(.naturalSize)) ?? .zero
+        let preferredTransform = (try? await videoTrack.load(.preferredTransform)) ?? .identity
+        let transformed = naturalSize.applying(preferredTransform)
         return CGSize(width: max(1.0, abs(transformed.width)), height: max(1.0, abs(transformed.height)))
+    }
+
+    private static func resolvedSourceFPS(videoTrack: AVAssetTrack, videoInfo: VideoInfo?) async -> Double {
+        if let infoFPS = videoInfo?.frameRate, infoFPS > 0 {
+            return max(1.0, infoFPS)
+        }
+
+        if let nominalFrameRate = try? await videoTrack.load(.nominalFrameRate) {
+            return max(1.0, Double(nominalFrameRate))
+        }
+
+        return 1.0
     }
 
     private static func resolvedSampleFPS(sourceFPS: Double, duration: Double) -> Double {
@@ -173,7 +206,7 @@ enum CropTrackerService {
     }
 
     private static func resolvedMinimumConfidence() -> Float {
-        0.25
+        0.15
     }
 
     private static func makeSampleTimes(start: Double, end: Double, sampleFPS: Double) -> [Double] {
@@ -195,16 +228,18 @@ enum CropTrackerService {
         }
         return times
     }
-
-    private static func copyFrame(at time: Double, generator: AVAssetImageGenerator) -> (image: CGImage, time: Double)? {
+    
+    private static func copyFrame(at time: Double, generator: AVAssetImageGenerator) async -> (image: CGImage, time: Double)? {
         let requested = CMTime(seconds: max(0.0, time), preferredTimescale: 600)
-        var actual = CMTime.zero
-        do {
-            let image = try generator.copyCGImage(at: requested, actualTime: &actual)
-            let actualSeconds = actual.seconds.isFinite ? actual.seconds : time
-            return (image, max(0.0, actualSeconds))
-        } catch {
-            return nil
+        return await withCheckedContinuation { continuation in
+            generator.generateCGImageAsynchronously(for: requested) { cgImage, actualTime, error in
+                guard let cgImage = cgImage, error == nil else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let actualSeconds = actualTime.seconds.isFinite ? actualTime.seconds : time
+                continuation.resume(returning: (cgImage, max(0.0, actualSeconds)))
+            }
         }
     }
 
@@ -278,20 +313,21 @@ enum CropTrackerService {
         targetSizePixels: CGFloat,
         axis: TrackerAxis
     ) -> CGFloat {
-        let base = max(10.0, targetSizePixels * 0.7)
+        let base = max(12.0, targetSizePixels * 1.8)
 
         // Vertical motion in real footage tends to be more abrupt; allow larger per-frame jump.
-        return axis == .vertical ? base * 1.45 : base
+        return axis == .vertical ? base * 1.2 : base
     }
 
     private static func resolvedSmoothingAlpha(axis: TrackerAxis) -> CGFloat {
-        axis == .vertical ? 0.58 : 0.38
+        axis == .vertical ? 0.90 : 0.82
     }
 
-    private static func cropRectCentered(on center: CGPoint, cropSize: CGSize) -> CGRect {
+    private static func cropRectAnchored(on pivotPoint: CGPoint, cropSize: CGSize, pivot: CGPoint) -> CGRect {
+        let clampedPivot = CropTrackerTarget.clampUnitPoint(pivot)
         let rect = CGRect(
-            x: center.x - cropSize.width / 2.0,
-            y: center.y - cropSize.height / 2.0,
+            x: pivotPoint.x - cropSize.width * clampedPivot.x,
+            y: pivotPoint.y - cropSize.height * clampedPivot.y,
             width: cropSize.width,
             height: cropSize.height
         )

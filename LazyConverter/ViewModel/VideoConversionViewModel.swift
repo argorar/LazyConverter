@@ -56,6 +56,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var isTrackingCrop: Bool = false
     @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
+    @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot
     @Published var loopEnabled: Bool = false
     @Published var liveCurrentTime: Double = 0
     @Published var trimStart: Double? = nil {
@@ -132,6 +133,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     
     func resetCrop() {
         cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropTrackerEnabled = false
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
@@ -176,6 +178,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         selectedFileURL = url
         selectedFileName = url.lastPathComponent
         errorMessage = nil
+        cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
@@ -199,6 +202,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropEnabled = false
         cropDynamicEnabled = false
         cropTrackerEnabled = false
+        cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
@@ -396,6 +400,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         activeTrackerJobID = jobID
 
         let initialRect = cropRect
+        let trackerPivot = cropTrackerPivot
         let trimStartValue = trimStart
         let trimEndValue = trimEnd
         let info = videoInfo
@@ -405,6 +410,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 let trackedKeyframes = try await CropTrackerService.track(
                     inputURL: inputURL,
                     initialCropRect: initialRect,
+                    trackerPivot: trackerPivot,
                     trimStart: trimStartValue,
                     trimEnd: trimEndValue,
                     videoInfo: info

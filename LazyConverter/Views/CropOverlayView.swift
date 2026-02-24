@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct CropOverlayView: View {
     @Binding var cropRect: CGRect
+    @Binding var trackerPivot: CGPoint
     let videoSize: CGSize
     let playerFrame: CGRect
     let showTrackerTarget: Bool
@@ -25,6 +27,13 @@ struct CropOverlayView: View {
     @GestureState private var dragOffset: CGSize = .zero
     @State private var baseCropRect: CGRect = .zero
     @State private var isDragging = false
+    @State private var isDraggingTrackerPivot = false
+    @State private var trackerPivotStart: CGPoint = .zero
+    @State private var commandKeyMonitor: Any?
+    @State private var isCommandPressed = false
+    @State private var hoverLocation: CGPoint?
+    @State private var lastTrackerPixelRect: CGRect = .zero
+    @State private var isPivotCursorVisible = false
 
     var body: some View {
         GeometryReader { geo in
@@ -35,7 +44,11 @@ struct CropOverlayView: View {
                 width: cropRect.size.width * videoFrame.width,
                 height: cropRect.size.height * videoFrame.height
             )
-            let trackerTarget = CropTrackerTarget.normalizedTargetRect(in: cropRect, videoSize: videoSize)
+            let trackerTarget = CropTrackerTarget.normalizedTargetRect(
+                in: cropRect,
+                videoSize: videoSize,
+                pivot: trackerPivot
+            )
             let trackerPixelRect = CGRect(
                 x: trackerTarget.origin.x * videoFrame.width + videoFrame.minX,
                 y: trackerTarget.origin.y * videoFrame.height + videoFrame.minY,
@@ -105,16 +118,43 @@ struct CropOverlayView: View {
                 .position(x: cropPixelRect.midX, y: cropPixelRect.minY - 20)
                 .allowsHitTesting(false)
             }
+            .simultaneousGesture(
+                trackerPivotDragGesture(videoFrame: videoFrame, trackerPixelRect: trackerPixelRect)
+            )
             .focusable(true)
             .focused($isFocused)
             .onAppear {
                 isFocused = true
                 baseCropRect = cropRect
+                lastTrackerPixelRect = trackerPixelRect
+                isCommandPressed = NSEvent.modifierFlags.contains(.command)
+                installCommandKeyMonitor()
+                updatePivotCursor()
+            }
+            .onDisappear {
+                removeCommandKeyMonitor()
+                hidePivotCursorIfNeeded()
             }
             .onChange(of: cropRect) { oldValue, newValue in
                 if !isDragging {
                     baseCropRect = newValue
                 }
+            }
+            .onChange(of: trackerPixelRect) { _, newValue in
+                lastTrackerPixelRect = newValue
+                updatePivotCursor()
+            }
+            .onChange(of: showTrackerTarget) { _, _ in
+                updatePivotCursor()
+            }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    hoverLocation = location
+                case .ended:
+                    hoverLocation = nil
+                }
+                updatePivotCursor()
             }
             .onKeyPress { key in
                 guard key.modifiers.contains(.shift) else { return .ignored }
@@ -185,6 +225,7 @@ struct CropOverlayView: View {
                 state = value.translation
             }
             .onChanged { value in
+                guard !NSEvent.modifierFlags.contains(.command) else { return }
                 isDragging = true
                 
                 let dxNorm = value.translation.width / videoFrame.width
@@ -199,6 +240,10 @@ struct CropOverlayView: View {
                 )
             }
             .onEnded { _ in
+                guard !NSEvent.modifierFlags.contains(.command) else {
+                    isDragging = false
+                    return
+                }
                 baseCropRect = cropRect
                 isDragging = false
             }
@@ -280,5 +325,79 @@ struct CropOverlayView: View {
             cropRect = rect
             onCropDragged?(rect)
         }
+    }
+
+    private func trackerPivotDragGesture(videoFrame: CGRect, trackerPixelRect: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard showTrackerTarget else { return }
+                guard NSEvent.modifierFlags.contains(.command) else {
+                    isDraggingTrackerPivot = false
+                    return
+                }
+
+                if !isDraggingTrackerPivot {
+                    let hitArea = trackerPixelRect.insetBy(dx: -6, dy: -6)
+                    guard hitArea.contains(value.startLocation) else { return }
+                    isDraggingTrackerPivot = true
+                    trackerPivotStart = trackerPivot
+                    updatePivotCursor()
+                }
+
+                let cropWidthPixels = max(0.0001, cropRect.width * videoFrame.width)
+                let cropHeightPixels = max(0.0001, cropRect.height * videoFrame.height)
+                let deltaPivotX = value.translation.width / cropWidthPixels
+                let deltaPivotY = value.translation.height / cropHeightPixels
+                let nextPivot = CGPoint(
+                    x: trackerPivotStart.x + deltaPivotX,
+                    y: trackerPivotStart.y + deltaPivotY
+                )
+                trackerPivot = CropTrackerTarget.clampUnitPoint(nextPivot)
+            }
+            .onEnded { _ in
+                isDraggingTrackerPivot = false
+                trackerPivotStart = trackerPivot
+                updatePivotCursor()
+            }
+    }
+
+    private func installCommandKeyMonitor() {
+        guard commandKeyMonitor == nil else { return }
+        commandKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            isCommandPressed = event.modifierFlags.contains(.command)
+            updatePivotCursor()
+            return event
+        }
+    }
+
+    private func removeCommandKeyMonitor() {
+        if let monitor = commandKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            commandKeyMonitor = nil
+        }
+    }
+
+    private func hidePivotCursorIfNeeded() {
+        guard isPivotCursorVisible else { return }
+        NSCursor.pop()
+        isPivotCursorVisible = false
+    }
+
+    private func updatePivotCursor() {
+        let isHoveringTracker: Bool = {
+            guard let hoverLocation else { return false }
+            let hitArea = lastTrackerPixelRect.insetBy(dx: -6, dy: -6)
+            return hitArea.contains(hoverLocation)
+        }()
+        let shouldShowPivotCursor = showTrackerTarget && isCommandPressed && isHoveringTracker
+
+        if shouldShowPivotCursor {
+            guard !isPivotCursorVisible else { return }
+            NSCursor.openHand.push()
+            isPivotCursorVisible = true
+            return
+        }
+
+        hidePivotCursorIfNeeded()
     }
 }

@@ -8,6 +8,8 @@
 import CoreGraphics
 
 enum CropTrackerTarget {
+    static let defaultPivot = CGPoint(x: 0.5, y: 0.5)
+
     static func squareSizePixels(cropRect: CGRect, videoSize: CGSize) -> CGFloat {
         let width = max(1.0, abs(videoSize.width))
         let height = max(1.0, abs(videoSize.height))
@@ -20,25 +22,46 @@ enum CropTrackerTarget {
         return max(8.0, clamped)
     }
 
-    static func normalizedTargetRect(in cropRect: CGRect, videoSize: CGSize) -> CGRect {
+    static func normalizedTargetRect(
+        in cropRect: CGRect,
+        videoSize: CGSize,
+        pivot: CGPoint = defaultPivot
+    ) -> CGRect {
         let sizePixels = squareSizePixels(cropRect: cropRect, videoSize: videoSize)
         let width = max(1.0, abs(videoSize.width))
         let height = max(1.0, abs(videoSize.height))
 
-        let sizeNormX = sizePixels / width
-        let sizeNormY = sizePixels / height
-        let sizeNorm = min(sizeNormX, sizeNormY)
+        let targetWidthNorm = min(sizePixels / width, cropRect.width)
+        let targetHeightNorm = min(sizePixels / height, cropRect.height)
 
-        let centerX = cropRect.midX
-        let centerY = cropRect.midY
+        let clampedPivot = clampUnitPoint(pivot)
+        let desiredCenterX = cropRect.minX + cropRect.width * clampedPivot.x
+        let desiredCenterY = cropRect.minY + cropRect.height * clampedPivot.y
+        let halfWidth = targetWidthNorm / 2.0
+        let halfHeight = targetHeightNorm / 2.0
+
+        let minCenterX = cropRect.minX + halfWidth
+        let maxCenterX = cropRect.maxX - halfWidth
+        let minCenterY = cropRect.minY + halfHeight
+        let maxCenterY = cropRect.maxY - halfHeight
+
+        let centerX = min(max(desiredCenterX, minCenterX), maxCenterX)
+        let centerY = min(max(desiredCenterY, minCenterY), maxCenterY)
 
         let rect = CGRect(
-            x: centerX - sizeNorm / 2.0,
-            y: centerY - sizeNorm / 2.0,
-            width: sizeNorm,
-            height: sizeNorm
+            x: centerX - targetWidthNorm / 2.0,
+            y: centerY - targetHeightNorm / 2.0,
+            width: targetWidthNorm,
+            height: targetHeightNorm
         )
         return clampNormalized(rect)
+    }
+
+    static func clampUnitPoint(_ point: CGPoint) -> CGPoint {
+        CGPoint(
+            x: max(0.0, min(1.0, point.x)),
+            y: max(0.0, min(1.0, point.y))
+        )
     }
 
     static func clampNormalized(_ rect: CGRect) -> CGRect {
