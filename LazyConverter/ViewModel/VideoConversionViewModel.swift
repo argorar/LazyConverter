@@ -400,9 +400,9 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         let trimEndValue = trimEnd
         let info = videoInfo
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        Task(priority: .userInitiated) { [weak self] in
             do {
-                let trackedKeyframes = try CropTrackerService.track(
+                let trackedKeyframes = try await CropTrackerService.track(
                     inputURL: inputURL,
                     initialCropRect: initialRect,
                     trimStart: trimStartValue,
@@ -410,7 +410,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     videoInfo: info
                 )
 
-                DispatchQueue.main.async { [weak self] in
+                await MainActor.run { [weak self] in
                     guard let self else { return }
                     guard self.activeTrackerJobID == jobID, self.isProcessing else { return }
                     self.activeTrackerJobID = nil
@@ -420,7 +420,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     self.continueConversion(using: inputURL)
                 }
             } catch {
-                DispatchQueue.main.async { [weak self] in
+                await MainActor.run { [weak self] in
                     guard let self else { return }
                     guard self.activeTrackerJobID == jobID else { return }
                     self.activeTrackerJobID = nil
@@ -444,19 +444,11 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
         // Crear ruta de salida
         let outputDir = outputDirectory.resolveURL()
-        let timestamp = Int(Date().timeIntervalSince1970)
-    
-        var extention = "mp4"
-        switch selectedFormat {
-        case .webm:
-            extention = "webm"
-        case .av1:
-            extention = "mp4"
-        default:
-            extention = selectedFormat.rawValue
-        }
-        let outputFileName = "converted_\(timestamp).\(extention)"
-        let outputURL = outputDir.appendingPathComponent(outputFileName)
+        let outputURL = OutputFileNameGenerator.nextAvailableOutputURL(
+            inputURL: inputURL,
+            outputDirectory: outputDir,
+            format: selectedFormat
+        )
         self.outputFileURL = outputURL
         
         let trimStartSeconds: Double? = trimStart

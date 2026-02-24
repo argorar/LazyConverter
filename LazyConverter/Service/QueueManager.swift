@@ -79,8 +79,11 @@ class QueueManager: ObservableObject {
         
         // Output path
         let outputDir = item.outputDirectory.resolveURL()
-        let outputFilename = (item.filename as NSString).deletingPathExtension + "_converted.\(item.format.rawValue)"
-        let outputURL = outputDir.appendingPathComponent(outputFilename)
+        let outputURL = OutputFileNameGenerator.nextAvailableOutputURL(
+            inputURL: item.url,
+            outputDirectory: outputDir,
+            format: item.format
+        )
         
         await withCheckedContinuation { continuation in
             let request = FFmpegConversionRequest(

@@ -7,8 +7,8 @@
 
 
 import SwiftUI
-import AVKit
 import AVFoundation
+import AppKit
 
 struct VideoPreviewPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
@@ -20,13 +20,26 @@ struct VideoPreviewPanel: View {
     @State private var duration: Double = 0
     @State private var timer: Timer? = nil
     @State private var isSeekingToTrimBound = false
+    @State private var isUserScrubbing = false
+    @State private var wasPlayingBeforeScrub = false
+    @State private var isPlayerPlaying = false
+    @State private var isPlayerMuted = false
+    @State private var scrubPosition: Double = 0
+    @State private var isLoadingAssetDuration = false
+    @State private var keyEventMonitor: Any?
+    @State private var scrollEventMonitor: Any?
+    @State private var isHoveringSeekSlider = false
+    @State private var isPointerDragScrubbing = false
+    private let playerControlButtonSize: CGFloat = 28
+    private let trimJumpButtonWidth: CGFloat = 84
+    private let trimJumpButtonHeight: CGFloat = 28
     
     var body: some View {
         VStack(spacing: 12) {
             
             // Player
             if let unwrappedPlayer = player, unwrappedPlayer.currentItem != nil {
-                VideoPlayer(player: unwrappedPlayer)
+                PlayerSurfaceView(player: unwrappedPlayer)
                     .frame(height: 500)
                     .cornerRadius(8)
                     .overlay {
@@ -62,8 +75,68 @@ struct VideoPreviewPanel: View {
                 .frame(height: 300)
                 .cornerRadius(8)
             }
+
+            if player?.currentItem != nil {
+                HStack(spacing: 8) {
+                    Button(action: togglePlayback) {
+                        Image(systemName: isPlayerPlaying ? "pause.fill" : "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .frame(width: playerControlButtonSize, height: playerControlButtonSize)
+
+                    Slider(
+                        value: $scrubPosition,
+                        in: sliderRange,
+                        onEditingChanged: handleScrubbingChanged
+                    )
+                    .tint(.accentColor)
+                    .onHover { hovering in
+                        isHoveringSeekSlider = hovering
+                    }
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            guard isHoveringSeekSlider || isPointerDragScrubbing else { return }
+                                            if !isPointerDragScrubbing {
+                                                isPointerDragScrubbing = true
+                                                startScrubbingSession()
+                                            }
+
+                                            let width = max(1.0, geo.size.width)
+                                            let clampedX = min(max(0.0, value.location.x), width)
+                                            let progress = Double(clampedX / width)
+                                            let range = sliderRange
+                                            scrubPosition = range.lowerBound + (range.upperBound - range.lowerBound) * progress
+                                        }
+                                        .onEnded { _ in
+                                            guard isPointerDragScrubbing else { return }
+                                            isPointerDragScrubbing = false
+                                            finishScrubbingSession()
+                                        }
+                                )
+                        }
+                    }
+
+                    Button(action: toggleMute) {
+                        Image(systemName: muteButtonIconName)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .frame(width: playerControlButtonSize, height: playerControlButtonSize)
+                    .disabled(!hasAudioInCurrentVideo)
+
+                    Text(formatTime(scrubPosition))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .frame(width: 70, alignment: .trailing)
+                }
+            }
             
-            // BOTÓN + KEYFRAME LIVE
             HStack(spacing: 12) {
                 if let trimStart = viewModel.trimStart {
                     Button(lang.t("button.start")) {
@@ -72,27 +145,7 @@ struct VideoPreviewPanel: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                }
-
-                // KEYFRAME EN VIVO (Actualiza cada 0.1s)
-                HStack(spacing: 4) {
-                    Text(lang.t("frame.current"))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Text(formatTime(currentTime))
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.accentColor)
-                    
-                    if duration > 0 {
-                        Text("/ \(formatTime(duration))")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        
-                        Text("\(Int((currentTime/duration)*100))%")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.accentColor.opacity(0.8))
-                    }
+                    .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
                 }
 
                 if let trimEnd = viewModel.trimEnd {
@@ -102,8 +155,10 @@ struct VideoPreviewPanel: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
             
             if let info = videoInfo {
                 VideoPreviewView(videoInfo: info)
@@ -113,22 +168,41 @@ struct VideoPreviewPanel: View {
         .cornerRadius(12)
         .onAppear {
             startLiveTimer()
+            updateDuration(player)
             setupPlayerObserver()
             applyVideoFilters()
+            isPlayerMuted = player?.isMuted ?? false
+            syncMuteButtonState()
+            installKeyboardMonitor()
+            installScrollMonitor()
         }
         .onDisappear {
             stopLiveTimer()
             removePlayerObserver()
+            removeKeyboardMonitor()
+            removeScrollMonitor()
             player?.pause()
             player = nil
         }
         .onChange(of: player) { oldValue, newValue in
             updateDuration(newValue)
+            isPlayerPlaying = false
+            isPlayerMuted = newValue?.isMuted ?? false
+            syncMuteButtonState()
             removePlayerObserver()
             setupPlayerObserver()
         }
+        .onChange(of: videoInfo?.duration) { _, _ in
+            updateDuration(player)
+        }
+        .onChange(of: videoInfo?.hasAudio) { _, _ in
+            syncMuteButtonState()
+        }
         .onChange(of: viewModel.speedPercent) { oldValue, newValue in
             updatePlayerRate(newValue, allowStartPlayback: false)
+        }
+        .onChange(of: scrubPosition) { _, newValue in
+            handleScrubPositionChanged(newValue)
         }
         .onChange(of: viewModel.colorAdjustments){ oldValue, newValue in
             applyVideoFilters()
@@ -156,6 +230,112 @@ struct VideoPreviewPanel: View {
             player = nil
         }
     }
+
+    private var hasAudioInCurrentVideo: Bool {
+        videoInfo?.hasAudio ?? true
+    }
+
+    private var muteButtonIconName: String {
+        if !hasAudioInCurrentVideo {
+            return "speaker.slash.fill"
+        }
+        return isPlayerMuted ? "speaker.slash.fill" : "speaker.2.fill"
+    }
+
+    private func installKeyboardMonitor() {
+        removeKeyboardMonitor()
+        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyDown(event)
+        }
+    }
+
+    private func removeKeyboardMonitor() {
+        if let monitor = keyEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyEventMonitor = nil
+        }
+    }
+
+    private func installScrollMonitor() {
+        removeScrollMonitor()
+        scrollEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            handleScrollWheel(event)
+        }
+    }
+
+    private func removeScrollMonitor() {
+        if let monitor = scrollEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            scrollEventMonitor = nil
+        }
+    }
+
+    private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+        guard player?.currentItem != nil else { return event }
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.command) || modifiers.contains(.option) || modifiers.contains(.control) {
+            return event
+        }
+
+        switch event.keyCode {
+        case 49: // Space
+            if modifiers.contains(.shift) {
+                return event
+            }
+            togglePlayback()
+            return nil
+        case 123: // Left arrow
+            if modifiers.contains(.shift) {
+                return event
+            }
+            stepByFrame(direction: -1)
+            return nil
+        case 124: // Right arrow
+            if modifiers.contains(.shift) {
+                return event
+            }
+            stepByFrame(direction: 1)
+            return nil
+        default:
+            return event
+        }
+    }
+
+    private func handleScrollWheel(_ event: NSEvent) -> NSEvent? {
+        guard isHoveringSeekSlider, let player else { return event }
+        guard player.currentItem != nil else { return event }
+
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.command) || modifiers.contains(.option) || modifiers.contains(.control) {
+            return event
+        }
+
+        let dominantDelta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+            ? event.scrollingDeltaX
+            : event.scrollingDeltaY
+
+        if abs(dominantDelta) < 0.0001 {
+            return nil
+        }
+
+        let fps = max(1.0, videoInfo?.frameRate ?? 30.0)
+        let frameStep = 1.0 / fps
+        let sensitivity = event.hasPreciseScrollingDeltas ? 2.0 : 4.0
+        let deltaSeconds = -Double(dominantDelta) * frameStep * sensitivity
+        let targetSeconds = boundedPlaybackTime(scrubPosition + deltaSeconds)
+
+        player.pause()
+        isPlayerPlaying = false
+
+        let target = CMTime(seconds: targetSeconds, preferredTimescale: 600)
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        scrubPosition = targetSeconds
+        currentTime = targetSeconds
+        viewModel.liveCurrentTime = targetSeconds
+
+        // Consume event so parent ScrollView does not move while seeking.
+        return nil
+    }
     
     private func setupPlayerObserver() {
         guard let player = player else { return }
@@ -177,15 +357,16 @@ struct VideoPreviewPanel: View {
     }
     
     private func onPlayerTimeChanged(_ time: CMTime) {
-            guard let player = player else { return }
-            let rate = player.rate
-            
-            // Detectar PLAY (rate > 0)
-            if rate > 0.01 {
-                enforceTrimBoundsIfNeeded(for: player)
-                updatePlayerRate(viewModel.speedPercent)
-            }
+        guard let player = player else { return }
+        let rate = player.rate
+        isPlayerPlaying = rate > 0.01
+        
+        // Detectar PLAY (rate > 0)
+        if rate > 0.01 {
+            enforceTrimBoundsIfNeeded(for: player)
+            updatePlayerRate(viewModel.speedPercent)
         }
+    }
     
     
     private func updatePlayerRate(_ speedPercent: Double, allowStartPlayback: Bool = true) {
@@ -215,11 +396,18 @@ struct VideoPreviewPanel: View {
         if let player = player {
             enforceTrimBoundsIfNeeded(for: player)
             if isSeekingToTrimBound { return }
+            isPlayerPlaying = player.rate > 0.01
+            if duration <= 0 {
+                updateDuration(player)
+            }
             
             let newTime = player.currentTime().seconds
             if !newTime.isNaN && newTime >= 0 {
                 currentTime = newTime
                 viewModel.liveCurrentTime = newTime
+                if !isUserScrubbing {
+                    scrubPosition = boundedPlaybackTime(newTime)
+                }
             }
         }
     }
@@ -246,17 +434,20 @@ struct VideoPreviewPanel: View {
     
     private func seekToTrimBound(player: AVPlayer, seconds: Double, keepPlaying: Bool) {
         isSeekingToTrimBound = true
-        
-        let target = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
+        let boundedSeconds = boundedPlaybackTime(seconds)
+        let target = CMTime(seconds: boundedSeconds, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
             DispatchQueue.main.async {
-                self.currentTime = max(0, seconds)
-                self.viewModel.liveCurrentTime = max(0, seconds)
+                self.currentTime = boundedSeconds
+                self.scrubPosition = boundedSeconds
+                self.viewModel.liveCurrentTime = boundedSeconds
                 
                 if keepPlaying {
                     self.updatePlayerRate(self.viewModel.speedPercent)
+                    self.isPlayerPlaying = true
                 } else {
                     player.pause()
+                    self.isPlayerPlaying = false
                 }
                 
                 self.isSeekingToTrimBound = false
@@ -264,11 +455,175 @@ struct VideoPreviewPanel: View {
         }
     }
 
+    private func togglePlayback() {
+        guard let player = player else { return }
+
+        if player.rate > 0.01 {
+            player.pause()
+            isPlayerPlaying = false
+            return
+        }
+
+        let currentSeconds = player.currentTime().seconds
+        let bounds = playbackBounds
+        if currentSeconds.isFinite && currentSeconds >= (bounds.upper - 0.02) {
+            seekToTrimBound(player: player, seconds: bounds.lower, keepPlaying: true)
+            return
+        }
+
+        updatePlayerRate(viewModel.speedPercent)
+        isPlayerPlaying = true
+    }
+
+    private func toggleMute() {
+        guard let player = player else { return }
+        guard hasAudioInCurrentVideo else {
+            player.isMuted = true
+            isPlayerMuted = true
+            return
+        }
+        player.isMuted.toggle()
+        isPlayerMuted = player.isMuted
+    }
+
+    private func syncMuteButtonState() {
+        guard let player = player else { return }
+        if hasAudioInCurrentVideo {
+            isPlayerMuted = player.isMuted
+            return
+        }
+        player.isMuted = true
+        isPlayerMuted = true
+    }
+
+    private func stepByFrame(direction: Int) {
+        guard let player = player else { return }
+        let fps = max(1.0, videoInfo?.frameRate ?? 30.0)
+        let frameStep = 1.0 / fps
+        let sourceTime = player.currentTime().seconds
+        let base = sourceTime.isFinite ? sourceTime : currentTime
+        seekToTrimBound(player: player, seconds: base + (frameStep * Double(direction)), keepPlaying: false)
+    }
+
+    private func handleScrubbingChanged(_ editing: Bool) {
+        if editing {
+            startScrubbingSession()
+            return
+        }
+
+        guard !isPointerDragScrubbing else { return }
+        finishScrubbingSession()
+    }
+
+    private func handleScrubPositionChanged(_ newValue: Double) {
+        guard isUserScrubbing, let player = player else { return }
+        let bounded = boundedPlaybackTime(newValue)
+        let target = CMTime(seconds: bounded, preferredTimescale: 600)
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        currentTime = bounded
+        viewModel.liveCurrentTime = bounded
+    }
+
+    private func startScrubbingSession() {
+        guard let player = player else { return }
+        guard !isUserScrubbing else { return }
+
+        isUserScrubbing = true
+        wasPlayingBeforeScrub = player.rate > 0.01
+        player.pause()
+        isPlayerPlaying = false
+    }
+
+    private func finishScrubbingSession() {
+        guard let player = player else { return }
+        guard isUserScrubbing else { return }
+
+        isUserScrubbing = false
+        let keepPlaying = wasPlayingBeforeScrub
+        wasPlayingBeforeScrub = false
+        seekToTrimBound(player: player, seconds: scrubPosition, keepPlaying: keepPlaying)
+    }
+
+    private var playbackBounds: (lower: Double, upper: Double) {
+        let lowerBound = max(0.0, viewModel.trimStart ?? 0.0)
+
+        var upperBound: Double
+        if let trimEnd = viewModel.trimEnd {
+            upperBound = trimEnd
+        } else if duration > 0 {
+            upperBound = duration
+        } else {
+            upperBound = max(lowerBound, currentTime)
+        }
+
+        if duration > 0 {
+            upperBound = min(upperBound, duration)
+        }
+
+        upperBound = max(lowerBound, upperBound)
+        return (lowerBound, upperBound)
+    }
+
+    private var sliderRange: ClosedRange<Double> {
+        let bounds = playbackBounds
+        let upper = max(bounds.upper, bounds.lower + 0.01)
+        return bounds.lower...upper
+    }
+
+    private func boundedPlaybackTime(_ seconds: Double) -> Double {
+        let bounds = playbackBounds
+        return min(max(seconds, bounds.lower), bounds.upper)
+    }
 
     
     private func updateDuration(_ player: AVPlayer?) {
-        if let player = player, let duration = player.currentItem?.duration.seconds {
-            self.duration = duration
+        guard let player else { return }
+
+        let resolvedDuration = resolvedDurationSeconds(player: player)
+        guard resolvedDuration > 0 else {
+            loadAssetDurationIfNeeded(from: player)
+            return
+        }
+
+        self.duration = resolvedDuration
+        let boundedCurrent = boundedPlaybackTime(currentTime)
+        self.currentTime = boundedCurrent
+        self.scrubPosition = boundedCurrent
+    }
+
+    private func resolvedDurationSeconds(player: AVPlayer) -> Double {
+        if let itemDuration = player.currentItem?.duration.seconds,
+           itemDuration.isFinite,
+           itemDuration > 0 {
+            return itemDuration
+        }
+
+        if let infoDuration = videoInfo?.duration,
+           infoDuration.isFinite,
+           infoDuration > 0 {
+            return infoDuration
+        }
+
+        return 0
+    }
+
+    private func loadAssetDurationIfNeeded(from player: AVPlayer) {
+        guard !isLoadingAssetDuration else { return }
+        guard let asset = player.currentItem?.asset else { return }
+
+        isLoadingAssetDuration = true
+        Task { [asset] in
+            let loadedDuration = try? await asset.load(.duration)
+            let seconds = loadedDuration?.seconds ?? 0
+            await MainActor.run {
+                self.isLoadingAssetDuration = false
+                guard seconds.isFinite, seconds > 0 else { return }
+
+                self.duration = seconds
+                let boundedCurrent = self.boundedPlaybackTime(self.currentTime)
+                self.currentTime = boundedCurrent
+                self.scrubPosition = boundedCurrent
+            }
         }
     }
     
@@ -333,5 +688,40 @@ struct VideoPreviewPanel: View {
                 }
             }
         }
+    }
+}
+
+private struct PlayerSurfaceView: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> PlayerSurfaceNSView {
+        let view = PlayerSurfaceNSView()
+        view.playerLayer.videoGravity = .resizeAspect
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateNSView(_ nsView: PlayerSurfaceNSView, context: Context) {
+        nsView.playerLayer.player = player
+    }
+}
+
+private final class PlayerSurfaceNSView: NSView {
+    let playerLayer = AVPlayerLayer()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.addSublayer(playerLayer)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        playerLayer.frame = bounds
     }
 }
