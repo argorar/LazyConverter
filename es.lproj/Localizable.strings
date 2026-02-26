@@ -90,6 +90,11 @@
 "stabilization.medium" = "Media";
 "stabilization.high" = "Alta";
 "stabilization.description" = "Niveles más altos reducen más el movimiento, pero pueden recortar más y tardar más en procesar.";
+"dynamic_speed.title" = "Velocidad dinámica";
+"dynamic_speed.points" = "Puntos";
+"dynamic_speed.reset" = "Reiniciar puntos";
+"dynamic_speed.description" = "Muestra un mapa de velocidad sobre el player. Haz clic para agregar puntos y arrástralos verticalmente (0-100%).";
+"dynamic_speed.delete_point" = "Borrar punto";
 "loop.title" = "Bucle";
 "theme.dark" = "Oscuro";
 "theme.light" = "Claro";

@@ -90,6 +90,11 @@
 "stabilization.medium" = "Medium";
 "stabilization.high" = "High";
 "stabilization.description" = "Stronger levels reduce camera shake but may crop more and take longer to process.";
+"dynamic_speed.title" = "Dynamic Speed";
+"dynamic_speed.points" = "Points";
+"dynamic_speed.reset" = "Reset points";
+"dynamic_speed.description" = "Shows a speed map over the player. Click to add points and drag them vertically (0-100%).";
+"dynamic_speed.delete_point" = "Delete point";
 "loop.title" = "Loop";
 "theme.dark" = "Dark";
 "theme.light" = "Light";

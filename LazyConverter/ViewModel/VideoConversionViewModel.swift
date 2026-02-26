@@ -25,6 +25,13 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var errorLog: String?
     @Published var speedPercent: Double = 100.0 // 0.0 - 200.0
+    @Published var dynamicSpeedEnabled: Bool = false {
+        didSet {
+            guard dynamicSpeedEnabled else { return }
+            ensureDynamicSpeedBoundaryPoints()
+        }
+    }
+    @Published private(set) var dynamicSpeedPoints: [SpeedMapPoint] = []
     @Published var videoInfo: VideoInfo?
     @Published var cropEnabled: Bool = false {
         didSet {
@@ -66,12 +73,18 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             if cropDynamicEnabled {
                 ensureStartDynamicKeyframe()
             }
+            if dynamicSpeedEnabled {
+                ensureDynamicSpeedBoundaryPoints()
+            }
         }
     }
     @Published var trimEnd: Double? = nil {
         didSet {
             if cropDynamicEnabled {
                 ensureStartDynamicKeyframe()
+            }
+            if dynamicSpeedEnabled {
+                ensureDynamicSpeedBoundaryPoints()
             }
         }
     }
@@ -180,6 +193,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         selectedFileURL = url
         selectedFileName = url.lastPathComponent
         errorMessage = nil
+        dynamicSpeedEnabled = false
+        dynamicSpeedPoints.removeAll()
         cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
@@ -196,6 +211,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         trimStart = nil
         trimEnd = nil
         speedPercent = 100.0
+        dynamicSpeedEnabled = false
+        dynamicSpeedPoints.removeAll()
         progress = 0
         statusMessage = ""
         errorMessage = nil
@@ -369,6 +386,194 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         return normalized
     }
 
+    var dynamicSpeedPointsSorted: [SpeedMapPoint] {
+        dynamicSpeedPoints.sorted { $0.time < $1.time }
+    }
+
+    func resolvedDynamicSpeedBoundsTimes() -> (start: Double, end: Double) {
+        let sourceDuration = max(0.0, videoInfo?.duration ?? 0.0)
+        let rawStart = max(0.0, trimStart ?? 0.0)
+        let defaultEnd: Double
+        if let trimEnd {
+            defaultEnd = max(0.0, trimEnd)
+        } else if sourceDuration > 0 {
+            defaultEnd = sourceDuration
+        } else {
+            defaultEnd = max(rawStart, liveCurrentTime)
+        }
+        let rawEnd = max(0.0, trimEnd ?? defaultEnd)
+        return (start: min(rawStart, rawEnd), end: max(rawStart, rawEnd))
+    }
+
+    func upsertDynamicSpeedPoint(at time: Double, speedPercent: Double) {
+        guard dynamicSpeedEnabled else { return }
+
+        let bounds = resolvedDynamicSpeedBoundsTimes()
+        guard bounds.end >= bounds.start else { return }
+
+        let clampedTime = min(max(time, bounds.start), bounds.end)
+        let clampedSpeedPercent = min(max(speedPercent, 1.0), 100.0)
+        let speedFactor = clampedSpeedPercent / 100.0
+        let point = SpeedMapPoint(time: clampedTime, speed: speedFactor)
+
+        let tolerance = max(0.05, (bounds.end - bounds.start) / 200.0)
+        if let existingIndex = nearestDynamicSpeedPointIndex(to: clampedTime, tolerance: tolerance) {
+            dynamicSpeedPoints[existingIndex] = point
+        } else {
+            dynamicSpeedPoints.append(point)
+        }
+
+        dynamicSpeedPoints = normalizedDynamicSpeedPoints(
+            dynamicSpeedPoints,
+            bounds: bounds,
+            includeBoundaries: true
+        )
+    }
+
+    func updateDynamicSpeedPoint(time: Double, speedPercent: Double) {
+        guard dynamicSpeedEnabled else { return }
+
+        let bounds = resolvedDynamicSpeedBoundsTimes()
+        guard bounds.end >= bounds.start else { return }
+
+        let clampedSpeedPercent = min(max(speedPercent, 1.0), 100.0)
+        let speedFactor = clampedSpeedPercent / 100.0
+        let tolerance = max(0.05, (bounds.end - bounds.start) / 200.0)
+
+        guard let index = nearestDynamicSpeedPointIndex(to: time, tolerance: tolerance) else {
+            upsertDynamicSpeedPoint(at: time, speedPercent: speedPercent)
+            return
+        }
+
+        let current = dynamicSpeedPoints[index]
+        dynamicSpeedPoints[index] = SpeedMapPoint(time: current.time, speed: speedFactor)
+        dynamicSpeedPoints = normalizedDynamicSpeedPoints(
+            dynamicSpeedPoints,
+            bounds: bounds,
+            includeBoundaries: true
+        )
+    }
+
+    func resetDynamicSpeedPoints() {
+        dynamicSpeedPoints.removeAll()
+        if dynamicSpeedEnabled {
+            ensureDynamicSpeedBoundaryPoints()
+        }
+    }
+
+    func deleteDynamicSpeedPoint(near time: Double) {
+        guard !dynamicSpeedPoints.isEmpty else { return }
+
+        let bounds = resolvedDynamicSpeedBoundsTimes()
+        let tolerance = max(0.05, (bounds.end - bounds.start) / 200.0)
+        guard let index = nearestDynamicSpeedPointIndex(to: time, tolerance: tolerance) else { return }
+        dynamicSpeedPoints.remove(at: index)
+        dynamicSpeedPoints = normalizedDynamicSpeedPoints(
+            dynamicSpeedPoints,
+            bounds: bounds,
+            includeBoundaries: true
+        )
+    }
+
+    private func nearestDynamicSpeedPointIndex(to time: Double, tolerance: Double) -> Int? {
+        guard !dynamicSpeedPoints.isEmpty else { return nil }
+
+        var bestIndex: Int?
+        var bestDistance = Double.greatestFiniteMagnitude
+
+        for (index, point) in dynamicSpeedPoints.enumerated() {
+            let distance = abs(point.time - time)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+
+        guard let bestIndex, bestDistance <= tolerance else { return nil }
+        return bestIndex
+    }
+
+    private func ensureDynamicSpeedBoundaryPoints() {
+        let bounds = resolvedDynamicSpeedBoundsTimes()
+        dynamicSpeedPoints = normalizedDynamicSpeedPoints(
+            dynamicSpeedPoints,
+            bounds: bounds,
+            includeBoundaries: true
+        )
+    }
+
+    private func normalizedDynamicSpeedPoints(
+        _ points: [SpeedMapPoint],
+        bounds: (start: Double, end: Double),
+        includeBoundaries: Bool
+    ) -> [SpeedMapPoint] {
+        guard bounds.end >= bounds.start else { return [] }
+
+        let epsilon = 0.000001
+        var normalized = points
+            .filter { point in
+                point.time.isFinite && point.speed.isFinite &&
+                point.time >= (bounds.start - epsilon) &&
+                point.time <= (bounds.end + epsilon)
+            }
+            .map { point in
+                SpeedMapPoint(
+                    time: min(max(point.time, bounds.start), bounds.end),
+                    speed: min(max(point.speed, 0.01), 1.0)
+                )
+            }
+            .sorted { lhs, rhs in
+                if abs(lhs.time - rhs.time) < epsilon {
+                    return lhs.speed < rhs.speed
+                }
+                return lhs.time < rhs.time
+            }
+
+        if normalized.isEmpty, includeBoundaries {
+            if bounds.end > bounds.start {
+                return [
+                    SpeedMapPoint(time: bounds.start, speed: 1.0),
+                    SpeedMapPoint(time: bounds.end, speed: 1.0)
+                ]
+            }
+            return [SpeedMapPoint(time: bounds.start, speed: 1.0)]
+        }
+
+        var deduped: [SpeedMapPoint] = []
+        deduped.reserveCapacity(normalized.count)
+        for point in normalized {
+            if let last = deduped.last, abs(last.time - point.time) < epsilon {
+                deduped[deduped.count - 1] = point
+            } else {
+                deduped.append(point)
+            }
+        }
+
+        guard includeBoundaries else { return deduped }
+        guard !deduped.isEmpty else { return [] }
+
+        if bounds.end > bounds.start {
+            if let first = deduped.first, first.time > (bounds.start + epsilon) {
+                deduped.insert(
+                    SpeedMapPoint(time: bounds.start, speed: first.speed),
+                    at: 0
+                )
+            } else if let first = deduped.first, abs(first.time - bounds.start) >= epsilon {
+                deduped[0] = SpeedMapPoint(time: bounds.start, speed: first.speed)
+            }
+
+            if let last = deduped.last, last.time < (bounds.end - epsilon) {
+                deduped.append(SpeedMapPoint(time: bounds.end, speed: last.speed))
+            } else if let last = deduped.last, abs(last.time - bounds.end) >= epsilon {
+                deduped[deduped.count - 1] = SpeedMapPoint(time: bounds.end, speed: last.speed)
+            }
+        } else if let first = deduped.first {
+            deduped = [SpeedMapPoint(time: bounds.start, speed: first.speed)]
+        }
+
+        return deduped
+    }
+
     func persistOutputDirectory() {
         storedOutputDirectory = outputDirectory.rawValue
     }
@@ -451,6 +656,9 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             ensureStartDynamicKeyframe()
             ensureEndDynamicKeyframeForConversion()
         }
+        if dynamicSpeedEnabled {
+            ensureDynamicSpeedBoundaryPoints()
+        }
 
         // Crear ruta de salida
         let outputDir = outputDirectory.resolveURL()
@@ -475,6 +683,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             resolution: selectedResolution,
             quality: Int(quality),
             speedPercent: speedPercent,
+            dynamicSpeedEnabled: dynamicSpeedEnabled,
+            dynamicSpeedPoints: dynamicSpeedPointsSorted,
             useGPU: useGPU,
             stabilizationLevel: stabilizationEnabled ? stabilizationLevel : nil,
             loopEnabled: loopEnabled,

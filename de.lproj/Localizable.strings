@@ -90,6 +90,11 @@
 "stabilization.medium" = "Mittel";
 "stabilization.high" = "Hoch";
 "stabilization.description" = "Höhere Stufen reduzieren Wackeln stärker, können aber mehr zuschneiden und länger dauern.";
+"dynamic_speed.title" = "Dynamische Geschwindigkeit";
+"dynamic_speed.points" = "Punkte";
+"dynamic_speed.reset" = "Punkte zurücksetzen";
+"dynamic_speed.description" = "Zeigt eine Geschwindigkeitskurve über dem Player. Klicke zum Hinzufügen von Punkten und ziehe sie vertikal (0-100%).";
+"dynamic_speed.delete_point" = "Punkt löschen";
 "loop.title" = "Schleife";
 "theme.dark" = "Dunkel";
 "theme.light" = "Hell";

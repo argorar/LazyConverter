@@ -43,30 +43,52 @@ struct VideoPreviewPanel: View {
                     .frame(height: 500)
                     .cornerRadius(8)
                     .overlay {
-                    if viewModel.cropEnabled {
                         GeometryReader { geo in
-                            CropOverlayView(cropRect: $viewModel.cropRect,
-                                trackerPivot: $viewModel.cropTrackerPivot,
-                                videoSize: CGSize(width: Double(abs(videoInfo?.videoSize.width ?? 200)), height: Double(abs(videoInfo?.videoSize.height ?? 500))),
-                                playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height),
-                                showTrackerTarget: viewModel.cropTrackerEnabled,
-                                onCropDragged: { cropRect in
-                                    let playerTime = player?.currentTime().seconds
-                                    let currentFrameTime: Double
-                                    if let playerTime, playerTime.isFinite {
-                                        currentFrameTime = playerTime
-                                    } else {
-                                        currentFrameTime = currentTime
-                                    }
-                                    viewModel.recordDynamicCrop(
-                                        at: max(0, currentFrameTime),
-                                        frameRate: videoInfo?.frameRate,
-                                        cropRect: cropRect
+                            ZStack(alignment: .bottomLeading) {
+                                if viewModel.cropEnabled {
+                                    CropOverlayView(cropRect: $viewModel.cropRect,
+                                        trackerPivot: $viewModel.cropTrackerPivot,
+                                        videoSize: CGSize(width: Double(abs(videoInfo?.videoSize.width ?? 200)), height: Double(abs(videoInfo?.videoSize.height ?? 500))),
+                                        playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height),
+                                        showTrackerTarget: viewModel.cropTrackerEnabled,
+                                        onCropDragged: { cropRect in
+                                            let playerTime = player?.currentTime().seconds
+                                            let currentFrameTime: Double
+                                            if let playerTime, playerTime.isFinite {
+                                                currentFrameTime = playerTime
+                                            } else {
+                                                currentFrameTime = currentTime
+                                            }
+                                            viewModel.recordDynamicCrop(
+                                                at: max(0, currentFrameTime),
+                                                frameRate: videoInfo?.frameRate,
+                                                cropRect: cropRect
+                                            )
+                                        }
                                     )
                                 }
-                            )
+
+                                if viewModel.dynamicSpeedEnabled {
+                                    DynamicSpeedOverlayView(
+                                        points: viewModel.dynamicSpeedPointsSorted,
+                                        bounds: viewModel.resolvedDynamicSpeedBoundsTimes(),
+                                        currentTime: currentTime,
+                                        fallbackEnd: max(duration, videoInfo?.duration ?? 0.0),
+                                        onAddPoint: { time, speedPercent in
+                                            viewModel.upsertDynamicSpeedPoint(at: time, speedPercent: speedPercent)
+                                        },
+                                        onUpdatePoint: { time, speedPercent in
+                                            viewModel.updateDynamicSpeedPoint(time: time, speedPercent: speedPercent)
+                                        },
+                                        onDeletePoint: { time in
+                                            viewModel.deleteDynamicSpeedPoint(near: time)
+                                        }
+                                    )
+                                    .padding(.horizontal, 10)
+                                    .padding(.bottom, 10)
+                                }
+                            }
                         }
-                    }
                 }
             } else {
                 ZStack {
@@ -693,6 +715,284 @@ struct VideoPreviewPanel: View {
                     playerItem.videoComposition = nil
                 }
             }
+        }
+    }
+}
+
+private struct DynamicSpeedOverlayView: View {
+    @EnvironmentObject var lang: LanguageManager
+
+    let points: [SpeedMapPoint]
+    let bounds: (start: Double, end: Double)
+    let currentTime: Double
+    let fallbackEnd: Double
+    let onAddPoint: (Double, Double) -> Void
+    let onUpdatePoint: (Double, Double) -> Void
+    let onDeletePoint: (Double) -> Void
+
+    private let overlayHeight: CGFloat = 150
+
+    private var sortedPoints: [SpeedMapPoint] {
+        points.sorted { $0.time < $1.time }
+    }
+
+    private var effectiveBounds: (start: Double, end: Double) {
+        if bounds.end > bounds.start {
+            return bounds
+        }
+        let fallback = max(bounds.start + 0.001, fallbackEnd)
+        return (start: bounds.start, end: fallback)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(lang.t("dynamic_speed.title"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.9))
+                Spacer()
+                Text("\(lang.t("dynamic_speed.points")): \(sortedPoints.count)")
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            GeometryReader { geo in
+                let width = max(1.0, geo.size.width)
+                let height = max(1.0, geo.size.height)
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.45))
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+
+                    gridPath(width: width, height: height)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.6)
+
+                    if sortedPoints.count >= 2 {
+                        areaPath(points: sortedPoints, width: width, height: height)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.accentColor.opacity(0.26),
+                                        Color.accentColor.opacity(0.08)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+
+                        linePath(points: sortedPoints, width: width, height: height)
+                            .stroke(Color.accentColor.opacity(0.95), style: StrokeStyle(lineWidth: 2))
+                    }
+
+                    currentTimeLine(width: width, height: height)
+                        .stroke(Color.yellow.opacity(0.95), lineWidth: 1.1)
+
+                    axisLabels
+
+                    ForEach(Array(sortedPoints.enumerated()), id: \.offset) { _, point in
+                        let pointX = xPosition(for: point.time, width: width)
+                        let pointY = yPosition(forSpeedPercent: point.speed * 100.0, height: height)
+
+                        VStack(spacing: 2) {
+                            Text(speedLabel(point.speed))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(.pink.opacity(0.95))
+                            Text("t:\(timeLabel(point.time))")
+                                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.black.opacity(0.4))
+                        .cornerRadius(4)
+                        .position(
+                            x: pointX,
+                            y: max(10, min(height - 10, pointY - 18))
+                        )
+                        .allowsHitTesting(false)
+
+                        Circle()
+                            .fill(Color.pink.opacity(0.95))
+                            .frame(width: 10, height: 10)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.9), lineWidth: 1)
+                            )
+                            .position(x: pointX, y: pointY)
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        let newSpeedPercent = speedPercent(forY: value.location.y, height: height)
+                                        onUpdatePoint(point.time, newSpeedPercent)
+                                    }
+                            )
+                            .simultaneousGesture(
+                                TapGesture(count: 1)
+                                    .onEnded {
+                                        guard isSecondaryClickEvent() else { return }
+                                        onDeletePoint(point.time)
+                                    }
+                            )
+                            .contextMenu {
+                                Button(lang.t("dynamic_speed.delete_point")) {
+                                    onDeletePoint(point.time)
+                                }
+                            }
+                    }
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            if isSecondaryClickEvent() {
+                                return
+                            }
+                            let time = timeForX(value.location.x, width: width)
+                            let speedPercent = speedPercent(forY: value.location.y, height: height)
+                            onAddPoint(time, speedPercent)
+                        }
+                )
+            }
+            .frame(height: overlayHeight)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var axisLabels: some View {
+        VStack {
+            HStack {
+                Text("100%")
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+            }
+            Spacer()
+            HStack {
+                Text("1%")
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+                Spacer()
+            }
+        }
+        .padding(6)
+        .allowsHitTesting(false)
+    }
+
+    private func gridPath(width: CGFloat, height: CGFloat) -> Path {
+        var path = Path()
+        let rows = 8
+        let columns = 16
+
+        for row in 0...rows {
+            let y = (CGFloat(row) / CGFloat(rows)) * height
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: width, y: y))
+        }
+
+        for column in 0...columns {
+            let x = (CGFloat(column) / CGFloat(columns)) * width
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: height))
+        }
+
+        return path
+    }
+
+    private func areaPath(points: [SpeedMapPoint], width: CGFloat, height: CGFloat) -> Path {
+        guard let first = points.first else { return Path() }
+        var path = Path()
+
+        path.move(to: CGPoint(x: xPosition(for: first.time, width: width), y: height))
+        path.addLine(to: CGPoint(
+            x: xPosition(for: first.time, width: width),
+            y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
+        ))
+
+        for point in points.dropFirst() {
+            path.addLine(to: CGPoint(
+                x: xPosition(for: point.time, width: width),
+                y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
+            ))
+        }
+
+        if let last = points.last {
+            path.addLine(to: CGPoint(x: xPosition(for: last.time, width: width), y: height))
+        }
+        path.closeSubpath()
+
+        return path
+    }
+
+    private func linePath(points: [SpeedMapPoint], width: CGFloat, height: CGFloat) -> Path {
+        guard let first = points.first else { return Path() }
+        var path = Path()
+        path.move(to: CGPoint(
+            x: xPosition(for: first.time, width: width),
+            y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
+        ))
+
+        for point in points.dropFirst() {
+            path.addLine(to: CGPoint(
+                x: xPosition(for: point.time, width: width),
+                y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
+            ))
+        }
+
+        return path
+    }
+
+    private func currentTimeLine(width: CGFloat, height: CGFloat) -> Path {
+        var path = Path()
+        let x = xPosition(for: currentTime, width: width)
+        path.move(to: CGPoint(x: x, y: 0))
+        path.addLine(to: CGPoint(x: x, y: height))
+        return path
+    }
+
+    private func xPosition(for time: Double, width: CGFloat) -> CGFloat {
+        let range = max(0.000001, effectiveBounds.end - effectiveBounds.start)
+        let progress = min(max((time - effectiveBounds.start) / range, 0.0), 1.0)
+        return CGFloat(progress) * width
+    }
+
+    private func yPosition(forSpeedPercent speedPercent: Double, height: CGFloat) -> CGFloat {
+        let clamped = min(max(speedPercent, 1.0), 100.0)
+        let progress = 1.0 - (clamped / 100.0)
+        return CGFloat(progress) * height
+    }
+
+    private func timeForX(_ x: CGFloat, width: CGFloat) -> Double {
+        let range = max(0.000001, effectiveBounds.end - effectiveBounds.start)
+        let clampedX = min(max(0.0, x), width)
+        let progress = Double(clampedX / width)
+        return effectiveBounds.start + (range * progress)
+    }
+
+    private func speedPercent(forY y: CGFloat, height: CGFloat) -> Double {
+        let clampedY = min(max(0.0, y), height)
+        let progress = 1.0 - Double(clampedY / height)
+        return min(max(progress * 100.0, 1.0), 100.0)
+    }
+
+    private func speedLabel(_ speed: Double) -> String {
+        String(format: "S:%.2f", speed)
+    }
+
+    private func timeLabel(_ time: Double) -> String {
+        String(format: "%.2f", time)
+    }
+
+    private func isSecondaryClickEvent() -> Bool {
+        guard let event = NSApp.currentEvent else { return false }
+        switch event.type {
+        case .rightMouseDown, .rightMouseUp, .rightMouseDragged:
+            return true
+        case .leftMouseDown, .leftMouseUp, .leftMouseDragged:
+            return event.modifierFlags.contains(.control)
+        default:
+            return event.buttonNumber == 1
         }
     }
 }

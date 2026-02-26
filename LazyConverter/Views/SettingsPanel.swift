@@ -37,6 +37,7 @@ struct SettingsPanel: View {
             FrameRateSection(viewModel: viewModel)
             trimSection
             stabilizationSection
+            dynamicSpeedSection
             loopSection
             colorAdjustmentsSection
             advancedOptionsSection
@@ -388,6 +389,45 @@ struct SettingsPanel: View {
                 viewModel.stabilizationEnabled = enabled
             }
         )
+    }
+
+    @ViewBuilder
+    private var dynamicSpeedSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("dynamic_speed.title"))
+                    .font(.system(size: 14, weight: .semibold))
+                Toggle("", isOn: $viewModel.dynamicSpeedEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                Spacer()
+            }
+
+            if viewModel.dynamicSpeedEnabled {
+                HStack(spacing: 8) {
+                    Text("\(lang.t("dynamic_speed.points")): \(viewModel.dynamicSpeedPointsSorted.count)")
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(lang.t("dynamic_speed.reset")) {
+                        viewModel.resetDynamicSpeedPoints()
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .buttonStyle(.plain)
+                }
+
+                Text(lang.t("dynamic_speed.description"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .separatorColor).opacity(0.5))
+        .cornerRadius(8)
     }
 
     @ViewBuilder

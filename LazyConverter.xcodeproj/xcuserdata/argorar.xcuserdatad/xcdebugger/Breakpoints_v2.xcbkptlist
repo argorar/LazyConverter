@@ -48,7 +48,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "118"
             endingLineNumber = "118"
-            landmarkName = "gamma"
+            landmarkName = "brightness"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "resetColorAdjustments()"
-            landmarkType = "7">
+            landmarkName = "gamma"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -112,7 +112,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "277"
             endingLineNumber = "277"
-            landmarkName = "nearestDynamicKeyframe(to:toleranceFrames:)"
+            landmarkName = "recordDynamicCrop(at:frameRate:cropRect:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -160,7 +160,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "220"
             endingLineNumber = "220"
-            landmarkName = "recordDynamicCrop(at:frameRate:cropRect:)"
+            landmarkName = "clearSelection()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

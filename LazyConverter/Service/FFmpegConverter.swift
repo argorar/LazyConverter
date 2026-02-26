@@ -20,6 +20,7 @@ class FFmpegConverter {
         
         print("🔹 FFmpegConverter.convert()")
         print("    speed: \(Int(request.speedPercent))%")
+        print("    dynamic speed: \(request.dynamicSpeedEnabled ? "on" : "off")")
         print("    outputURL: \(request.outputURL.path)")
         print("    format   : \(request.format)")
         print("    resolution: \(request.resolution)")
@@ -169,7 +170,7 @@ class FFmpegConverter {
                                                     format: request.format,
                                                     quality: request.quality,
                                                     useGPU: request.useGPU,
-                                                    hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                                                    hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
                                                 )
                                                 self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
                                                 self.executeFFmpeg(
@@ -229,7 +230,7 @@ class FFmpegConverter {
                             format: request.format,
                             quality: request.quality,
                             useGPU: request.useGPU,
-                            hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                            hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
                         )
                         self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
                         self.executeFFmpeg(
@@ -270,13 +271,26 @@ class FFmpegConverter {
         var deferredStaticCropFilter: String?
         let usingDynamicCrop = request.cropEnable && request.cropDynamicEnabled && !request.cropDynamicKeyframes.isEmpty
         let stabilizationEnabled = stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
+        let clipBounds = resolvedClipBounds(request)
+        let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
+        let speedClipStart = clipBounds?.start ?? 0.0
+        let fallbackSpeedEndFromPoints = request.dynamicSpeedPoints.map(\.time).max() ?? speedClipStart
+        let speedClipEnd = clipBounds?.end ?? max(sourceDuration, fallbackSpeedEndFromPoints, speedClipStart)
+        let dynamicSpeedFilter = request.dynamicSpeedEnabled
+            ? SpeedMapPoint.buildDynamicSpeedSetptsFilter(
+                points: request.dynamicSpeedPoints,
+                clipStart: speedClipStart,
+                clipEnd: speedClipEnd
+            )
+            : nil
         let speed = request.speedPercent / 100.0
-        let hasSpeedChange = request.speedPercent != 100.0 && speed > 0
+        let hasStaticSpeedChange = request.speedPercent != 100.0 && speed > 0
+        let canKeepAudio = request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
         var hasMergedSetpts = false
         
         // 1. TRIM FILTER (prioridad máxima)
-        if let clipBounds = resolvedClipBounds(request) {
-            let trimAtInput = usingDynamicCrop || (!stabilizationEnabled && request.videoInfo?.hasAudio == true && request.speedPercent == 100.0)
+        if let clipBounds {
+            let trimAtInput = usingDynamicCrop || (!stabilizationEnabled && canKeepAudio)
             if trimAtInput {
                 if request.trimStart != nil {
                     arguments += ["-ss", dot(clipBounds.start)]
@@ -295,18 +309,18 @@ class FFmpegConverter {
                 
                 if !trimComponents.isEmpty {
                     let trimFilter = "trim=\(trimComponents.joined(separator: ":"))"
+                    let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
+                    let mergedSetptsFilter = dynamicSpeedFilter ?? (
+                        hasStaticSpeedChange
+                        ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                        : "setpts=PTS-STARTPTS"
+                    )
                     if stabilizationEnabled {
                         videoFilters.append(trimFilter)
-                        if !hasSpeedChange {
-                            videoFilters.append("setpts=PTS-STARTPTS")
-                            hasMergedSetpts = true
-                        }
+                        videoFilters.append(mergedSetptsFilter)
+                        hasMergedSetpts = true
                     } else {
-                        let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
-                        let setptsFilter = hasSpeedChange
-                            ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
-                            : "setpts=PTS-STARTPTS"
-                        videoFilters.append("\(trimFilter),\(setptsFilter)")
+                        videoFilters.append("\(trimFilter),\(mergedSetptsFilter)")
                         hasMergedSetpts = true
                     }
                 }
@@ -332,7 +346,11 @@ class FFmpegConverter {
                 let clipStart = resolvedClipStart(request, sourceDuration: sourceDuration)
                 let clipEnd = resolvedClipEnd(request, sourceDuration: sourceDuration, start: clipStart)
                 let clipDuration = max(0.0, clipEnd - clipStart)
-                let setptsFilter = SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                let setptsFilter = dynamicSpeedFilter ?? (
+                    hasStaticSpeedChange
+                    ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                    : "setpts=PTS-STARTPTS"
+                )
                 
                 if let dynamicCrop = CropDynamicKeyframe.buildDynamicCropFilter(
                     keyframes: request.cropDynamicKeyframes,
@@ -375,9 +393,13 @@ class FFmpegConverter {
         }
         
         // Aplicar velocidad al final solo si no se incluyó en un setpts fusionado.
-        if hasSpeedChange && !hasMergedSetpts {
-            let duration = resolvedOutputDuration(request)
-            videoFilters.append(SpeedMapPoint.buildSpeedSetptsFilter(duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
+        if !hasMergedSetpts {
+            if let dynamicSpeedFilter {
+                videoFilters.append(dynamicSpeedFilter)
+            } else if hasStaticSpeedChange {
+                let duration = resolvedOutputDuration(request)
+                videoFilters.append(SpeedMapPoint.buildSpeedSetptsFilter(duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
+            }
         }
         
         if !videoFilters.isEmpty {
@@ -415,7 +437,7 @@ class FFmpegConverter {
         arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
         
         
-        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0) {
+        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled) {
             arguments += ["-c:a", audioCodec]
             arguments += ["-b:a", "128k"]
         }
@@ -560,7 +582,7 @@ class FFmpegConverter {
 
         arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
 
-        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0) {
+        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled) {
             arguments += ["-c:a", audioCodec]
             arguments += ["-b:a", "128k"]
         }

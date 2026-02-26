@@ -15,6 +15,8 @@ struct FFmpegConversionRequest {
     let resolution: VideoResolution
     let quality: Int
     let speedPercent: Double
+    let dynamicSpeedEnabled: Bool
+    let dynamicSpeedPoints: [SpeedMapPoint]
     let useGPU: Bool
     let stabilizationLevel: VideoStabilizationLevel?
     let loopEnabled: Bool
@@ -37,6 +39,8 @@ struct FFmpegConversionRequest {
         resolution: VideoResolution,
         quality: Int,
         speedPercent: Double,
+        dynamicSpeedEnabled: Bool = false,
+        dynamicSpeedPoints: [SpeedMapPoint] = [],
         useGPU: Bool,
         stabilizationLevel: VideoStabilizationLevel? = nil,
         loopEnabled: Bool,
@@ -58,6 +62,8 @@ struct FFmpegConversionRequest {
         self.resolution = resolution
         self.quality = quality
         self.speedPercent = speedPercent
+        self.dynamicSpeedEnabled = dynamicSpeedEnabled
+        self.dynamicSpeedPoints = dynamicSpeedPoints
         self.useGPU = useGPU
         self.stabilizationLevel = stabilizationLevel
         self.loopEnabled = loopEnabled
