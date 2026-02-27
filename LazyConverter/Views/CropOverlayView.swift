@@ -14,6 +14,7 @@ struct CropOverlayView: View {
     let videoSize: CGSize
     let playerFrame: CGRect
     let showTrackerTarget: Bool
+    let lockedAspectRatio: CGFloat?
     let onCropDragged: ((CGRect) -> Void)?
 
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight, body }
@@ -263,6 +264,28 @@ struct CropOverlayView: View {
         let minPixels: CGFloat = 64
         let minSizeW = minPixels / videoSize.width
         let minSizeH = minPixels / videoSize.height
+        if let lockedAspectRatio, lockedAspectRatio > 0, corner != .body {
+            rect = resizeWithLockedAspectRatio(
+                corner: corner,
+                dxNorm: dxNorm,
+                dyNorm: dyNorm,
+                baseRect: baseRect,
+                minSizeW: minSizeW,
+                minSizeH: minSizeH,
+                aspectRatio: lockedAspectRatio
+            )
+
+            rect.origin.x = max(0, min(1 - rect.size.width, rect.origin.x))
+            rect.origin.y = max(0, min(1 - rect.size.height, rect.origin.y))
+            rect.size.width = max(minSizeW, min(1 - rect.origin.x, rect.size.width))
+            rect.size.height = max(minSizeH, min(1 - rect.origin.y, rect.size.height))
+
+            DispatchQueue.main.async {
+                cropRect = rect
+                onCropDragged?(rect)
+            }
+            return
+        }
 
         switch corner {
         case .body:
@@ -323,6 +346,85 @@ struct CropOverlayView: View {
             cropRect = rect
             onCropDragged?(rect)
         }
+    }
+
+    private func resizeWithLockedAspectRatio(
+        corner: Corner,
+        dxNorm: CGFloat,
+        dyNorm: CGFloat,
+        baseRect: CGRect,
+        minSizeW: CGFloat,
+        minSizeH: CGFloat,
+        aspectRatio: CGFloat
+    ) -> CGRect {
+        let anchor: CGPoint
+        let baseCorner: CGPoint
+        let direction: CGPoint
+
+        switch corner {
+        case .topLeft:
+            anchor = CGPoint(x: baseRect.maxX, y: baseRect.maxY)
+            baseCorner = CGPoint(x: baseRect.minX, y: baseRect.minY)
+            direction = CGPoint(x: -1, y: -1)
+        case .topRight:
+            anchor = CGPoint(x: baseRect.minX, y: baseRect.maxY)
+            baseCorner = CGPoint(x: baseRect.maxX, y: baseRect.minY)
+            direction = CGPoint(x: 1, y: -1)
+        case .bottomLeft:
+            anchor = CGPoint(x: baseRect.maxX, y: baseRect.minY)
+            baseCorner = CGPoint(x: baseRect.minX, y: baseRect.maxY)
+            direction = CGPoint(x: -1, y: 1)
+        case .bottomRight:
+            anchor = CGPoint(x: baseRect.minX, y: baseRect.minY)
+            baseCorner = CGPoint(x: baseRect.maxX, y: baseRect.maxY)
+            direction = CGPoint(x: 1, y: 1)
+        case .body:
+            return baseRect
+        }
+
+        let proposedCorner = CGPoint(
+            x: baseCorner.x + dxNorm,
+            y: baseCorner.y + dyNorm
+        )
+        let widthDelta = abs(proposedCorner.x - anchor.x)
+        let heightDelta = abs(proposedCorner.y - anchor.y)
+
+        let minWidth = max(minSizeW, minSizeH * aspectRatio)
+        var width = max(widthDelta, heightDelta * aspectRatio, minWidth)
+        var height = width / aspectRatio
+
+        let maxWidthByX: CGFloat
+        let maxHeightByY: CGFloat
+        switch corner {
+        case .topLeft:
+            maxWidthByX = anchor.x
+            maxHeightByY = anchor.y
+        case .topRight:
+            maxWidthByX = 1 - anchor.x
+            maxHeightByY = anchor.y
+        case .bottomLeft:
+            maxWidthByX = anchor.x
+            maxHeightByY = 1 - anchor.y
+        case .bottomRight:
+            maxWidthByX = 1 - anchor.x
+            maxHeightByY = 1 - anchor.y
+        case .body:
+            maxWidthByX = width
+            maxHeightByY = height
+        }
+
+        let maxWidthByY = maxHeightByY * aspectRatio
+        let maxWidth = max(0.0001, min(maxWidthByX, maxWidthByY))
+        width = min(width, maxWidth)
+        if maxWidth < minWidth {
+            width = maxWidth
+        }
+        height = width / aspectRatio
+
+        let originX = direction.x < 0 ? anchor.x - width : anchor.x
+        let originY = direction.y < 0 ? anchor.y - height : anchor.y
+
+        return CGRect(x: originX, y: originY, width: width, height: height)
     }
 
     private func trackerPivotDragGesture(videoFrame: CGRect, trackerPixelRect: CGRect) -> some Gesture {

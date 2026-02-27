@@ -48,7 +48,9 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 dynamicStartFrameIndex = nil
                 dynamicAutoEndFrameIndex = nil
                 cropTrackerEnabled = false
+                cropDynamicLockedAspectRatio = nil
             } else {
+                captureDynamicCropAspectRatioIfNeeded()
                 ensureStartDynamicKeyframe()
             }
         }
@@ -62,6 +64,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     }
     @Published var isTrackingCrop: Bool = false
     @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
+    @Published private(set) var cropDynamicLockedAspectRatio: CGFloat?
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
     @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot
     @Published var stabilizationEnabled: Bool = false
@@ -96,6 +99,13 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var showQueueWindow = false
     @Published var frameRateSettings = FrameRateSettings()
     @Published var outputDirectory: OutputDirectory = .downloads
+    @Published var isYtDlpInstalled: Bool = false
+    @Published var ytDlpURLInput: String = ""
+    @Published var isYtDlpDownloading: Bool = false
+    @Published var ytDlpDownloadProgress: Double = 0.0
+    @Published var ytDlpDownloadedFileURL: URL?
+    @Published var ytDlpErrorMessage: String?
+    @Published var ytDlpErrorLog: String?
     private var dynamicStartFrameIndex: Int?
     private var dynamicAutoEndFrameIndex: Int?
     private var activeTrackerJobID: UUID?
@@ -112,6 +122,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     override init() {
         super.init()
         outputDirectory = OutputDirectory(rawValue: storedOutputDirectory) ?? .downloads
+        checkYtDlpAvailability()
     }
     
     var brightness: Binding<Double> {
@@ -231,6 +242,49 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         isTrackingCrop = false
         activeTrackerJobID = nil
         resetColorAdjustments()
+    }
+
+    func checkYtDlpAvailability() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let installed = YtDlpService.shared.isInstalled()
+            DispatchQueue.main.async {
+                self?.isYtDlpInstalled = installed
+            }
+        }
+    }
+
+    func startYtDlpDownload() {
+        let input = ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else {
+            ytDlpErrorMessage = lang?.t("ytdlp.error.empty") ?? "Enter a video URL"
+            return
+        }
+
+        isYtDlpDownloading = true
+        ytDlpDownloadProgress = 0
+        ytDlpDownloadedFileURL = nil
+        ytDlpErrorMessage = nil
+        ytDlpErrorLog = nil
+
+        YtDlpService.shared.download(
+            videoURLString: input,
+            progress: { [weak self] progress in
+                self?.ytDlpDownloadProgress = progress
+            },
+            completion: { [weak self] result in
+                guard let self else { return }
+                self.isYtDlpDownloading = false
+                switch result {
+                case .success(let fileURL):
+                    self.ytDlpDownloadProgress = 100
+                    self.ytDlpDownloadedFileURL = fileURL
+                    self.ytDlpErrorLog = nil
+                case .failure(let error):
+                    self.ytDlpErrorMessage = error.localizedDescription
+                    self.ytDlpErrorLog = YtDlpService.shared.lastErrorLog
+                }
+            }
+        )
     }
 
     func recordDynamicCrop(at time: Double, frameRate: Double?, cropRect: CGRect) {
@@ -362,6 +416,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             time: time,
             crop: cropValue
         )
+    }
+
+    private func captureDynamicCropAspectRatioIfNeeded() {
+        let width = max(0.0001, cropRect.width)
+        let height = max(0.0001, cropRect.height)
+        cropDynamicLockedAspectRatio = width / height
     }
 
     private func cropString(from normalizedRect: CGRect) -> String? {
