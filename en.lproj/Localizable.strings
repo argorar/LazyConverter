@@ -102,3 +102,11 @@
 "output.documents" = "Documents";
 "output.movies" = "Videos";
 "output.desktop" = "Desktop";
+"ytdlp.title" = "Download with yt-dlp";
+"ytdlp.subtitle" = "Paste a video link to download";
+"ytdlp.hint" = "Saves to your Downloads folder";
+"ytdlp.placeholder" = "Paste a video link";
+"ytdlp.download" = "Download";
+"ytdlp.play" = "Play";
+"ytdlp.load" = "Load";
+"ytdlp.error.empty" = "Enter a video URL";

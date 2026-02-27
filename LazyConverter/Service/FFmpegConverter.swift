@@ -28,14 +28,14 @@ class FFmpegConverter {
         print("    useGPU   : \(request.useGPU)")
         print("    stabilization: \(request.stabilizationLevel?.rawValue ?? "none")")
         
-        guard isFfmpegInstalled() else {
+        guard let ffmpegPath = resolvedFFmpegPath(),
+              FileManager.default.isExecutableFile(atPath: ffmpegPath) else {
             print("❌ FFmpeg no encontrado en rutas conocidas")
             request.completionCallback(.failure(.ffmpegNotFound))
             return
         }
         
         DispatchQueue.global(qos: .userInitiated).async {
-            let ffmpegPath = self.findFFmpeg()
             self.runConversionPipeline(
                 request: request,
                 executablePath: ffmpegPath,
@@ -924,7 +924,10 @@ class FFmpegConverter {
     private func supportsHardwareEncoding() -> Bool {
         let testArgs = ["-f", "lavfi", "-i", "testsrc=duration=1", "-f", "null", "-"]
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: findFFmpeg())
+        guard let ffmpegPath = resolvedFFmpegPath() else {
+            return false
+        }
+        process.executableURL = URL(fileURLWithPath: ffmpegPath)
         process.arguments = testArgs + ["-c:v", "hevc_videotoolbox"]
         
         do {
@@ -944,12 +947,14 @@ class FFmpegConverter {
     
     
     func isFfmpegInstalled() -> Bool {
-        FileManager.default.isExecutableFile(atPath: findFFmpeg())
+        guard let path = resolvedFFmpegPath() else { return false }
+        return FileManager.default.isExecutableFile(atPath: path)
     }
     
-    private func findFFmpeg() -> String {
+    func resolvedFFmpegPath() -> String? {
         // Buscar en Bundle (EMBEDDED)
-        if let bundlePath = Bundle.main.path(forResource: "ffmpeg", ofType: nil) {
+        if let bundlePath = Bundle.main.path(forResource: "ffmpeg", ofType: nil),
+           FileManager.default.isExecutableFile(atPath: bundlePath) {
             print("✅ FFmpeg encontrado en Bundle: \(bundlePath)")
             return bundlePath
         }
@@ -957,13 +962,13 @@ class FFmpegConverter {
         // Fallback rutas sistema
         let systemPaths = ["/usr/local/bin/ffmpeg", "/opt/homebrew/bin/ffmpeg"]
         for path in systemPaths {
-            if FileManager.default.fileExists(atPath: path) {
+            if FileManager.default.isExecutableFile(atPath: path) {
                 print("✅ FFmpeg en sistema: \(path)")
                 return path
             }
         }
-        
-        fatalError("❌ FFmpeg no encontrado ni en Bundle ni en sistema")
+
+        return nil
     }
 
     private func findFFprobe() -> String {

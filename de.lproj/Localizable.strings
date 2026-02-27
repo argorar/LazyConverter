@@ -102,3 +102,11 @@
 "output.documents" = "Dokumente";
 "output.movies" = "Videos";
 "output.desktop" = "Schreibtisch";
+"ytdlp.title" = "Mit yt-dlp herunterladen";
+"ytdlp.subtitle" = "Füge einen Link ein, um das Video herunterzuladen";
+"ytdlp.hint" = "Speichert in deinem Downloads-Ordner";
+"ytdlp.placeholder" = "Video-Link einfügen";
+"ytdlp.download" = "Download";
+"ytdlp.play" = "Play";
+"ytdlp.load" = "Laden";
+"ytdlp.error.empty" = "Gib einen Video-Link ein";
