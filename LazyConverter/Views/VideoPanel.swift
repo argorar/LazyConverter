@@ -58,7 +58,7 @@ struct VideoPanel: View {
                                 .padding(.top, 4)
                         }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 300)
+                    .frame(maxWidth: .infinity, minHeight: 280)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(
@@ -177,7 +177,7 @@ struct VideoPanel: View {
             .frame(maxWidth: 560)
         }
         .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 300, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: 280, alignment: .center)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(
@@ -271,6 +271,7 @@ struct VideoPanel: View {
             resolution: viewModel.selectedResolution,
             quality: Int(viewModel.quality),
             speedPercent: viewModel.speedPercent,
+            maxOutputSizeMB: viewModel.maxOutputSizeMB,
             useGPU: viewModel.useGPU,
             loopEnabled: viewModel.loopEnabled,
             outputDirectory: viewModel.outputDirectory,

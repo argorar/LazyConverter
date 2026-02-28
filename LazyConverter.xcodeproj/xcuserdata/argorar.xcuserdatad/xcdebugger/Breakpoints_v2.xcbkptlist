@@ -14,9 +14,9 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "419"
-            endingLineNumber = "419"
-            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:)"
+            startingLineNumber = "416"
+            endingLineNumber = "416"
+            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:includeOutputSizeLimit:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "VideoConversionViewModel"
-            landmarkType = "3">
+            landmarkName = "brightness"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -190,9 +190,57 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "294"
-            endingLineNumber = "294"
-            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:)"
+            startingLineNumber = "293"
+            endingLineNumber = "293"
+            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:includeOutputSizeLimit:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "4D44005F-171C-4790-93AE-814FA375D972"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LazyConverter/Service/FFmpegConverter.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1072"
+            endingLineNumber = "1072"
+            landmarkName = "FFmpegConverter"
+            landmarkType = "3">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "7E243A28-0D47-4420-A145-7CF658F8F7B8"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LazyConverter/Service/FFmpegConverter.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1029"
+            endingLineNumber = "1029"
+            landmarkName = "getDuration(of:completion:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "BEDDA32A-86A0-4837-A802-EEFC16C88D9B"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LazyConverter/Service/FFmpegConverter.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "1030"
+            endingLineNumber = "1030"
+            landmarkName = "getDuration(of:completion:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

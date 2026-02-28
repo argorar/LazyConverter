@@ -18,6 +18,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var selectedFormat: VideoFormat = .mp4
     @Published var selectedResolution: VideoResolution = .original
     @Published var quality: Double = 18
+    @Published var maxOutputSizeMBInput: String = ""
     @Published var useGPU: Bool = false
     @Published var isProcessing: Bool = false
     @Published var progress: Double = 0
@@ -176,6 +177,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             resolution: selectedResolution,
             quality: Int(quality),
             speedPercent: speedPercent,
+            maxOutputSizeMB: maxOutputSizeMB,
             useGPU: useGPU,
             loopEnabled: loopEnabled,
             outputDirectory: outputDirectory,
@@ -222,6 +224,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         trimStart = nil
         trimEnd = nil
         speedPercent = 100.0
+        maxOutputSizeMBInput = ""
         dynamicSpeedEnabled = false
         dynamicSpeedPoints.removeAll()
         progress = 0
@@ -654,6 +657,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         continueConversion(using: inputURL)
     }
 
+    var maxOutputSizeMB: Int? {
+        let trimmed = maxOutputSizeMBInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let value = Int(trimmed), value > 0 else { return nil }
+        return value
+    }
+
     private func prepareConversionState() {
         isProcessing = true
         progress = 0
@@ -743,6 +752,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             resolution: selectedResolution,
             quality: Int(quality),
             speedPercent: speedPercent,
+            maxOutputSizeMB: maxOutputSizeMB,
             dynamicSpeedEnabled: dynamicSpeedEnabled,
             dynamicSpeedPoints: dynamicSpeedPointsSorted,
             useGPU: useGPU,

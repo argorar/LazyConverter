@@ -15,6 +15,7 @@ struct FFmpegConversionRequest {
     let resolution: VideoResolution
     let quality: Int
     let speedPercent: Double
+    let maxOutputSizeMB: Int?
     let dynamicSpeedEnabled: Bool
     let dynamicSpeedPoints: [SpeedMapPoint]
     let useGPU: Bool
@@ -39,6 +40,7 @@ struct FFmpegConversionRequest {
         resolution: VideoResolution,
         quality: Int,
         speedPercent: Double,
+        maxOutputSizeMB: Int? = nil,
         dynamicSpeedEnabled: Bool = false,
         dynamicSpeedPoints: [SpeedMapPoint] = [],
         useGPU: Bool,
@@ -62,6 +64,7 @@ struct FFmpegConversionRequest {
         self.resolution = resolution
         self.quality = quality
         self.speedPercent = speedPercent
+        self.maxOutputSizeMB = maxOutputSizeMB
         self.dynamicSpeedEnabled = dynamicSpeedEnabled
         self.dynamicSpeedPoints = dynamicSpeedPoints
         self.useGPU = useGPU

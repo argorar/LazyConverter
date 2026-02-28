@@ -33,6 +33,7 @@ struct SettingsPanel: View {
             formatSection
             resolutionSection
             qualitySection
+            outputSizeLimitSection
             SpeedSliderPanel(viewModel: viewModel)
             FrameRateSection(viewModel: viewModel)
             trimSection
@@ -188,6 +189,54 @@ struct SettingsPanel: View {
             }
             Slider(value: $viewModel.quality, in: 1...51, step: 1)
                 .tint(.accentColor)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .separatorColor).opacity(0.5))
+        .cornerRadius(8)
+    }
+
+    @ViewBuilder
+    private var outputSizeLimitSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "internaldrive")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("size_limit.title"))
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+                Text(viewModel.maxOutputSizeMB.map { "\($0) MB" } ?? lang.t("size_limit.off"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                TextField(
+                    lang.t("size_limit.placeholder"),
+                    text: Binding(
+                        get: { viewModel.maxOutputSizeMBInput },
+                        set: { newValue in
+                            let digitsOnly = newValue.filter { $0.isNumber }
+                            viewModel.maxOutputSizeMBInput = digitsOnly
+                        }
+                    )
+                )
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 120)
+
+                Text("MB")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(lang.t("button.clear")) {
+                    viewModel.maxOutputSizeMBInput = ""
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity)

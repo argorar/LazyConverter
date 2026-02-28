@@ -7,6 +7,9 @@
 "analyzing.video" = "Video wird analysiert...";
 "resolution.title" = "Auflösung";
 "quality.title" = "Qualität";
+"size_limit.title" = "Ausgabegrößenlimit";
+"size_limit.placeholder" = "Max. Größe";
+"size_limit.off" = "Aus";
 "speed.title" = "Geschwindigkeit";
 "trim.title" = "Trimmen";
 "trim.start" = "Start:";

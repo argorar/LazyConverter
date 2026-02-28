@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreGraphics
+import Foundation
 
 class FFmpegConverter {
     static let shared = FFmpegConverter()
@@ -25,6 +26,7 @@ class FFmpegConverter {
         print("    format   : \(request.format)")
         print("    resolution: \(request.resolution)")
         print("    quality  : \(request.quality)")
+        print("    size limit: \(request.maxOutputSizeMB.map { "\($0) MB" } ?? "off")")
         print("    useGPU   : \(request.useGPU)")
         print("    stabilization: \(request.stabilizationLevel?.rawValue ?? "none")")
         
@@ -65,7 +67,8 @@ class FFmpegConverter {
             request,
             stabilizationTransformURL: nil,
             outputURL: request.outputURL,
-            stabilizationEnabledOverride: false
+            stabilizationEnabledOverride: false,
+            includeOutputSizeLimit: !request.loopEnabled
         )
         logCommand(executablePath: executablePath, arguments: mainArguments)
         executeMainAndOptionalLoop(
@@ -115,7 +118,8 @@ class FFmpegConverter {
             request,
             stabilizationTransformURL: nil,
             outputURL: intermediateURL,
-            stabilizationEnabledOverride: false
+            stabilizationEnabledOverride: false,
+            includeOutputSizeLimit: false
         )
         logCommand(executablePath: executablePath, arguments: baseArguments)
         executeFFmpeg(
@@ -150,9 +154,11 @@ class FFmpegConverter {
                                     stabilizationLevel: stabilizationLevel,
                                     inputURL: intermediateURL,
                                     outputURL: stabilizedURL,
-                                    transformsURL: transformsURL
+                                    transformsURL: transformsURL,
+                                    includeOutputSizeLimit: !request.loopEnabled
                                 )
-                                self.logCommand(executablePath: executablePath, arguments: transformArguments)
+                                self.logCommand(
+                                    executablePath: executablePath, arguments: transformArguments)
                                 self.executeFFmpeg(
                                     executablePath: executablePath,
                                     arguments: transformArguments,
@@ -170,9 +176,15 @@ class FFmpegConverter {
                                                     format: request.format,
                                                     quality: request.quality,
                                                     useGPU: request.useGPU,
-                                                    hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
+                                                    hasAudio: request.videoInfo?.hasAudio == true
+                                                        && request.speedPercent == 100.0
+                                                        && !request.dynamicSpeedEnabled,
+                                                    maxOutputSizeMB: request.maxOutputSizeMB,
+                                                    duration: videoDuration * 2
                                                 )
-                                                self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
+                                                self.logCommand(
+                                                    executablePath: executablePath,
+                                                    arguments: boomerangArgs)
                                                 self.executeFFmpeg(
                                                     executablePath: executablePath,
                                                     arguments: boomerangArgs,
@@ -230,7 +242,10 @@ class FFmpegConverter {
                             format: request.format,
                             quality: request.quality,
                             useGPU: request.useGPU,
-                            hasAudio: request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
+                            hasAudio: request.videoInfo?.hasAudio == true
+                                && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled,
+                            maxOutputSizeMB: request.maxOutputSizeMB,
+                            duration: videoDuration * 2
                         )
                         self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
                         self.executeFFmpeg(
@@ -263,20 +278,27 @@ class FFmpegConverter {
         _ request: FFmpegConversionRequest,
         stabilizationTransformURL: URL? = nil,
         outputURL: URL? = nil,
-        stabilizationEnabledOverride: Bool? = nil
+        stabilizationEnabledOverride: Bool? = nil,
+        includeOutputSizeLimit: Bool = true
     ) -> [String] {
         var videoFilters: [String] = []
         var audioFilters: [String] = []
         var arguments: [String] = []
         var deferredStaticCropFilter: String?
-        let usingDynamicCrop = request.cropEnable && request.cropDynamicEnabled && !request.cropDynamicKeyframes.isEmpty
-        let stabilizationEnabled = stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
+        let usingDynamicCrop =
+            request.cropEnable && request.cropDynamicEnabled
+            && !request.cropDynamicKeyframes.isEmpty
+        let stabilizationEnabled =
+            stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
         let clipBounds = resolvedClipBounds(request)
         let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
         let speedClipStart = clipBounds?.start ?? 0.0
-        let fallbackSpeedEndFromPoints = request.dynamicSpeedPoints.map(\.time).max() ?? speedClipStart
-        let speedClipEnd = clipBounds?.end ?? max(sourceDuration, fallbackSpeedEndFromPoints, speedClipStart)
-        let dynamicSpeedFilter = request.dynamicSpeedEnabled
+        let fallbackSpeedEndFromPoints =
+            request.dynamicSpeedPoints.map(\.time).max() ?? speedClipStart
+        let speedClipEnd =
+            clipBounds?.end ?? max(sourceDuration, fallbackSpeedEndFromPoints, speedClipStart)
+        let dynamicSpeedFilter =
+            request.dynamicSpeedEnabled
             ? SpeedMapPoint.buildDynamicSpeedSetptsFilter(
                 points: request.dynamicSpeedPoints,
                 clipStart: speedClipStart,
@@ -285,9 +307,11 @@ class FFmpegConverter {
             : nil
         let speed = request.speedPercent / 100.0
         let hasStaticSpeedChange = request.speedPercent != 100.0 && speed > 0
-        let canKeepAudio = request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled
+        let canKeepAudio =
+            request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+            && !request.dynamicSpeedEnabled
         var hasMergedSetpts = false
-        
+
         // 1. TRIM FILTER (prioridad máxima)
         if let clipBounds {
             let trimAtInput = usingDynamicCrop || (!stabilizationEnabled && canKeepAudio)
@@ -310,11 +334,12 @@ class FFmpegConverter {
                 if !trimComponents.isEmpty {
                     let trimFilter = "trim=\(trimComponents.joined(separator: ":"))"
                     let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
-                    let mergedSetptsFilter = dynamicSpeedFilter ?? (
-                        hasStaticSpeedChange
-                        ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
-                        : "setpts=PTS-STARTPTS"
-                    )
+                    let mergedSetptsFilter =
+                        dynamicSpeedFilter
+                        ?? (hasStaticSpeedChange
+                            ? SpeedMapPoint.buildSpeedSetptsFilter(
+                                duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                            : "setpts=PTS-STARTPTS")
                     if stabilizationEnabled {
                         videoFilters.append(trimFilter)
                         videoFilters.append(mergedSetptsFilter)
@@ -344,14 +369,16 @@ class FFmpegConverter {
             if request.cropDynamicEnabled, let videoInfo = request.videoInfo {
                 let sourceDuration = max(0.0, videoInfo.duration)
                 let clipStart = resolvedClipStart(request, sourceDuration: sourceDuration)
-                let clipEnd = resolvedClipEnd(request, sourceDuration: sourceDuration, start: clipStart)
+                let clipEnd = resolvedClipEnd(
+                    request, sourceDuration: sourceDuration, start: clipStart)
                 let clipDuration = max(0.0, clipEnd - clipStart)
-                let setptsFilter = dynamicSpeedFilter ?? (
-                    hasStaticSpeedChange
-                    ? SpeedMapPoint.buildSpeedSetptsFilter(duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
-                    : "setpts=PTS-STARTPTS"
-                )
-                
+                let setptsFilter =
+                    dynamicSpeedFilter
+                    ?? (hasStaticSpeedChange
+                        ? SpeedMapPoint.buildSpeedSetptsFilter(
+                            duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
+                        : "setpts=PTS-STARTPTS")
+
                 if let dynamicCrop = CropDynamicKeyframe.buildDynamicCropFilter(
                     keyframes: request.cropDynamicKeyframes,
                     sourceDuration: sourceDuration,
@@ -398,7 +425,9 @@ class FFmpegConverter {
                 videoFilters.append(dynamicSpeedFilter)
             } else if hasStaticSpeedChange {
                 let duration = resolvedOutputDuration(request)
-                videoFilters.append(SpeedMapPoint.buildSpeedSetptsFilter(duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
+                videoFilters.append(
+                    SpeedMapPoint.buildSpeedSetptsFilter(
+                        duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
             }
         }
         
@@ -409,39 +438,46 @@ class FFmpegConverter {
         if !audioFilters.isEmpty {
             arguments += ["-af", audioFilters.joined(separator: ",")]
         }
-        
-        let (videoCodec, audioCodec) = codecForFormat(request.format, useGPU: request.useGPU)
-        
+
+        let (videoCodec, audioCodec) = codecForFormat(
+            request.format, useGPU: request.useGPU, maxOutputSizeMB: request.maxOutputSizeMB)
+
         arguments += ["-c:v", videoCodec]
-        
+
+
         if request.format == .webm {
-            arguments += ["-b:v", "0",
-                          "-quality", "good",
-                          "-cpu-used", "0",
-                          "-row-mt", "1",
-                          "-tile-columns", "2",
-                          "-frame-parallel", "1",
-                          "-auto-alt-ref", "1",
-                          "-lag-in-frames", "25"]
-        }
-        else if request.format == .mp4, videoCodec != "h264_videotoolbox" {
-            arguments += ["-preset", "veryslow"]
-        }
-        else if request.format == .av1
+            arguments += [
+                "-b:v", "0",
+                "-quality", "good",
+                "-cpu-used", "0",
+                "-row-mt", "1",
+                "-tile-columns", "2",
+                "-frame-parallel", "1",
+                "-auto-alt-ref", "1",
+                "-lag-in-frames", "25",
+            ]
+        } else if request.format == .mp4, videoCodec != "h264_videotoolbox",
+            videoCodec != "hevc_videotoolbox"
         {
-            arguments += ["-preset", "4",
-                          "-svtav1-params", "scd=1",
-                          "-svtav1-params", "scm=0"]
+            //arguments += ["-preset", "veryslow"]
+        } else if request.format == .av1 {
+            arguments += [
+                "-preset", "4",
+                "-svtav1-params", "scd=1",
+                "-svtav1-params", "scm=0",
+            ]
         }
-        
-        arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
-        
-        
-        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled) {
+
+        if !includeOutputSizeLimit || request.maxOutputSizeMB == nil {
+            arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
+        }
+
+        if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+            && !request.dynamicSpeedEnabled
+        {
             arguments += ["-c:a", audioCodec]
             arguments += ["-b:a", "128k"]
-        }
-        else {
+        } else {
             arguments += ["-an"]
         }
 
@@ -451,18 +487,26 @@ class FFmpegConverter {
         if let trc = request.videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
             arguments += ["-color_trc", trc]
         }
-        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
+        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(),
+            !colorspace.isEmpty
+        {
             arguments += ["-colorspace", colorspace]
         }
         if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
             arguments += ["-color_range", range]
         }
+        if includeOutputSizeLimit {
+            let duration = resolvedOutputDuration(request)
+            arguments += outputSizeLimitArguments(
+                maxOutputSizeMB: request.maxOutputSizeMB, duration: duration, hasAudio: canKeepAudio
+            )
+        }
         arguments += [
             "-progress", "pipe:1",
             "-y",
-            (outputURL ?? request.outputURL).path
+            (outputURL ?? request.outputURL).path,
         ]
-            
+
         print("🎬 FFmpeg Command:")
         print("  \(arguments.joined(separator: " "))")
         
@@ -473,16 +517,20 @@ class FFmpegConverter {
         let invariant = String(format: "%.15g", locale: Locale(identifier: "en_US_POSIX"), value)
         return invariant.replacingOccurrences(of: ",", with: ".")
     }
-    
-    private func resolvedClipStart(_ request: FFmpegConversionRequest, sourceDuration: Double) -> Double {
+
+    private func resolvedClipStart(_ request: FFmpegConversionRequest, sourceDuration: Double)
+        -> Double
+    {
         if sourceDuration <= 0 {
             return max(0.0, request.trimStart ?? 0.0)
         }
         let rawStart = max(0.0, request.trimStart ?? 0.0)
         return min(rawStart, sourceDuration)
     }
-    
-    private func resolvedClipEnd(_ request: FFmpegConversionRequest, sourceDuration: Double, start: Double) -> Double {
+
+    private func resolvedClipEnd(
+        _ request: FFmpegConversionRequest, sourceDuration: Double, start: Double
+    ) -> Double {
         let rawEnd: Double
         if let trimEnd = request.trimEnd {
             rawEnd = max(0.0, trimEnd)
@@ -498,8 +546,10 @@ class FFmpegConverter {
         
         return max(rawEnd, start)
     }
-    
-    private func resolvedClipBounds(_ request: FFmpegConversionRequest) -> (start: Double, end: Double)? {
+
+    private func resolvedClipBounds(_ request: FFmpegConversionRequest) -> (
+        start: Double, end: Double
+    )? {
         guard request.trimStart != nil || request.trimEnd != nil else { return nil }
         
         let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
@@ -522,7 +572,7 @@ class FFmpegConverter {
         level: VideoStabilizationLevel
     ) -> [String] {
         var arguments: [String] = [
-            "-i", inputURL.path
+            "-i", inputURL.path,
         ]
         let detectFilter = level.buildDetectFilter(
             transformsPath: transformsURL.path
@@ -542,10 +592,11 @@ class FFmpegConverter {
         stabilizationLevel: VideoStabilizationLevel,
         inputURL: URL,
         outputURL: URL,
-        transformsURL: URL
+        transformsURL: URL,
+        includeOutputSizeLimit: Bool
     ) -> [String] {
         var arguments: [String] = [
-            "-i", inputURL.path
+            "-i", inputURL.path,
         ]
 
         if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
@@ -557,36 +608,49 @@ class FFmpegConverter {
         )
         arguments += ["-vf", transformFilter]
 
-        let (videoCodec, audioCodec) = codecForFormat(request.format, useGPU: request.useGPU)
+        let (videoCodec, audioCodec) = codecForFormat(
+            request.format, useGPU: request.useGPU, maxOutputSizeMB: request.maxOutputSizeMB)
         arguments += ["-c:v", videoCodec]
 
-        if request.format == .webm {
-            arguments += ["-b:v", "0",
-                          "-quality", "good",
-                          "-cpu-used", "0",
-                          "-row-mt", "1",
-                          "-tile-columns", "2",
-                          "-frame-parallel", "1",
-                          "-auto-alt-ref", "1",
-                          "-lag-in-frames", "25"]
-        }
-        else if request.format == .mp4, videoCodec != "h264_videotoolbox" {
-            arguments += ["-preset", "veryslow"]
-        }
-        else if request.format == .av1
+        if videoCodec == "h264_videotoolbox" && includeOutputSizeLimit
+            && request.maxOutputSizeMB != nil
         {
-            arguments += ["-preset", "4",
-                          "-svtav1-params", "scd=1",
-                          "-svtav1-params", "scm=0"]
+            arguments += ["-profile:v", "high"]
         }
 
-        arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
+        if request.format == .webm {
+            arguments += [
+                "-b:v", "0",
+                "-quality", "good",
+                "-cpu-used", "0",
+                "-row-mt", "1",
+                "-tile-columns", "2",
+                "-frame-parallel", "1",
+                "-auto-alt-ref", "1",
+                "-lag-in-frames", "25",
+            ]
+        } else if request.format == .mp4 {
+            if videoCodec != "h264_videotoolbox" {
+                arguments += ["-preset", "veryslow"]
+            }
+        } else if request.format == .av1 {
+            arguments += [
+                "-preset", "4",
+                "-svtav1-params", "scd=1",
+                "-svtav1-params", "scm=0",
+            ]
+        }
 
-        if (request.videoInfo?.hasAudio == true && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled) {
+        if !includeOutputSizeLimit || request.maxOutputSizeMB == nil {
+            arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
+        }
+
+        if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+            && !request.dynamicSpeedEnabled
+        {
             arguments += ["-c:a", audioCodec]
             arguments += ["-b:a", "128k"]
-        }
-        else {
+        } else {
             arguments += ["-an"]
         }
 
@@ -601,6 +665,14 @@ class FFmpegConverter {
         }
         if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
             arguments += ["-color_range", range]
+        }
+        if includeOutputSizeLimit {
+            let duration = resolvedOutputDuration(request)
+            let hasAudio =
+                request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
+                && !request.dynamicSpeedEnabled
+            arguments += outputSizeLimitArguments(
+                maxOutputSizeMB: request.maxOutputSizeMB, duration: duration, hasAudio: hasAudio)
         }
 
         arguments += [
@@ -626,11 +698,14 @@ class FFmpegConverter {
         format: VideoFormat,
         quality: Int,
         useGPU: Bool,
-        hasAudio: Bool
+        hasAudio: Bool,
+        maxOutputSizeMB: Int?,
+        duration: Double
     ) -> [String] {
         var arguments: [String] = ["-i", inputURL.path]
-        let (videoCodec, audioCodec) = codecForFormat(format, useGPU: useGPU)
-        
+        let (videoCodec, audioCodec) = codecForFormat(
+            format, useGPU: useGPU, maxOutputSizeMB: maxOutputSizeMB)
+
         if hasAudio {
             arguments += [
                 "-filter_complex",
@@ -649,18 +724,24 @@ class FFmpegConverter {
                 "-c:v", videoCodec
             ]
         }
-        
-        arguments += qualityArguments(videoCodec: videoCodec, crf: quality)
+
+        if maxOutputSizeMB == nil {
+            arguments += qualityArguments(videoCodec: videoCodec, crf: quality)
+        }
+        arguments += outputSizeLimitArguments(
+            maxOutputSizeMB: maxOutputSizeMB, duration: duration, hasAudio: hasAudio)
         arguments += [
             "-progress", "pipe:1",
             "-y",
-            outputURL.path
+            outputURL.path,
         ]
-        
+
         return arguments
     }
 
-    private func makeTemporaryOutputURL(in directory: URL, baseName: String, fileExtension: String) -> URL {
+    private func makeTemporaryOutputURL(in directory: URL, baseName: String, fileExtension: String)
+        -> URL
+    {
         let timestamp = Int(Date().timeIntervalSince1970)
         let filename = "\(baseName)_tmp_\(timestamp).\(fileExtension)"
         return directory.appendingPathComponent(filename)
@@ -672,9 +753,15 @@ class FFmpegConverter {
         return directory.appendingPathComponent(filename)
     }
 
-    private func codecForFormat(_ format: VideoFormat, useGPU: Bool) -> (video: String, audio: String) {
-        let videoCodec = "h264_videotoolbox"
-        
+    private func codecForFormat(_ format: VideoFormat, useGPU: Bool, maxOutputSizeMB: Int?) -> (
+        video: String, audio: String
+    ) {
+        var videoCodec = "h264_videotoolbox"
+
+        if format == .mp4, maxOutputSizeMB != nil {
+            videoCodec = "libx265"
+        }
+
         switch format {
         case .mp4:
             return (videoCodec, "aac")
@@ -700,6 +787,37 @@ class FFmpegConverter {
         return ["-crf", "\(crf)"]
     }
 
+    private func outputSizeLimitArguments(maxOutputSizeMB: Int?, duration: Double, hasAudio: Bool)
+        -> [String]
+    {
+        guard let maxOutputSizeMB = maxOutputSizeMB, maxOutputSizeMB > 0 else { return [] }
+
+        let limitBytes = Double(maxOutputSizeMB) * 1024.0 * 1024.0
+        var args = ["-fs", "\(Int64(limitBytes))"]
+
+        if duration > 0 {
+            let audioBitrateKbps = hasAudio ? 64.0 : 0.0
+
+
+            let totalBitrateKbps = (limitBytes / duration * 8.0) / 1024.0
+
+            // Subtract audio bitrate and leave 5% margin for container overhead
+            let videoBitrateKbps = Int((totalBitrateKbps * 0.95) - audioBitrateKbps)
+
+            if videoBitrateKbps > 0 {
+                args += [
+                    "-b:v", "\(videoBitrateKbps)k",
+                    "-maxrate:v", "\(videoBitrateKbps)k",
+                    "-bufsize:v", "\(videoBitrateKbps * 2)k",
+                ]
+            } else {
+                print("⚠️ Size constraints are too tight for the given duration!")
+            }
+        }
+
+        return args
+    }
+
     private func executeFFmpeg(
         executablePath: String,
         arguments: [String],
@@ -715,7 +833,7 @@ class FFmpegConverter {
         let outPipe = Pipe()
         let errPipe = Pipe()
         process.standardOutput = outPipe
-        process.standardError  = errPipe
+        process.standardError = errPipe
 
         let outHandle = outPipe.fileHandleForReading
         let errHandle = errPipe.fileHandleForReading
@@ -742,14 +860,15 @@ class FFmpegConverter {
         // stdout: progreso
         outHandle.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            if data.isEmpty { return } // EOF
+            if data.isEmpty { return }  // EOF
 
-            if let chunk = String( data: data, encoding: .utf8), !chunk.isEmpty {
+            if let chunk = String(data: data, encoding: .utf8), !chunk.isEmpty {
                 stdoutBuffer += chunk
 
                 // procesar por líneas completas (key=value)
                 while let range = stdoutBuffer.range(of: "\n") {
-                    let line = String(stdoutBuffer[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    let line = String(stdoutBuffer[..<range.lowerBound]).trimmingCharacters(
+                        in: .whitespacesAndNewlines)
                     stdoutBuffer.removeSubrange(..<range.upperBound)
 
                     if !line.isEmpty {
@@ -770,8 +889,8 @@ class FFmpegConverter {
         // stderr: logs (banner, warnings, errores)
         errHandle.readabilityHandler = { handle in
             let data = handle.availableData
-            if data.isEmpty { return } // EOF
-            if let chunk = String( data: data, encoding: .utf8), !chunk.isEmpty {
+            if data.isEmpty { return }  // EOF
+            if let chunk = String(data: data, encoding: .utf8), !chunk.isEmpty {
                 stderrBuffer += chunk
             }
         }
@@ -784,7 +903,7 @@ class FFmpegConverter {
 
             print("🔚 FFmpeg finalizado - Status: \(process.terminationStatus)")
 
-            if finished { return } // ya finalizó por progress=end
+            if finished { return }  // ya finalizó por progress=end
 
             if process.terminationStatus == 0 {
                 self.lastErrorLog = nil
@@ -816,7 +935,7 @@ class FFmpegConverter {
             if line.hasPrefix("out_time_ms=") {
                 let value = line.dropFirst("out_time_ms=".count)
                 if let outTimeUs = Double(value) {
-                    let duration = max(0.001, videoDuration) // evita div/0
+                    let duration = max(0.001, videoDuration)  // evita div/0
                     let currentSeconds = outTimeUs / 1_000_000.0
 
                     let ratio = min(0.999, max(0.0, currentSeconds / duration))
@@ -859,14 +978,14 @@ class FFmpegConverter {
     private func getDuration(of videoURL: URL, completion: @escaping (TimeInterval) -> Void) {
         let ffprobePath = findFFprobe()
         let path = videoURL.path
-        
+
         let args = [
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
             path
         ]
-        
+
         print("🔹 Ejecutando ffprobe:")
         print("    \(ffprobePath) \\")
         for arg in args {
@@ -891,9 +1010,9 @@ class FFmpegConverter {
                 DispatchQueue.main.async { completion(0) }
                 return
             }
-            
+
             process.waitUntilExit()
-            
+
             let outHandle = outPipe.fileHandleForReading
             let data = outHandle.readDataToEndOfFile()
             let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
@@ -904,7 +1023,7 @@ class FFmpegConverter {
             if let errString = String( data: errData, encoding: .utf8), !errString.isEmpty {
                 print("📥 [ffprobe stderr]:\n\(errString)")
             }
-            
+
             guard process.terminationStatus == 0,
                   let output = String( data: data, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines),

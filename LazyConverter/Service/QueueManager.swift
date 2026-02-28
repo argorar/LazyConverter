@@ -93,6 +93,7 @@ class QueueManager: ObservableObject {
                 resolution: item.resolution,
                 quality: item.quality,
                 speedPercent: item.speedPercent,
+                maxOutputSizeMB: item.maxOutputSizeMB,
                 useGPU: item.useGPU,
                 stabilizationLevel: nil,
                 loopEnabled: item.loopEnabled,

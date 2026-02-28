@@ -22,6 +22,7 @@ struct QueueItem: Identifiable, Equatable {
     let resolution: VideoResolution
     let quality: Int
     let speedPercent: Double
+    let maxOutputSizeMB: Int?
     let useGPU: Bool
     let loopEnabled: Bool
     let outputDirectory: OutputDirectory
@@ -39,6 +40,7 @@ struct QueueItem: Identifiable, Equatable {
         self.resolution = settings.resolution
         self.quality = settings.quality
         self.speedPercent = settings.speedPercent
+        self.maxOutputSizeMB = settings.maxOutputSizeMB
         self.useGPU = settings.useGPU
         self.loopEnabled = settings.loopEnabled
         self.outputDirectory = settings.outputDirectory
@@ -84,6 +86,7 @@ struct ConversionSettings {
     let resolution: VideoResolution
     let quality: Int
     let speedPercent: Double
+    let maxOutputSizeMB: Int?
     let useGPU: Bool
     let loopEnabled: Bool
     let outputDirectory: OutputDirectory
