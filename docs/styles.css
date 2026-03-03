@@ -159,22 +159,26 @@ h1 {
 .mock-frame {
   padding: 12px;
   border-radius: 22px;
-  background: linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--shadow);
+  background: transparent;
+  box-shadow:
+    0 30px 80px -20px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(10, 132, 255, 0.15);
+  /* Accent glow */
   max-width: 520px;
+  backdrop-filter: blur(10px);
 }
 
 .mock-screen {
-  background: #121214;
-  border-radius: 18px;
+  background: transparent;
+  border-radius: 12px;
+  /* Slightly tighter crop than frame */
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mock-screen img {
   width: 100%;
   display: block;
+  border-radius: 10px;
 }
 
 .section {
@@ -240,6 +244,7 @@ h1 {
 .step-num {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--accent-2);
   color: #fff;
@@ -274,4 +279,16 @@ h1 {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* Scroll Animations */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
