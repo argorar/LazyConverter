@@ -5,10 +5,9 @@
 //  Created by Sebastián Agudelo on 25/12/25.
 //
 
-
-import SwiftUI
 import AVFoundation
 import AppKit
+import SwiftUI
 
 struct VideoPreviewPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
@@ -33,10 +32,10 @@ struct VideoPreviewPanel: View {
     private let playerControlButtonSize: CGFloat = 28
     private let trimJumpButtonWidth: CGFloat = 84
     private let trimJumpButtonHeight: CGFloat = 28
-    
+
     var body: some View {
         VStack(spacing: 12) {
-            
+
             // Player
             if let unwrappedPlayer = player, unwrappedPlayer.currentItem != nil {
                 PlayerSurfaceView(player: unwrappedPlayer)
@@ -46,10 +45,15 @@ struct VideoPreviewPanel: View {
                         GeometryReader { geo in
                             ZStack(alignment: .bottomLeading) {
                                 if viewModel.cropEnabled {
-                                    CropOverlayView(cropRect: $viewModel.cropRect,
+                                    CropOverlayView(
+                                        cropRect: $viewModel.cropRect,
                                         trackerPivot: $viewModel.cropTrackerPivot,
-                                        videoSize: CGSize(width: Double(abs(videoInfo?.videoSize.width ?? 200)), height: Double(abs(videoInfo?.videoSize.height ?? 500))),
-                                        playerFrame: CGRect(x: 0, y: 0, width: geo.size.width, height: geo.size.height),
+                                        videoSize: CGSize(
+                                            width: Double(abs(videoInfo?.videoSize.width ?? 200)),
+                                            height: Double(abs(videoInfo?.videoSize.height ?? 500))),
+                                        playerFrame: CGRect(
+                                            x: 0, y: 0, width: geo.size.width,
+                                            height: geo.size.height),
                                         showTrackerTarget: viewModel.cropTrackerEnabled,
                                         lockedAspectRatio: viewModel.cropDynamicLockedAspectRatio,
                                         onCropDragged: { cropRect in
@@ -76,10 +80,12 @@ struct VideoPreviewPanel: View {
                                         currentTime: currentTime,
                                         fallbackEnd: max(duration, videoInfo?.duration ?? 0.0),
                                         onAddPoint: { time, speedPercent in
-                                            viewModel.upsertDynamicSpeedPoint(at: time, speedPercent: speedPercent)
+                                            viewModel.upsertDynamicSpeedPoint(
+                                                at: time, speedPercent: speedPercent)
                                         },
                                         onUpdatePoint: { time, speedPercent in
-                                            viewModel.updateDynamicSpeedPoint(time: time, speedPercent: speedPercent)
+                                            viewModel.updateDynamicSpeedPoint(
+                                                time: time, speedPercent: speedPercent)
                                         },
                                         onDeletePoint: { time in
                                             viewModel.deleteDynamicSpeedPoint(near: time)
@@ -90,7 +96,7 @@ struct VideoPreviewPanel: View {
                                 }
                             }
                         }
-                }
+                    }
             } else {
                 ZStack {
                     Color.gray.opacity(0.3)
@@ -125,7 +131,8 @@ struct VideoPreviewPanel: View {
                                 .gesture(
                                     DragGesture(minimumDistance: 0)
                                         .onChanged { value in
-                                            guard isHoveringSeekSlider || isPointerDragScrubbing else { return }
+                                            guard isHoveringSeekSlider || isPointerDragScrubbing
+                                            else { return }
                                             if !isPointerDragScrubbing {
                                                 isPointerDragScrubbing = true
                                                 startScrubbingSession()
@@ -135,7 +142,9 @@ struct VideoPreviewPanel: View {
                                             let clampedX = min(max(0.0, value.location.x), width)
                                             let progress = Double(clampedX / width)
                                             let range = sliderRange
-                                            scrubPosition = range.lowerBound + (range.upperBound - range.lowerBound) * progress
+                                            scrubPosition =
+                                                range.lowerBound
+                                                + (range.upperBound - range.lowerBound) * progress
                                         }
                                         .onEnded { _ in
                                             guard isPointerDragScrubbing else { return }
@@ -160,7 +169,7 @@ struct VideoPreviewPanel: View {
                         .frame(width: 70, alignment: .trailing)
                 }
             }
-            
+
             HStack(spacing: 12) {
                 if let trimStart = viewModel.trimStart {
                     Button(lang.t("button.start")) {
@@ -183,11 +192,11 @@ struct VideoPreviewPanel: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .center)
-            
+
             if let info = videoInfo {
                 VideoPreviewView(videoInfo: info)
             }
-            
+
         }
         .cornerRadius(12)
         .onAppear {
@@ -228,7 +237,7 @@ struct VideoPreviewPanel: View {
         .onChange(of: scrubPosition) { _, newValue in
             handleScrubPositionChanged(newValue)
         }
-        .onChange(of: viewModel.colorAdjustments){ oldValue, newValue in
+        .onChange(of: viewModel.colorAdjustments) { oldValue, newValue in
             applyVideoFilters()
         }
         .onChange(of: viewModel.trimStart) { oldValue, newValue in
@@ -247,7 +256,7 @@ struct VideoPreviewPanel: View {
             seekToTrimBound(player: player, seconds: start, keepPlaying: false)
         }
     }
-    
+
     private func closePlayer(_ fileURL: String?) {
         if fileURL == nil {
             player?.pause()
@@ -297,7 +306,9 @@ struct VideoPreviewPanel: View {
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         guard player?.currentItem != nil else { return event }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if modifiers.contains(.command) || modifiers.contains(.option) || modifiers.contains(.control) {
+        if modifiers.contains(.command) || modifiers.contains(.option)
+            || modifiers.contains(.control)
+        {
             return event
         }
 
@@ -307,19 +318,19 @@ struct VideoPreviewPanel: View {
         }
 
         switch event.keyCode {
-        case 49: // Space
+        case 49:  // Space
             if modifiers.contains(.shift) {
                 return event
             }
             togglePlayback()
             return nil
-        case 123: // Left arrow
+        case 123:  // Left arrow
             if modifiers.contains(.shift) {
                 return event
             }
             stepByFrame(direction: -1)
             return nil
-        case 124: // Right arrow
+        case 124:  // Right arrow
             if modifiers.contains(.shift) {
                 return event
             }
@@ -335,11 +346,14 @@ struct VideoPreviewPanel: View {
         guard player.currentItem != nil else { return event }
 
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if modifiers.contains(.command) || modifiers.contains(.option) || modifiers.contains(.control) {
+        if modifiers.contains(.command) || modifiers.contains(.option)
+            || modifiers.contains(.control)
+        {
             return event
         }
 
-        let dominantDelta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        let dominantDelta =
+            abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
             ? event.scrollingDeltaX
             : event.scrollingDeltaY
 
@@ -358,14 +372,17 @@ struct VideoPreviewPanel: View {
 
         let target = CMTime(seconds: targetSeconds, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
-        scrubPosition = targetSeconds
-        currentTime = targetSeconds
-        viewModel.liveCurrentTime = targetSeconds
+
+        if abs(scrubPosition - targetSeconds) > 0.01 { scrubPosition = targetSeconds }
+        if abs(currentTime - targetSeconds) > 0.01 { currentTime = targetSeconds }
+        if abs(viewModel.liveCurrentTime - targetSeconds) > 0.01 {
+            viewModel.liveCurrentTime = targetSeconds
+        }
 
         // Consume event so parent ScrollView does not move while seeking.
         return nil
     }
-    
+
     private func setupPlayerObserver() {
         guard let player = player else { return }
 
@@ -377,108 +394,129 @@ struct VideoPreviewPanel: View {
             onPlayerTimeChanged(time)
         }
     }
-    
+
     private func removePlayerObserver() {
         if let observer = timeObserver, let player = player {
             player.removeTimeObserver(observer)
             timeObserver = nil
         }
     }
-    
+
     private func onPlayerTimeChanged(_ time: CMTime) {
         guard let player = player else { return }
         let rate = player.rate
-        isPlayerPlaying = rate > 0.01
-        
+        let isPlayingNow = rate > 0.01
+
+        if isPlayerPlaying != isPlayingNow {
+            isPlayerPlaying = isPlayingNow
+        }
+
         // Detectar PLAY (rate > 0)
         if rate > 0.01 {
             enforceTrimBoundsIfNeeded(for: player)
             updatePlayerRate(viewModel.speedPercent)
         }
     }
-    
-    
+
     private func updatePlayerRate(_ speedPercent: Double, allowStartPlayback: Bool = true) {
         guard let player = player else { return }
-        
+
         let isPlaying = player.rate > 0.01
         if !allowStartPlayback && !isPlaying {
             return
         }
-        
+
         let rate = Float(speedPercent / 100.0)  // 50% = 0.5x, 200% = 2.0x
         player.rate = rate
     }
-    
+
     private func startLiveTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             updateLiveTime()
         }
     }
-    
+
     private func stopLiveTimer() {
         timer?.invalidate()
         timer = nil
     }
-    
+
     private func updateLiveTime() {
         if let player = player {
             enforceTrimBoundsIfNeeded(for: player)
             if isSeekingToTrimBound { return }
-            isPlayerPlaying = player.rate > 0.01
+
+            let isPlayingNow = player.rate > 0.01
+            if isPlayerPlaying != isPlayingNow {
+                isPlayerPlaying = isPlayingNow
+            }
+
             if duration <= 0 {
                 updateDuration(player)
             }
-            
+
             let newTime = player.currentTime().seconds
             if !newTime.isNaN && newTime >= 0 {
-                currentTime = newTime
-                viewModel.liveCurrentTime = newTime
+                if abs(currentTime - newTime) > 0.01 {
+                    currentTime = newTime
+                }
+                if abs(viewModel.liveCurrentTime - newTime) > 0.01 {
+                    viewModel.liveCurrentTime = newTime
+                }
                 if !isUserScrubbing {
-                    scrubPosition = boundedPlaybackTime(newTime)
+                    let bounded = boundedPlaybackTime(newTime)
+                    if abs(scrubPosition - bounded) > 0.01 {
+                        scrubPosition = bounded
+                    }
                 }
             }
         }
     }
-    
+
     private func enforceTrimBoundsIfNeeded(for player: AVPlayer) {
         guard !isSeekingToTrimBound else { return }
-        
+
         let currentSeconds = player.currentTime().seconds
         guard !currentSeconds.isNaN && !currentSeconds.isInfinite else { return }
-        
+
         let tolerance = 0.02
         let start = viewModel.trimStart
         let end = viewModel.trimEnd
-        
+
         if let start, currentSeconds < (start - tolerance) {
             seekToTrimBound(player: player, seconds: start, keepPlaying: player.rate > 0.01)
             return
         }
-        
+
         if let end, currentSeconds > (end + tolerance) {
             seekToTrimBound(player: player, seconds: end, keepPlaying: false)
         }
     }
-    
+
     private func seekToTrimBound(player: AVPlayer, seconds: Double, keepPlaying: Bool) {
         isSeekingToTrimBound = true
         let boundedSeconds = boundedPlaybackTime(seconds)
         let target = CMTime(seconds: boundedSeconds, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
             DispatchQueue.main.async {
-                self.currentTime = boundedSeconds
-                self.scrubPosition = boundedSeconds
-                self.viewModel.liveCurrentTime = boundedSeconds
-                
+                if abs(self.currentTime - boundedSeconds) > 0.01 {
+                    self.currentTime = boundedSeconds
+                }
+                if abs(self.scrubPosition - boundedSeconds) > 0.01 {
+                    self.scrubPosition = boundedSeconds
+                }
+                if abs(self.viewModel.liveCurrentTime - boundedSeconds) > 0.01 {
+                    self.viewModel.liveCurrentTime = boundedSeconds
+                }
+
                 if keepPlaying {
                     self.updatePlayerRate(self.viewModel.speedPercent)
-                    self.isPlayerPlaying = true
+                    if !self.isPlayerPlaying { self.isPlayerPlaying = true }
                 } else {
                     player.pause()
-                    self.isPlayerPlaying = false
+                    if self.isPlayerPlaying { self.isPlayerPlaying = false }
                 }
-                
+
                 self.isSeekingToTrimBound = false
             }
         }
@@ -531,7 +569,8 @@ struct VideoPreviewPanel: View {
         let frameStep = 1.0 / fps
         let sourceTime = player.currentTime().seconds
         let base = sourceTime.isFinite ? sourceTime : currentTime
-        seekToTrimBound(player: player, seconds: base + (frameStep * Double(direction)), keepPlaying: false)
+        seekToTrimBound(
+            player: player, seconds: base + (frameStep * Double(direction)), keepPlaying: false)
     }
 
     private func handleScrubbingChanged(_ editing: Bool) {
@@ -549,8 +588,9 @@ struct VideoPreviewPanel: View {
         let bounded = boundedPlaybackTime(newValue)
         let target = CMTime(seconds: bounded, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
-        currentTime = bounded
-        viewModel.liveCurrentTime = bounded
+
+        if abs(currentTime - bounded) > 0.01 { currentTime = bounded }
+        if abs(viewModel.liveCurrentTime - bounded) > 0.01 { viewModel.liveCurrentTime = bounded }
     }
 
     private func startScrubbingSession() {
@@ -604,7 +644,6 @@ struct VideoPreviewPanel: View {
         return min(max(seconds, bounds.lower), bounds.upper)
     }
 
-    
     private func updateDuration(_ player: AVPlayer?) {
         guard let player else { return }
 
@@ -622,14 +661,16 @@ struct VideoPreviewPanel: View {
 
     private func resolvedDurationSeconds(player: AVPlayer) -> Double {
         if let itemDuration = player.currentItem?.duration.seconds,
-           itemDuration.isFinite,
-           itemDuration > 0 {
+            itemDuration.isFinite,
+            itemDuration > 0
+        {
             return itemDuration
         }
 
         if let infoDuration = videoInfo?.duration,
-           infoDuration.isFinite,
-           infoDuration > 0 {
+            infoDuration.isFinite,
+            infoDuration > 0
+        {
             return infoDuration
         }
 
@@ -655,20 +696,21 @@ struct VideoPreviewPanel: View {
             }
         }
     }
-    
+
     private func formatTime(_ time: Double) -> String {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         let ms = Int((time * 100).truncatingRemainder(dividingBy: 100))
         return String(format: "%d:%02d.%02d", minutes, seconds, ms)
     }
-    
+
     private func applyVideoFilters() {
         guard let player = player,
-              let playerItem = player.currentItem else { return }
-        
+            let playerItem = player.currentItem
+        else { return }
+
         let adjustments = viewModel.colorAdjustments
-        
+
         // Solo aplicar si hay modificaciones
         if !adjustments.isModified {
             playerItem.videoComposition = nil
@@ -676,37 +718,40 @@ struct VideoPreviewPanel: View {
         }
 
         let asset = playerItem.asset
-        AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
-            var outputImage = request.sourceImage
+        AVVideoComposition.videoComposition(
+            with: asset,
+            applyingCIFiltersWithHandler: { request in
+                var outputImage = request.sourceImage
 
-            let ciValues = adjustments.ciColorControlsValues
+                let ciValues = adjustments.ciColorControlsValues
 
-            // 1. Color controls (brightness, contrast, saturation)
-            if let colorControls = CIFilter(name: "CIColorControls") {
-                colorControls.setValue(outputImage, forKey: kCIInputImageKey)
-                colorControls.setValue(ciValues.brightness, forKey: kCIInputBrightnessKey)
-                colorControls.setValue(ciValues.contrast, forKey: kCIInputContrastKey)
-                colorControls.setValue(ciValues.saturation, forKey: kCIInputSaturationKey)
+                // 1. Color controls (brightness, contrast, saturation)
+                if let colorControls = CIFilter(name: "CIColorControls") {
+                    colorControls.setValue(outputImage, forKey: kCIInputImageKey)
+                    colorControls.setValue(ciValues.brightness, forKey: kCIInputBrightnessKey)
+                    colorControls.setValue(ciValues.contrast, forKey: kCIInputContrastKey)
+                    colorControls.setValue(ciValues.saturation, forKey: kCIInputSaturationKey)
 
-                if let output = colorControls.outputImage {
-                    outputImage = output
-                }
-            }
-
-            // 2. Gamma adjustment
-            if adjustments.gamma != 1.0 {
-                if let gammaAdjust = CIFilter(name: "CIGammaAdjust") {
-                    gammaAdjust.setValue(outputImage, forKey: kCIInputImageKey)
-                    gammaAdjust.setValue(adjustments.ciGammaValue, forKey: "inputPower")
-
-                    if let output = gammaAdjust.outputImage {
+                    if let output = colorControls.outputImage {
                         outputImage = output
                     }
                 }
-            }
 
-            request.finish(with: outputImage, context: nil)
-        }) { composition, error in
+                // 2. Gamma adjustment
+                if adjustments.gamma != 1.0 {
+                    if let gammaAdjust = CIFilter(name: "CIGammaAdjust") {
+                        gammaAdjust.setValue(outputImage, forKey: kCIInputImageKey)
+                        gammaAdjust.setValue(adjustments.ciGammaValue, forKey: "inputPower")
+
+                        if let output = gammaAdjust.outputImage {
+                            outputImage = output
+                        }
+                    }
+                }
+
+                request.finish(with: outputImage, context: nil)
+            }
+        ) { composition, error in
             // Assign on main thread to be safe with KVO/UI interactions
             DispatchQueue.main.async {
                 if let composition = composition {
@@ -776,7 +821,7 @@ private struct DynamicSpeedOverlayView: View {
                                 LinearGradient(
                                     colors: [
                                         Color.accentColor.opacity(0.26),
-                                        Color.accentColor.opacity(0.08)
+                                        Color.accentColor.opacity(0.08),
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -784,7 +829,8 @@ private struct DynamicSpeedOverlayView: View {
                             )
 
                         linePath(points: sortedPoints, width: width, height: height)
-                            .stroke(Color.accentColor.opacity(0.95), style: StrokeStyle(lineWidth: 2))
+                            .stroke(
+                                Color.accentColor.opacity(0.95), style: StrokeStyle(lineWidth: 2))
                     }
 
                     currentTimeLine(width: width, height: height)
@@ -825,7 +871,8 @@ private struct DynamicSpeedOverlayView: View {
                             .gesture(
                                 DragGesture(minimumDistance: 0)
                                     .onChanged { value in
-                                        let newSpeedPercent = speedPercent(forY: value.location.y, height: height)
+                                        let newSpeedPercent = speedPercent(
+                                            forY: value.location.y, height: height)
                                         onUpdatePoint(point.time, newSpeedPercent)
                                     }
                             )
@@ -906,16 +953,18 @@ private struct DynamicSpeedOverlayView: View {
         var path = Path()
 
         path.move(to: CGPoint(x: xPosition(for: first.time, width: width), y: height))
-        path.addLine(to: CGPoint(
-            x: xPosition(for: first.time, width: width),
-            y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
-        ))
+        path.addLine(
+            to: CGPoint(
+                x: xPosition(for: first.time, width: width),
+                y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
+            ))
 
         for point in points.dropFirst() {
-            path.addLine(to: CGPoint(
-                x: xPosition(for: point.time, width: width),
-                y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
-            ))
+            path.addLine(
+                to: CGPoint(
+                    x: xPosition(for: point.time, width: width),
+                    y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
+                ))
         }
 
         if let last = points.last {
@@ -929,16 +978,18 @@ private struct DynamicSpeedOverlayView: View {
     private func linePath(points: [SpeedMapPoint], width: CGFloat, height: CGFloat) -> Path {
         guard let first = points.first else { return Path() }
         var path = Path()
-        path.move(to: CGPoint(
-            x: xPosition(for: first.time, width: width),
-            y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
-        ))
+        path.move(
+            to: CGPoint(
+                x: xPosition(for: first.time, width: width),
+                y: yPosition(forSpeedPercent: first.speed * 100.0, height: height)
+            ))
 
         for point in points.dropFirst() {
-            path.addLine(to: CGPoint(
-                x: xPosition(for: point.time, width: width),
-                y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
-            ))
+            path.addLine(
+                to: CGPoint(
+                    x: xPosition(for: point.time, width: width),
+                    y: yPosition(forSpeedPercent: point.speed * 100.0, height: height)
+                ))
         }
 
         return path

@@ -31,15 +31,15 @@ struct SettingsPanel: View {
             headerTitle
             cropSection
             formatSection
-            resolutionSection
+            trimSection
             qualitySection
-            outputSizeLimitSection
             SpeedSliderPanel(viewModel: viewModel)
             FrameRateSection(viewModel: viewModel)
-            trimSection
             stabilizationSection
             dynamicSpeedSection
             loopSection
+            resolutionSection
+            outputSizeLimitSection
             colorAdjustmentsSection
             advancedOptionsSection
             Spacer()
