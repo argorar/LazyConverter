@@ -21,7 +21,8 @@ extension CropDynamicKeyframe {
         setptsFilter: String
     ) -> String? {
         let clipStart = resolvedClipStart(trimStart: trimStart, sourceDuration: sourceDuration)
-        let clipEnd = resolvedClipEnd(trimEnd: trimEnd, sourceDuration: sourceDuration, start: clipStart)
+        let clipEnd = resolvedClipEnd(
+            trimEnd: trimEnd, sourceDuration: sourceDuration, start: clipStart)
         return buildDynamicCropFilter(
             start: clipStart,
             end: clipEnd,
@@ -47,7 +48,8 @@ extension CropDynamicKeyframe {
             .sorted { lhs, rhs in lhs.time < rhs.time }
         guard !sorted.isEmpty else { return nil }
 
-        let parsedPoints = sorted.compactMap { keyframe -> (time: Double, crop: (x: Double, y: Double, w: Double, h: Double))? in
+        let parsedPoints = sorted.compactMap {
+            keyframe -> (time: Double, crop: (x: Double, y: Double, w: Double, h: Double))? in
             guard let parsed = parseCrop(keyframe.crop) else { return nil }
             return (time: keyframe.time, crop: parsed)
         }
@@ -56,7 +58,8 @@ extension CropDynamicKeyframe {
         let firstTime = parsedPoints[0].time
         let firstCrop = parsedPoints[0].crop
         if sorted.count == 1 {
-            return "trim=0:\(dot(clipDuration)),crop='x=\(dot(firstCrop.x)):y=\(dot(firstCrop.y)):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+            return
+                "trim=0:\(dot(clipDuration)),crop='x=\(dot(firstCrop.x)):y=\(dot(firstCrop.y)):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
         }
 
         let nSects = sorted.count - 1
@@ -125,13 +128,6 @@ extension CropDynamicKeyframe {
 
         let cropXExpr = cropXExprParts.joined(separator: "+")
         let cropYExpr = cropYExprParts.joined(separator: "+")
-        let hasZoom = parsedPoints.contains { point in
-            abs(point.crop.w - firstCrop.w) > epsilon || abs(point.crop.h - firstCrop.h) > epsilon
-        }
-
-        if !hasZoom {
-            return "trim=0:\(dot(clipDuration)),crop='x=\(cropXExpr):y=\(cropYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
-        }
 
         guard !cropWExprParts.isEmpty, !cropHExprParts.isEmpty else { return nil }
         let cropWExpr = cropWExprParts.joined(separator: "+")
@@ -139,11 +135,13 @@ extension CropDynamicKeyframe {
 
         // Zoom dinámico manteniendo salida estable:
         // escalamos según el tamaño interpolado del crop y luego recortamos al tamaño base.
-        let zoomExpr = "min(\(dot(firstCrop.w))/max(\(cropWExpr),1),\(dot(firstCrop.h))/max(\(cropHExpr),1))"
+        let zoomExpr =
+            "min(\(dot(firstCrop.w))/max(\(cropWExpr),1),\(dot(firstCrop.h))/max(\(cropHExpr),1))"
         let scaledXExpr = "(\(cropXExpr))*\(zoomExpr)"
         let scaledYExpr = "(\(cropYExpr))*\(zoomExpr)"
 
-        return "trim=0:\(dot(clipDuration)),scale=w='iw*\(zoomExpr)':h='ih*\(zoomExpr)':eval=frame,crop='x=\(scaledXExpr):y=\(scaledYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+        return
+            "trim=0:\(dot(clipDuration)),scale=w='iw*\(zoomExpr)':h='ih*\(zoomExpr)':eval=frame,crop='x=\(scaledXExpr):y=\(scaledYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
     }
 
     private static func parseCrop(_ crop: String) -> (x: Double, y: Double, w: Double, h: Double)? {
