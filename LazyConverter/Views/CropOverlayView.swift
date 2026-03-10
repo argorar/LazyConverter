@@ -255,6 +255,7 @@ struct CropOverlayView: View {
         DispatchQueue.main.async {
             cropRect = rect
             baseCropRect = rect
+            onCropDragged?(rect)
         }
     }
 
