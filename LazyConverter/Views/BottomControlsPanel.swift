@@ -60,6 +60,16 @@ struct BottomControlsPanel: View {
                         .cornerRadius(6)
                         
                         HStack {
+                            Button(action: {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(viewModel.errorLog ?? "", forType: .string)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc.on.doc")
+                                    Text(lang.t("error.log_copy"))
+                                }
+                            }
+                            
                             Spacer()
                             Button(lang.t("error.log_close")) {
                                 showErrorLog = false

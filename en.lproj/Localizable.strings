@@ -55,6 +55,7 @@
 "error.view_log" = "View log";
 "error.log_title" = "FFmpeg Error Log";
 "error.log_close" = "Close";
+"error.log_copy" = "Copy log";
 "status.preparing_conversion" = "Preparing conversion…";
 "status.conversion_cancelled" = "Conversion cancelled";
 "status.processing_progress_time" = "Processing…";
