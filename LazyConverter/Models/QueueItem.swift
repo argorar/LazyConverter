@@ -32,6 +32,7 @@ struct QueueItem: Identifiable, Equatable {
     let cropRect: CGRect?
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
+    let watermarkConfig: WatermarkConfig?
     
     init(url: URL, settings: ConversionSettings) {
         self.url = url
@@ -50,6 +51,7 @@ struct QueueItem: Identifiable, Equatable {
         self.cropRect = settings.cropRect
         self.colorAdjustments = settings.colorAdjustments
         self.frameRateSettings = settings.frameRateSettings
+        self.watermarkConfig = settings.watermarkConfig
     }
 }
 
@@ -96,4 +98,5 @@ struct ConversionSettings {
     let cropRect: CGRect?
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
+    let watermarkConfig: WatermarkConfig?
 }

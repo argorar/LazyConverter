@@ -113,3 +113,13 @@
 "ytdlp.play" = "Play";
 "ytdlp.load" = "Laden";
 "ytdlp.error.empty" = "Gib einen Video-Link ein";
+"watermark.title" = "Wasserzeichen";
+"watermark.text" = "Text";
+"watermark.fontSize" = "Größe";
+"watermark.color" = "Farbe";
+"watermark.opacity" = "Deckkraft";
+"watermark.configure" = "Konfigurieren";
+"watermark.apply" = "Anwenden";
+"watermark.cancel" = "Abbrechen";
+"watermark.reset" = "Wasserzeichen zurücksetzen";
+"watermark.drag_hint" = "Ziehen zum Positionieren des Wasserzeichens im Player";

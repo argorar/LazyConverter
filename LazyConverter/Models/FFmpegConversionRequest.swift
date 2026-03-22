@@ -30,6 +30,7 @@ struct FFmpegConversionRequest {
     let cropRec: CGRect?
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
+    let watermarkConfig: WatermarkConfig?
     let progressCallback: (Double) -> Void
     let completionCallback: (Result<URL, FFmpegError>) -> Void
     
@@ -55,6 +56,7 @@ struct FFmpegConversionRequest {
         cropRec: CGRect? = nil,
         colorAdjustments: ColorAdjustments = .default,
         frameRateSettings: FrameRateSettings,
+        watermarkConfig: WatermarkConfig? = nil,
         progressCallback: @escaping (Double) -> Void,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
     ) {
@@ -79,6 +81,7 @@ struct FFmpegConversionRequest {
         self.cropRec = cropRec
         self.colorAdjustments = colorAdjustments
         self.frameRateSettings = frameRateSettings
+        self.watermarkConfig = watermarkConfig
         self.progressCallback = progressCallback
         self.completionCallback = completionCallback
     }

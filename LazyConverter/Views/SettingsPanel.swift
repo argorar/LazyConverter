@@ -29,6 +29,7 @@ struct SettingsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             headerTitle
+            watermarkSection
             cropSection
             formatSection
             trimSection
@@ -548,5 +549,68 @@ struct SettingsPanel: View {
             .padding(.top, 12)
         }
         .font(.system(size: 12, weight: .medium, design: .default))
+    }
+
+    @ViewBuilder
+    private var watermarkSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "textformat")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("watermark.title"))
+                    .font(.system(size: 14, weight: .semibold))
+
+                Spacer()
+
+                if viewModel.watermarkConfig.isEnabled {
+                    Button(action: { viewModel.resetWatermark() }) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(lang.t("watermark.reset"))
+                }
+
+                Button(lang.t("watermark.configure")) {
+                    viewModel.showWatermarkSheet = true
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(viewModel.selectedFileURL == nil)
+            }
+
+            if viewModel.watermarkConfig.isEnabled {
+                HStack(spacing: 8) {
+                    Text("\"\(viewModel.watermarkConfig.text)\"")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentColor)
+                        .lineLimit(1)
+                    Text("\(Int(viewModel.watermarkConfig.fontSize))px")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Text("\(Int(viewModel.watermarkConfig.opacity * 100))%")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Circle()
+                        .fill(viewModel.watermarkConfig.color)
+                        .frame(width: 14, height: 14)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.primary.opacity(0.3), lineWidth: 0.5)
+                        )
+                    Spacer()
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .separatorColor).opacity(0.5))
+        .cornerRadius(8)
+        .sheet(isPresented: $viewModel.showWatermarkSheet) {
+            WatermarkConfigSheet(viewModel: viewModel)
+                .environmentObject(lang)
+        }
     }
 }

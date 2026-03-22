@@ -113,3 +113,13 @@
 "ytdlp.play" = "Play";
 "ytdlp.load" = "Load";
 "ytdlp.error.empty" = "Enter a video URL";
+"watermark.title" = "Watermark";
+"watermark.text" = "Text";
+"watermark.fontSize" = "Size";
+"watermark.color" = "Color";
+"watermark.opacity" = "Opacity";
+"watermark.configure" = "Configure";
+"watermark.apply" = "Apply";
+"watermark.cancel" = "Cancel";
+"watermark.reset" = "Reset watermark";
+"watermark.drag_hint" = "Drag to position the watermark on the player";

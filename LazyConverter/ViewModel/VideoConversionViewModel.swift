@@ -99,6 +99,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var queueManager = QueueManager()
     @Published var showQueueWindow = false
     @Published var frameRateSettings = FrameRateSettings()
+    @Published var watermarkConfig = WatermarkConfig()
+    @Published var showWatermarkSheet = false
     @Published var outputDirectory: OutputDirectory = .downloads
     @Published var isYtDlpInstalled: Bool = false
     @Published var ytDlpURLInput: String = ""
@@ -157,6 +159,10 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     func resetColorAdjustments() {
         colorAdjustments = .default
     }
+
+    func resetWatermark() {
+        watermarkConfig = .default
+    }
     
     func resetCrop() {
         cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
@@ -186,7 +192,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             cropEnabled: cropEnabled,
             cropRect: cropEnabled ? cropRect : nil,
             colorAdjustments: colorAdjustments,
-            frameRateSettings: frameRateSettings
+            frameRateSettings: frameRateSettings,
+            watermarkConfig: watermarkConfig.isEnabled ? watermarkConfig : nil
         )
         
         queueManager.addToQueue(url: url, settings: settings)
@@ -214,6 +221,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         dynamicAutoEndFrameIndex = nil
         isTrackingCrop = false
         activeTrackerJobID = nil
+        watermarkConfig = .default
     }
     
     func clearSelection() {
@@ -245,6 +253,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         isTrackingCrop = false
         activeTrackerJobID = nil
         resetColorAdjustments()
+        resetWatermark()
     }
 
     func checkYtDlpAvailability() {
@@ -767,6 +776,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             cropRec: cropRect,
             colorAdjustments: colorAdjustments,
             frameRateSettings: frameRateSettings,
+            watermarkConfig: watermarkConfig.isEnabled ? watermarkConfig : nil,
             progressCallback: { [weak self] progress in
                 DispatchQueue.main.async {
                     self?.progress = progress

@@ -106,6 +106,7 @@ class QueueManager: ObservableObject {
                 cropRec: item.cropRect,
                 colorAdjustments: item.colorAdjustments,
                 frameRateSettings: item.frameRateSettings,
+                watermarkConfig: item.watermarkConfig,
                 progressCallback: { [weak self] progress in
                     Task { @MainActor in
                         self?.updateItemProgress(at: index, progress: progress)

@@ -113,3 +113,13 @@
 "ytdlp.play" = "Play";
 "ytdlp.load" = "Cargar";
 "ytdlp.error.empty" = "Ingresa el enlace del video";
+"watermark.title" = "Marca de agua";
+"watermark.text" = "Texto";
+"watermark.fontSize" = "Tamaño";
+"watermark.color" = "Color";
+"watermark.opacity" = "Opacidad";
+"watermark.configure" = "Configurar";
+"watermark.apply" = "Aplicar";
+"watermark.cancel" = "Cancelar";
+"watermark.reset" = "Reiniciar marca de agua";
+"watermark.drag_hint" = "Arrastra para posicionar la marca de agua en el player";

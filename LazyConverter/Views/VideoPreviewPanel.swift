@@ -73,6 +73,19 @@ struct VideoPreviewPanel: View {
                                     )
                                 }
 
+                                if viewModel.watermarkConfig.isEnabled {
+                                    WatermarkOverlayView(
+                                        watermarkConfig: $viewModel.watermarkConfig,
+                                        videoSize: CGSize(
+                                            width: Double(abs(videoInfo?.videoSize.width ?? 200)),
+                                            height: Double(abs(videoInfo?.videoSize.height ?? 500))),
+                                        playerFrame: CGRect(
+                                            x: 0, y: 0, width: geo.size.width,
+                                            height: geo.size.height),
+                                        cropRect: viewModel.cropEnabled ? viewModel.cropRect : nil
+                                    )
+                                }
+
                                 if viewModel.dynamicSpeedEnabled {
                                     DynamicSpeedOverlayView(
                                         points: viewModel.dynamicSpeedPointsSorted,
