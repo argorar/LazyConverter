@@ -20,6 +20,7 @@
 "advanced.language" = "Idioma";
 "advanced.output" = "Destino";
 "advanced.theme" = "Tema";
+"advanced.style" = "Estilo";
 "button.start" = "Inicio";
 "button.end" = "Fin";
 "button.clear" = "Limpiar";
@@ -102,6 +103,8 @@
 "loop.title" = "Bucle";
 "theme.dark" = "Oscuro";
 "theme.light" = "Claro";
+"style.glass" = "Glass";
+"style.normal" = "Normal";
 "output.downloads" = "Descargas";
 "output.documents" = "Documentos";
 "output.movies" = "Videos";

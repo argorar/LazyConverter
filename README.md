@@ -49,6 +49,17 @@ Automatically shows:
 3. **Click Convert**
 4. **Success banner** appears when done
 
+## Requirements
+
+To run this app you need to have **FFmpeg** and **FFprobe** installed on your system.
+
+Execute the next commands to install them:
+
+```bash
+brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab
+```
+
 ## ⬇️ Downloads
 
 - **LazyConverter-Standalone**: Includes FFmpeg and FFprobe inside the app bundle. Works out of the box.

@@ -46,8 +46,7 @@ struct SettingsPanel: View {
             Spacer()
         }
         .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(12)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 12, material: .sidebar, fallbackColor: Color(nsColor: .controlBackgroundColor), fallbackOpacity: 1.0)
     }
     
     @ViewBuilder
@@ -121,8 +120,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -146,8 +144,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -170,8 +167,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -193,8 +189,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
 
     @ViewBuilder
@@ -241,8 +236,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -330,8 +324,7 @@ struct SettingsPanel: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .separatorColor).opacity(0.3))
-        .cornerRadius(12)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 12, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -394,8 +387,7 @@ struct SettingsPanel: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .separatorColor).opacity(0.3))
-        .cornerRadius(12)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 12, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
 
     @ViewBuilder
@@ -428,8 +420,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
 
     private var stabilizationToggleBinding: Binding<Bool> {
@@ -476,8 +467,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
 
     @ViewBuilder
@@ -495,8 +485,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
     
     @ViewBuilder
@@ -543,6 +532,20 @@ struct SettingsPanel: View {
                     .frame(maxWidth: 260)
                     .onChange(of: theme.theme) { oldValue, newValue in
                         theme.saveUserTheme()
+                    }
+                }
+                HStack {
+                    Text(lang.t("advanced.style"))
+                    Spacer()
+                    Picker("", selection: $theme.surfaceStyle) {
+                        ForEach(AppSurfaceStyle.allCases) { styleOption in
+                            Text(lang.t("style.\(styleOption.rawValue)")).tag(styleOption)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 260)
+                    .onChange(of: theme.surfaceStyle) { _, _ in
+                        theme.saveSurfaceStyle()
                     }
                 }
             }
@@ -606,8 +609,7 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(8)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
         .sheet(isPresented: $viewModel.showWatermarkSheet) {
             WatermarkConfigSheet(viewModel: viewModel)
                 .environmentObject(lang)

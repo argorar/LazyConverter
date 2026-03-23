@@ -11,6 +11,7 @@ import SwiftUI
 struct SpeedSliderPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
+    @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -39,7 +40,12 @@ struct SpeedSliderPanel: View {
             }
         }
         .padding(16)
-        .background(Color(nsColor: .separatorColor).opacity(0.5))
-        .cornerRadius(12)
+        .adaptiveCard(
+            useGlass: theme.surfaceStyle == .glass,
+            cornerRadius: 12,
+            material: .hudWindow,
+            fallbackColor: Color(nsColor: .separatorColor),
+            fallbackOpacity: 0.3
+        )
     }
 }

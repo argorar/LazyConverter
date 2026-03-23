@@ -102,12 +102,26 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum AppSurfaceStyle: String, CaseIterable, Identifiable, Codable {
+    case glass
+    case normal
+
+    var id: String { rawValue }
+}
+
 final class ThemeManager: ObservableObject {
     @AppStorage("selectedTheme") private var storedThemeData: Data = Data()
+    @AppStorage("selectedSurfaceStyle") private var storedSurfaceStyleData: Data = Data()
     
     @Published var theme: AppTheme = .dark {
         didSet {
             publishTheme()
+        }
+    }
+
+    @Published var surfaceStyle: AppSurfaceStyle = .glass {
+        didSet {
+            saveSurfaceStyle()
         }
     }
     
@@ -118,12 +132,25 @@ final class ThemeManager: ObservableObject {
         } else {
             theme = .dark
         }
+
+        if !storedSurfaceStyleData.isEmpty,
+           let decodedStyle = try? JSONDecoder().decode(AppSurfaceStyle.self, from: storedSurfaceStyleData) {
+            surfaceStyle = decodedStyle
+        } else {
+            surfaceStyle = .glass
+        }
         publishTheme()
     }
     
     func saveUserTheme() {
         if let data = try? JSONEncoder().encode(theme) {
             storedThemeData = data
+        }
+    }
+
+    func saveSurfaceStyle() {
+        if let data = try? JSONEncoder().encode(surfaceStyle) {
+            storedSurfaceStyleData = data
         }
     }
     

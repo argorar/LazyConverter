@@ -14,6 +14,7 @@ import AVKit
 struct VideoPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
+    @EnvironmentObject var theme: ThemeManager
     @State private var isHovering = false
     @State private var videoInfo: VideoInfo?
     @State private var isAnalyzing = false
@@ -35,8 +36,13 @@ struct VideoPanel: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 300)
-                .background(Color(nsColor: .separatorColor).opacity(0.3))
-                .cornerRadius(12)
+                .adaptiveCard(
+                    useGlass: theme.surfaceStyle == .glass,
+                    cornerRadius: 12,
+                    material: .hudWindow,
+                    fallbackColor: Color(nsColor: .separatorColor),
+                    fallbackOpacity: 0.3
+                )
             } else {
                 VStack(spacing: 12) {
                     // DRAG & DROP ZONE
@@ -87,8 +93,13 @@ struct VideoPanel: View {
             Spacer()
         }
         .padding(16)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(12)
+        .adaptiveCard(
+            useGlass: theme.surfaceStyle == .glass,
+            cornerRadius: 12,
+            material: .sidebar,
+            fallbackColor: Color(nsColor: .controlBackgroundColor),
+            fallbackOpacity: 1.0
+        )
         .task(id: viewModel.selectedFileURL) {
             await analyzeSelectedVideo()
         }

@@ -90,6 +90,10 @@
           <h3 data-i18n="feature10Title">Dynamic zoom</h3>
           <p data-i18n="feature10Body">Create smooth pan and zoom effects for a cinematic feel.</p>
         </article>
+        <article class="card reveal">
+          <h3 data-i18n="feature6Title">Watermark</h3>
+          <p data-i18n="feature6Body">Add customized text to your videos.</p>
+        </article>
       </div>
     </section>
 
@@ -111,6 +115,18 @@
           <span class="step-num">3</span>
           <p data-i18n="workflowStep3">Convert and receive a notification when the process finishes.</p>
         </div>
+      </div>
+    </section>
+
+    <section class="section split" id="requirements">
+      <div class="section-title reveal">
+        <h2 data-i18n="reqTitle">Requirements</h2>
+        <p data-i18n="reqSubtitle">To run this app you need to have <strong>FFmpeg</strong> installed on your system.</p>
+        <p data-i18n="reqCommandText" style="margin-top: 12px;">Execute the next commands to install them:</p>
+      </div>
+      <div class="terminal-box reveal">
+        <pre><code>brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
       </div>
     </section>
 
@@ -163,11 +179,16 @@
         feature9Body: "Animate your crop area to reframe shots or track subjects.",
         feature10Title: "Dynamic zoom",
         feature10Body: "Create smooth pan and zoom effects for a cinematic feel.",
+        feature6Title: "Watermark",
+        feature6Body: "Add custom text watermarks to your videos.",
         workflowTitle: "Fast workflow",
         workflowSubtitle: "Three steps from raw file to final export.",
         workflowStep1: "Drag a video in or select the file.",
         workflowStep2: "Adjust format, resolution, quality, and speed, trim, or crop options.",
         workflowStep3: "Convert and receive a notification when the process finishes.",
+        reqTitle: "Requirements",
+        reqSubtitle: "To run this app you need to have <strong>FFmpeg</strong> installed on your system.",
+        reqCommandText: "Execute the next commands to install them:",
         ctaTitle: "Ready for macOS",
         ctaBody: "LazyConverter is built for Mac users who want simple, fast, and private conversion.",
         ctaRepo: "Repository",
@@ -204,11 +225,16 @@
         feature9Body: "Anima el área de recorte para reencuadrar tomas o seguir sujetos.",
         feature10Title: "Zoom dinámico",
         feature10Body: "Crea paneos y efectos de zoom suaves para un acabado cinematográfico.",
+        feature6Title: "Marca de agua",
+        feature6Body: "Añade marcas de agua de texto para personalizar tus videos.",
         workflowTitle: "Flujo de trabajo rápido",
         workflowSubtitle: "Tres pasos para pasar de archivo crudo a exportación final.",
         workflowStep1: "Arrastra un video o selecciona el archivo.",
         workflowStep2: "Ajusta formato, resolución, calidad y opciones de velocidad, recorte o crop.",
         workflowStep3: "Convierte y recibe una notificación cuando el proceso termina.",
+        reqTitle: "Requisitos",
+        reqSubtitle: "Para usar esta app necesitas tener <strong>FFmpeg</strong> instalado en tu sistema.",
+        reqCommandText: "Ejecuta los siguientes comandos para instalarlos:",
         ctaTitle: "Lista para macOS",
         ctaBody: "LazyConverter está pensada para usuarios de Mac que quieren conversión simple, rápida y privada.",
         ctaRepo: "Repositorio",
@@ -224,7 +250,7 @@
       elements.forEach((el) => {
         const key = el.getAttribute("data-i18n");
         if (dict[key]) {
-          el.textContent = dict[key];
+          el.innerHTML = dict[key];
         }
       });
       toggleButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.lang === lang));

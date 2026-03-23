@@ -20,6 +20,7 @@
 "advanced.language" = "Sprache";
 "advanced.output" = "Zielordner";
 "advanced.theme" = "Thema";
+"advanced.style" = "Stil";
 "button.start" = "Start";
 "button.end" = "Ende";
 "button.clear" = "Löschen";
@@ -102,6 +103,8 @@
 "loop.title" = "Schleife";
 "theme.dark" = "Dunkel";
 "theme.light" = "Hell";
+"style.glass" = "Glass";
+"style.normal" = "Normal";
 "output.downloads" = "Downloads";
 "output.documents" = "Dokumente";
 "output.movies" = "Videos";

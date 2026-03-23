@@ -292,3 +292,23 @@ h1 {
   opacity: 1;
   transform: translateY(0);
 }
+
+.terminal-box {
+  background: #000;
+  border-radius: 12px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.terminal-box pre {
+  margin: 0;
+}
+
+.terminal-box code {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.9rem;
+  color: var(--ink);
+  line-height: 1.5;
+}

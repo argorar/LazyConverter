@@ -20,6 +20,7 @@
 "advanced.language" = "Language";
 "advanced.output" = "Output";
 "advanced.theme" = "Theme";
+"advanced.style" = "Style";
 "button.start" = "Start";
 "button.end" = "End";
 "button.clear" = "Clear";
@@ -102,6 +103,8 @@
 "loop.title" = "Loop";
 "theme.dark" = "Dark";
 "theme.light" = "Light";
+"style.glass" = "Glass";
+"style.normal" = "Normal";
 "output.downloads" = "Downloads";
 "output.documents" = "Documents";
 "output.movies" = "Videos";

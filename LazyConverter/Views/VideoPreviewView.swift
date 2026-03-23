@@ -9,6 +9,7 @@ import SwiftUI
 
 struct VideoPreviewView: View {
     let videoInfo: VideoInfo
+    @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,8 +37,13 @@ struct VideoPreviewView: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.7))
-        .cornerRadius(12)
+        .adaptiveCard(
+            useGlass: theme.surfaceStyle == .glass,
+            cornerRadius: 12,
+            material: .hudWindow,
+            fallbackColor: Color(nsColor: .controlBackgroundColor),
+            fallbackOpacity: 0.7
+        )
     }
     
     private func infoItem(_ icon: String, _ value: String) -> some View {
@@ -47,4 +53,3 @@ struct VideoPreviewView: View {
         }
     }
 }
-

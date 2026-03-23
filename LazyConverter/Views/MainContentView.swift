@@ -12,12 +12,20 @@ import AVKit
 
 struct MainContentView: View {
     @EnvironmentObject var lang: LanguageManager
+    @EnvironmentObject var theme: ThemeManager
     @StateObject private var viewModel = VideoConversionViewModel()
     
     var body: some View {
         ZStack {
-            Color(nsColor: .controlBackgroundColor)
-                .ignoresSafeArea()
+            Group {
+                if theme.surfaceStyle == .glass {
+                    LiquidGlassBackgroundView(material: .underWindowBackground, blendingMode: .withinWindow, emphasized: false)
+                        .opacity(0.72)
+                } else {
+                    Color(nsColor: .controlBackgroundColor)
+                }
+            }
+            .ignoresSafeArea()
             
             VStack(spacing: 8) {
                 HeaderView(viewModel: viewModel)
