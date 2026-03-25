@@ -53,7 +53,6 @@ class FFmpegConverter {
     ) {
         let effectiveDuration = resolvedOutputDuration(request)
 
-        // Generate watermark image if configured
         var watermarkImageURL: URL?
         if let wmConfig = request.watermarkConfig, wmConfig.isEnabled,
            let videoSize = request.videoInfo?.videoSize {
@@ -97,7 +96,6 @@ class FFmpegConverter {
                 fileExtension: request.outputURL.pathExtension
             )
 
-            // Pass 1: all filters, no watermark
             let pass1Args = buildFFmpegCommand(
                 request,
                 stabilizationTransformURL: nil,
@@ -108,7 +106,6 @@ class FFmpegConverter {
             logCommand(executablePath: executablePath, arguments: pass1Args)
 
             let runPass2: (URL) -> Void = { inputForOverlay in
-                // Pass 2: overlay watermark onto the result
                 let overlayArgs = self.buildWatermarkOverlayCommand(
                     inputURL: inputForOverlay,
                     watermarkURL: wmURL,
@@ -188,6 +185,28 @@ class FFmpegConverter {
         )
     }
 
+    private func requestNeedsBaseFilterPass(_ request: FFmpegConversionRequest) -> Bool {
+        if request.trimStart != nil || request.trimEnd != nil {
+            return true
+        }
+        if request.resolution != .original {
+            return true
+        }
+        if request.cropEnable {
+            return true
+        }
+        if request.colorAdjustments.toFFmpegFilter() != nil {
+            return true
+        }
+        if request.frameRateSettings.toFFmpegFilter() != nil {
+            return true
+        }
+        if request.speedPercent != 100.0 || request.dynamicSpeedEnabled {
+            return true
+        }
+        return false
+    }
+
     private func runStabilizationTwoPassPipeline(
         request: FFmpegConversionRequest,
         stabilizationLevel: VideoStabilizationLevel,
@@ -198,29 +217,27 @@ class FFmpegConverter {
     ) {
         let outputDirectory = request.outputURL.deletingLastPathComponent()
         let outputName = request.outputURL.deletingPathExtension().lastPathComponent
-        let intermediateURL = makeTemporaryOutputURL(
-            in: outputDirectory,
-            baseName: "\(outputName)_prestab",
-            fileExtension: request.outputURL.pathExtension
-        )
         let transformsURL = makeTemporaryTransformURL(
             in: outputDirectory,
             baseName: outputName
         )
 
-        // When watermark is present, the stabilized output goes to a temp file
-        // so we can overlay the watermark in a final pass
         let hasWatermark = watermarkImageURL != nil
         let finalOutputURL = request.outputURL
+        let needsBasePass = requestNeedsBaseFilterPass(request)
 
-        let stabilizedURL: URL
-        if request.loopEnabled {
-            stabilizedURL = makeTemporaryOutputURL(
+        let intermediateURL: URL? = needsBasePass
+            ? makeTemporaryOutputURL(
                 in: outputDirectory,
-                baseName: "\(outputName)_stabilized",
+                baseName: "\(outputName)_prestab",
                 fileExtension: request.outputURL.pathExtension
             )
-        } else if hasWatermark {
+            : nil
+
+        let stabilizationInputURL = intermediateURL ?? request.inputURL
+
+        let stabilizedURL: URL
+        if request.loopEnabled || hasWatermark {
             stabilizedURL = makeTemporaryOutputURL(
                 in: outputDirectory,
                 baseName: "\(outputName)_stabilized",
@@ -231,14 +248,15 @@ class FFmpegConverter {
         }
 
         let cleanup: () -> Void = {
-            try? FileManager.default.removeItem(at: intermediateURL)
+            if let url = intermediateURL {
+                try? FileManager.default.removeItem(at: url)
+            }
             try? FileManager.default.removeItem(at: transformsURL)
             if stabilizedURL != finalOutputURL {
                 try? FileManager.default.removeItem(at: stabilizedURL)
             }
         }
 
-        /// Runs the watermark overlay pass if needed, otherwise completes immediately
         let applyWatermarkIfNeeded: (URL) -> Void = { [self] inputURL in
             guard let wmURL = watermarkImageURL else {
                 cleanup()
@@ -269,111 +287,119 @@ class FFmpegConverter {
             )
         }
 
-        let baseArguments = buildFFmpegCommand(
-            request,
-            stabilizationTransformURL: nil,
-            outputURL: intermediateURL,
-            stabilizationEnabledOverride: false,
-            includeOutputSizeLimit: false
-        )
-        logCommand(executablePath: executablePath, arguments: baseArguments)
-        executeFFmpeg(
-            executablePath: executablePath,
-            arguments: baseArguments,
-            videoDuration: videoDuration,
-            completionCallback: { baseResult in
-                switch baseResult {
-                case .failure(let error):
-                    cleanup()
-                    completionCallback(.failure(error))
-                case .success:
-                    let detectArguments = self.buildStabilizationDetectCommand(
-                        inputURL: intermediateURL,
-                        transformsURL: transformsURL,
-                        level: stabilizationLevel
-                    )
-                    self.logCommand(executablePath: executablePath, arguments: detectArguments)
-                    self.executeFFmpeg(
-                        executablePath: executablePath,
-                        arguments: detectArguments,
-                        videoDuration: videoDuration,
-                        reportProgress: false,
-                        completionCallback: { detectResult in
-                            switch detectResult {
-                            case .failure(let error):
-                                cleanup()
-                                completionCallback(.failure(error))
-                            case .success:
-                                let transformArguments = self.buildStabilizationTransformCommand(
-                                    request: request,
-                                    stabilizationLevel: stabilizationLevel,
-                                    inputURL: intermediateURL,
-                                    outputURL: stabilizedURL,
-                                    transformsURL: transformsURL,
-                                    includeOutputSizeLimit: !request.loopEnabled && !hasWatermark
-                                )
-                                self.logCommand(
-                                    executablePath: executablePath, arguments: transformArguments)
-                                self.executeFFmpeg(
-                                    executablePath: executablePath,
-                                    arguments: transformArguments,
-                                    videoDuration: videoDuration,
-                                    completionCallback: { transformResult in
-                                        switch transformResult {
-                                        case .failure(let error):
-                                            cleanup()
-                                            completionCallback(.failure(error))
-                                        case .success:
-                                            if request.loopEnabled {
-                                                let boomerangOutputURL = hasWatermark
-                                                    ? self.makeTemporaryOutputURL(
-                                                        in: outputDirectory,
-                                                        baseName: "\(outputName)_boomerang",
-                                                        fileExtension: request.outputURL.pathExtension
-                                                    )
-                                                    : finalOutputURL
+        let runStabilization: () -> Void = { [self] in
+            let detectArguments = self.buildStabilizationDetectCommand(
+                inputURL: stabilizationInputURL,
+                transformsURL: transformsURL,
+                level: stabilizationLevel
+            )
+            self.logCommand(executablePath: executablePath, arguments: detectArguments)
+            self.executeFFmpeg(
+                executablePath: executablePath,
+                arguments: detectArguments,
+                videoDuration: videoDuration,
+                reportProgress: false,
+                completionCallback: { detectResult in
+                    switch detectResult {
+                    case .failure(let error):
+                        cleanup()
+                        completionCallback(.failure(error))
+                    case .success:
+                        let transformArguments = self.buildStabilizationTransformCommand(
+                            request: request,
+                            stabilizationLevel: stabilizationLevel,
+                            inputURL: stabilizationInputURL,
+                            outputURL: stabilizedURL,
+                            transformsURL: transformsURL,
+                            includeOutputSizeLimit: !request.loopEnabled && !hasWatermark
+                        )
+                        self.logCommand(
+                            executablePath: executablePath, arguments: transformArguments)
+                        self.executeFFmpeg(
+                            executablePath: executablePath,
+                            arguments: transformArguments,
+                            videoDuration: videoDuration,
+                            completionCallback: { transformResult in
+                                switch transformResult {
+                                case .failure(let error):
+                                    cleanup()
+                                    completionCallback(.failure(error))
+                                case .success:
+                                    if request.loopEnabled {
+                                        let boomerangOutputURL = hasWatermark
+                                            ? self.makeTemporaryOutputURL(
+                                                in: outputDirectory,
+                                                baseName: "\(outputName)_boomerang",
+                                                fileExtension: request.outputURL.pathExtension
+                                            )
+                                            : finalOutputURL
 
-                                                let boomerangArgs = self.buildBoomerangCommand(
-                                                    inputURL: stabilizedURL,
-                                                    outputURL: boomerangOutputURL,
-                                                    format: request.format,
-                                                    quality: request.quality,
-                                                    useGPU: request.useGPU,
-                                                    hasAudio: request.videoInfo?.hasAudio == true
-                                                        && request.speedPercent == 100.0
-                                                        && !request.dynamicSpeedEnabled,
-                                                    maxOutputSizeMB: request.maxOutputSizeMB,
-                                                    duration: videoDuration * 2
-                                                )
-                                                self.logCommand(
-                                                    executablePath: executablePath,
-                                                    arguments: boomerangArgs)
-                                                self.executeFFmpeg(
-                                                    executablePath: executablePath,
-                                                    arguments: boomerangArgs,
-                                                    videoDuration: videoDuration * 2,
-                                                    completionCallback: { boomerangResult in
-                                                        switch boomerangResult {
-                                                        case .success:
-                                                            applyWatermarkIfNeeded(boomerangOutputURL)
-                                                        case .failure(let error):
-                                                            cleanup()
-                                                            completionCallback(.failure(error))
-                                                        }
-                                                    }
-                                                )
-                                            } else {
-                                                applyWatermarkIfNeeded(stabilizedURL)
+                                        let boomerangArgs = self.buildBoomerangCommand(
+                                            inputURL: stabilizedURL,
+                                            outputURL: boomerangOutputURL,
+                                            format: request.format,
+                                            quality: request.quality,
+                                            useGPU: request.useGPU,
+                                            hasAudio: request.videoInfo?.hasAudio == true
+                                                && request.speedPercent == 100.0
+                                                && !request.dynamicSpeedEnabled,
+                                            maxOutputSizeMB: request.maxOutputSizeMB,
+                                            duration: videoDuration * 2
+                                        )
+                                        self.logCommand(
+                                            executablePath: executablePath,
+                                            arguments: boomerangArgs)
+                                        self.executeFFmpeg(
+                                            executablePath: executablePath,
+                                            arguments: boomerangArgs,
+                                            videoDuration: videoDuration * 2,
+                                            completionCallback: { boomerangResult in
+                                                switch boomerangResult {
+                                                case .success:
+                                                    applyWatermarkIfNeeded(boomerangOutputURL)
+                                                case .failure(let error):
+                                                    cleanup()
+                                                    completionCallback(.failure(error))
+                                                }
                                             }
-                                        }
+                                        )
+                                    } else {
+                                        applyWatermarkIfNeeded(stabilizedURL)
                                     }
-                                )
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
-            }
-        )
+            )
+        }
+
+        if needsBasePass {
+            let baseArguments = buildFFmpegCommand(
+                request,
+                stabilizationTransformURL: nil,
+                outputURL: intermediateURL!,
+                stabilizationEnabledOverride: false,
+                includeOutputSizeLimit: false
+            )
+            logCommand(executablePath: executablePath, arguments: baseArguments)
+            executeFFmpeg(
+                executablePath: executablePath,
+                arguments: baseArguments,
+                videoDuration: videoDuration,
+                completionCallback: { baseResult in
+                    switch baseResult {
+                    case .failure(let error):
+                        cleanup()
+                        completionCallback(.failure(error))
+                    case .success:
+                        runStabilization()
+                    }
+                }
+            )
+        } else {
+            runStabilization()
+        }
     }
 
     private func executeMainAndOptionalLoop(
@@ -574,7 +600,6 @@ class FFmpegConverter {
         }
 
         if let deferredStaticCropFilter {
-            // Apply static crop after stabilization to avoid strong warping on tiny cropped regions.
             videoFilters.append(deferredStaticCropFilter)
         }
         
@@ -586,7 +611,6 @@ class FFmpegConverter {
             videoFilters.append(fpsFilters)
         }
         
-        // Aplicar velocidad al final solo si no se incluyó en un setpts fusionado.
         if !hasMergedSetpts {
             if let dynamicSpeedFilter {
                 videoFilters.append(dynamicSpeedFilter)
@@ -623,10 +647,6 @@ class FFmpegConverter {
                 "-auto-alt-ref", "1",
                 "-lag-in-frames", "25",
             ]
-        } else if request.format == .mp4, videoCodec != "h264_videotoolbox",
-            videoCodec != "hevc_videotoolbox"
-        {
-            //arguments += ["-preset", "veryslow"]
         } else if request.format == .av1 {
             arguments += [
                 "-preset", "4",
@@ -766,10 +786,6 @@ class FFmpegConverter {
             "-i", inputURL.path,
         ]
 
-        if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
-            arguments += ["-pix_fmt", pixFmt]
-        }
-
         let transformFilter = stabilizationLevel.buildTransformFilter(
             transformsPath: transformsURL.path
         )
@@ -859,8 +875,6 @@ class FFmpegConverter {
         }
     }
 
-    /// Builds an FFmpeg command that overlays a watermark PNG image onto a video.
-    /// This is used as a dedicated second pass, separate from video filters.
     private func buildWatermarkOverlayCommand(
         inputURL: URL,
         watermarkURL: URL,

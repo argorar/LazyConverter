@@ -26,22 +26,22 @@ enum VideoStabilizationLevel: String, CaseIterable, Codable {
     var transformParameters: String {
         switch self {
         case .low:
-            return "smoothing=6:optalgo=gauss:maxshift=12:maxangle=0.05:crop=black:optzoom=0:zoomspeed=0.10:interpol=bilinear"
+            return "smoothing=6:optalgo=gauss:maxshift=12:maxangle=0.05:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
         case .medium:
-            return "smoothing=10:optalgo=gauss:maxshift=20:maxangle=0.08:crop=black:optzoom=0:zoomspeed=0.10:interpol=bilinear"
+            return "smoothing=10:optalgo=gauss:maxshift=20:maxangle=0.08:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
         case .high:
-            return "smoothing=22:optalgo=gauss:maxshift=32:maxangle=0.12:crop=black:optzoom=1:zoomspeed=0.08:interpol=bilinear"
+            return "smoothing=22:optalgo=gauss:maxshift=32:maxangle=0.12:crop=black:optzoom=1:zoomspeed=0.08:interpol=bicubic"
         }
     }
 
     func buildDetectFilter(transformsPath: String) -> String {
         let escaped = escapeFilterValue(transformsPath)
-        return "format=yuv420p,vidstabdetect=result='\(escaped)':\(detectParameters)"
+        return "fps=30000/1001,vidstabdetect=result='\(escaped)':\(detectParameters)"
     }
 
     func buildTransformFilter(transformsPath: String) -> String {
         let escaped = escapeFilterValue(transformsPath)
-        return "format=yuv420p,vidstabtransform=input='\(escaped)':\(transformParameters)"
+        return "fps=30000/1001,vidstabtransform=input='\(escaped)':\(transformParameters),unsharp=5:5:0.5:3:3:0.2"
     }
 
     private func escapeFilterValue(_ value: String) -> String {
