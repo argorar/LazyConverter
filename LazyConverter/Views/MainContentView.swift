@@ -19,13 +19,17 @@ struct MainContentView: View {
         ZStack {
             Group {
                 if theme.surfaceStyle == .glass {
-                    LiquidGlassBackgroundView(material: .underWindowBackground, blendingMode: .withinWindow, emphasized: false)
-                        .opacity(0.72)
+                    LiquidGlassBackgroundView(
+                        material: .underWindowBackground,
+                        blendingMode: .behindWindow,
+                        emphasized: false
+                    )
                 } else {
                     Color(nsColor: .controlBackgroundColor)
                 }
             }
             .ignoresSafeArea()
+            .allowsHitTesting(false)
             
             VStack(spacing: 8) {
                 HeaderView(viewModel: viewModel)

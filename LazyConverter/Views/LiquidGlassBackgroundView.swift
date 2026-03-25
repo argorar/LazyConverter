@@ -11,7 +11,7 @@ import AppKit
 struct LiquidGlassBackgroundView: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .underWindowBackground
     var blendingMode: NSVisualEffectView.BlendingMode = .withinWindow
-    var emphasized: Bool = true
+    var emphasized: Bool = false
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()

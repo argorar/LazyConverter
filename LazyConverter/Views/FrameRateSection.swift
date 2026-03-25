@@ -10,6 +10,7 @@ import SwiftUI
 struct FrameRateSection: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
+    @EnvironmentObject var theme: ThemeManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,8 +74,14 @@ struct FrameRateSection: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .separatorColor).opacity(0.3))
         .cornerRadius(12)
+        .adaptiveCard(
+            useGlass: theme.surfaceStyle == .glass,
+            cornerRadius: 12,
+            material: .hudWindow,
+            fallbackColor: Color(nsColor: .separatorColor),
+            fallbackOpacity: 0.3
+        )
     }
     
     @ViewBuilder
