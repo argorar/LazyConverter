@@ -89,4 +89,6 @@ struct MainContentView: View {
 #Preview {
     MainContentView()
         .environmentObject(LanguageManager())
+        .environmentObject(ThemeManager())
+        .environmentObject(WatermarkPreferencesManager())
 }

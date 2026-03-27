@@ -21,6 +21,8 @@
 "advanced.output" = "Destino";
 "advanced.theme" = "Tema";
 "advanced.style" = "Estilo";
+"advanced.defaultWatermark" = "Marca de agua predeterminada";
+"advanced.defaultWatermark.placeholder" = "Texto por defecto";
 "button.start" = "Inicio";
 "button.end" = "Fin";
 "button.clear" = "Limpiar";
@@ -120,6 +122,10 @@
 "watermark.title" = "Marca de agua";
 "watermark.text" = "Texto";
 "watermark.fontSize" = "Tamaño";
+"watermark.font" = "Fuente";
+"watermark.font.system" = "Sistema";
+"watermark.font.search" = "Buscar fuente";
+"watermark.font.no_results" = "No se encontraron fuentes";
 "watermark.color" = "Color";
 "watermark.opacity" = "Opacidad";
 "watermark.configure" = "Configurar";

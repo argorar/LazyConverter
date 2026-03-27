@@ -16,12 +16,14 @@ import AVKit
 struct LazyConverterApp: App {
     @StateObject private var languageManager = LanguageManager()
     @StateObject private var themeManager = ThemeManager()
+    @StateObject private var watermarkPreferencesManager = WatermarkPreferencesManager()
     
     var body: some Scene {
         WindowGroup {
             MainContentView()
                 .environmentObject(languageManager)
                 .environmentObject(themeManager)
+                .environmentObject(watermarkPreferencesManager)
                 .preferredColorScheme(themeManager.theme.colorScheme)
                 .frame(minWidth: 900, minHeight: 600)
         }
@@ -124,7 +126,7 @@ final class ThemeManager: ObservableObject {
             saveSurfaceStyle()
         }
     }
-    
+
     init() {
         if !storedThemeData.isEmpty,
            let decoded = try? JSONDecoder().decode(AppTheme.self, from: storedThemeData) {
@@ -153,10 +155,35 @@ final class ThemeManager: ObservableObject {
             storedSurfaceStyleData = data
         }
     }
-    
+
     private func publishTheme() {}
+}
+
+final class WatermarkPreferencesManager: ObservableObject {
+    @AppStorage("defaultWatermarkText") private var storedDefaultWatermarkText: String = ""
+    @AppStorage("defaultWatermarkFontName") private var storedDefaultWatermarkFontName: String = WatermarkConfig.systemFontToken
+
+    @Published var defaultWatermarkText: String = "" {
+        didSet {
+            storedDefaultWatermarkText = defaultWatermarkText
+        }
+    }
+
+    @Published var defaultWatermarkFontName: String = WatermarkConfig.systemFontToken {
+        didSet {
+            storedDefaultWatermarkFontName = defaultWatermarkFontName
+        }
+    }
+
+    init() {
+        defaultWatermarkText = storedDefaultWatermarkText
+        defaultWatermarkFontName = storedDefaultWatermarkFontName
+    }
 }
 
 #Preview {
     MainContentView()
+        .environmentObject(LanguageManager())
+        .environmentObject(ThemeManager())
+        .environmentObject(WatermarkPreferencesManager())
 }

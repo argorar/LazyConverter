@@ -21,6 +21,8 @@
 "advanced.output" = "Output";
 "advanced.theme" = "Theme";
 "advanced.style" = "Style";
+"advanced.defaultWatermark" = "Default watermark";
+"advanced.defaultWatermark.placeholder" = "Default text";
 "button.start" = "Start";
 "button.end" = "End";
 "button.clear" = "Clear";
@@ -120,6 +122,10 @@
 "watermark.title" = "Watermark";
 "watermark.text" = "Text";
 "watermark.fontSize" = "Size";
+"watermark.font" = "Font";
+"watermark.font.system" = "System";
+"watermark.font.search" = "Search font";
+"watermark.font.no_results" = "No fonts found";
 "watermark.color" = "Color";
 "watermark.opacity" = "Opacity";
 "watermark.configure" = "Configure";

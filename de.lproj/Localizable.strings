@@ -21,6 +21,8 @@
 "advanced.output" = "Zielordner";
 "advanced.theme" = "Thema";
 "advanced.style" = "Stil";
+"advanced.defaultWatermark" = "Standard-Wasserzeichen";
+"advanced.defaultWatermark.placeholder" = "Text für neue Wasserzeichen";
 "button.start" = "Start";
 "button.end" = "Ende";
 "button.clear" = "Löschen";
@@ -120,6 +122,10 @@
 "watermark.title" = "Wasserzeichen";
 "watermark.text" = "Text";
 "watermark.fontSize" = "Größe";
+"watermark.font" = "Schriftart";
+"watermark.font.system" = "System";
+"watermark.font.search" = "Schriftart suchen";
+"watermark.font.no_results" = "Keine Schriftarten gefunden";
 "watermark.color" = "Farbe";
 "watermark.opacity" = "Deckkraft";
 "watermark.configure" = "Konfigurieren";

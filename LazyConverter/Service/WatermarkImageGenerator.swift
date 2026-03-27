@@ -50,7 +50,7 @@ enum WatermarkImageGenerator {
 
         // Set up text attributes
         let nsColor = NSColor(config.color).withAlphaComponent(CGFloat(config.opacity))
-        let font = NSFont.systemFont(ofSize: config.fontSize, weight: .bold)
+        let font = config.resolvedNSFont(ofSize: config.fontSize)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: nsColor

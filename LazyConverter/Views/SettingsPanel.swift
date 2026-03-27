@@ -12,6 +12,7 @@ struct SettingsPanel: View {
     @ObservedObject var viewModel: VideoConversionViewModel
     @EnvironmentObject var lang: LanguageManager
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var watermarkPreferences: WatermarkPreferencesManager
     @State private var showCropHelp = false
     
     private var cropHelpText: String {
@@ -548,6 +549,13 @@ struct SettingsPanel: View {
                         theme.saveSurfaceStyle()
                     }
                 }
+                HStack {
+                    Text(lang.t("advanced.defaultWatermark"))
+                    Spacer()
+                    TextField(lang.t("advanced.defaultWatermark.placeholder"), text: $watermarkPreferences.defaultWatermarkText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 260)
+                }
             }
             .padding(.top, 12)
         }
@@ -613,6 +621,7 @@ struct SettingsPanel: View {
         .sheet(isPresented: $viewModel.showWatermarkSheet) {
             WatermarkConfigSheet(viewModel: viewModel)
                 .environmentObject(lang)
+                .environmentObject(watermarkPreferences)
         }
     }
 }

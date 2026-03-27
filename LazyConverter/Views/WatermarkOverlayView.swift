@@ -19,16 +19,17 @@ struct WatermarkOverlayView: View {
 
             let wmText = watermarkConfig.text
             let wmFontSize = scaledFontSize(baseFontSize: watermarkConfig.fontSize, videoFrame: videoFrame)
+            let wmNSFont = watermarkConfig.resolvedNSFont(ofSize: wmFontSize)
 
             // Calculate watermark size estimate for boundary clamping
-            let textSize = estimateTextSize(text: wmText, fontSize: wmFontSize)
+            let textSize = estimateTextSize(text: wmText, font: wmNSFont)
 
             // Convert normalized position to pixel position within the effective bounds
             let pixelX = watermarkConfig.position.x * (effectiveFrame.width - textSize.width) + effectiveFrame.minX
             let pixelY = watermarkConfig.position.y * (effectiveFrame.height - textSize.height) + effectiveFrame.minY
 
             Text(wmText)
-                .font(.system(size: wmFontSize, weight: .bold))
+                .font(watermarkConfig.resolvedSwiftUIFont(ofSize: wmFontSize))
                 .foregroundColor(watermarkConfig.color.opacity(watermarkConfig.opacity))
                 .shadow(color: .black.opacity(0.5), radius: 2, x: 1, y: 1)
                 .padding(.horizontal, 4)
@@ -105,8 +106,7 @@ struct WatermarkOverlayView: View {
     }
 
     /// Estimates the rendered size of text for a given font size.
-    private func estimateTextSize(text: String, fontSize: CGFloat) -> CGSize {
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
+    private func estimateTextSize(text: String, font: NSFont) -> CGSize {
         let attributes: [NSAttributedString.Key: Any] = [.font: font]
         let size = (text as NSString).size(withAttributes: attributes)
         return CGSize(width: size.width + 8, height: size.height + 4) // padding
