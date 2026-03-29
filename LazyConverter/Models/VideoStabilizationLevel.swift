@@ -26,11 +26,11 @@ enum VideoStabilizationLevel: String, CaseIterable, Codable {
     var transformParameters: String {
         switch self {
         case .low:
-            return "smoothing=6:optalgo=gauss:maxshift=12:maxangle=0.05:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
+            return "smoothing=6:optalgo=gauss:maxshift=12:maxangle=0:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
         case .medium:
-            return "smoothing=10:optalgo=gauss:maxshift=20:maxangle=0.08:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
+            return "smoothing=10:optalgo=gauss:maxshift=20:maxangle=0:crop=black:optzoom=0:zoomspeed=0.10:interpol=bicubic"
         case .high:
-            return "smoothing=22:optalgo=gauss:maxshift=32:maxangle=0.12:crop=black:optzoom=1:zoomspeed=0.08:interpol=bicubic"
+            return "smoothing=22:optalgo=gauss:maxshift=32:maxangle=0:crop=black:optzoom=1:zoomspeed=0.08:interpol=bicubic"
         }
     }
 

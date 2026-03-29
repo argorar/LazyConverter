@@ -1,12 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 :root {
-  --bg: #1c1c1e;
-  --bg-2: #121214;
+  --bg: #0f141f;
+  --bg-2: #0a0f18;
   --ink: #f5f5f7;
   --accent: #0a84ff;
   --accent-2: #ff453a;
-  --card: #2a2a2e;
+  --card: rgba(255, 255, 255, 0.08);
   --muted: #b3b3b8;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
 }
@@ -19,7 +19,36 @@ body {
   margin: 0;
   font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at top left, #2a2a2e 0%, var(--bg) 52%, var(--bg-2) 100%);
+  background:
+    radial-gradient(1400px 900px at 12% 10%, rgba(45, 212, 191, 0.2), transparent 55%),
+    radial-gradient(1200px 700px at 85% 12%, rgba(255, 77, 79, 0.24), transparent 58%),
+    linear-gradient(160deg, var(--bg), var(--bg-2));
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.glass-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(70px);
+  z-index: -2;
+  pointer-events: none;
+}
+
+.orb-a {
+  width: 360px;
+  height: 360px;
+  top: -90px;
+  left: -80px;
+  background: rgba(45, 212, 191, 0.32);
+}
+
+.orb-b {
+  width: 420px;
+  height: 420px;
+  right: -100px;
+  top: 28%;
+  background: rgba(255, 77, 79, 0.36);
 }
 
 body.lang-fade [data-i18n] {
@@ -59,8 +88,9 @@ body.lang-fade [data-i18n] {
   align-self: flex-start;
   padding: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px) saturate(130%);
   margin-bottom: 14px;
 }
 
@@ -159,13 +189,13 @@ h1 {
 .mock-frame {
   padding: 12px;
   border-radius: 22px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
     0 30px 80px -20px rgba(0, 0, 0, 0.6),
     0 0 60px rgba(10, 132, 255, 0.15);
-  /* Accent glow */
   max-width: 520px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px) saturate(130%);
 }
 
 .mock-screen {
@@ -207,7 +237,8 @@ h1 {
   padding: 20px;
   border-radius: 18px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px) saturate(125%);
 }
 
 .card h3 {
@@ -238,7 +269,8 @@ h1 {
   display: flex;
   gap: 12px;
   align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px) saturate(125%);
 }
 
 .step-num {
@@ -254,14 +286,15 @@ h1 {
 }
 
 .cta {
-  background: linear-gradient(120deg, rgba(10, 132, 255, 0.18), rgba(255, 69, 58, 0.15));
+  background: linear-gradient(120deg, rgba(45, 212, 191, 0.18), rgba(255, 77, 79, 0.22));
   border-radius: 24px;
   padding: 28px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px) saturate(130%);
 }
 
 .footer {

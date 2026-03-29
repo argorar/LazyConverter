@@ -60,6 +60,12 @@ brew tap homebrew-ffmpeg/ffmpeg
 brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab
 ```
 
+Optional to download videos from internet use yt-dlp:
+
+```bash
+brew install yt-dlp
+```
+
 ## ⬇️ Downloads
 
 - **LazyConverter-Standalone**: Includes FFmpeg and FFprobe inside the app bundle. Works out of the box.

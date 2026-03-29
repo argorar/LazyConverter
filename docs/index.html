@@ -6,11 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LazyConverter - Simple Video Conversion for macOS</title>
   <meta name="description"
-    content="LazyConverter is a native macOS app that converts videos quickly, simply, and privately using local FFmpeg." />
+    content="LazyConverter is a native macOS app that converts videos quickly, simply, using FFmpeg." />
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
+  <div class="glass-orb orb-a" aria-hidden="true"></div>
+  <div class="glass-orb orb-b" aria-hidden="true"></div>
   <div class="bg-noise" aria-hidden="true"></div>
 
   <header class="hero">
@@ -22,7 +24,7 @@
       <p class="eyebrow reveal" data-i18n="eyebrow">macOS • SwiftUI • FFmpeg</p>
       <h1 class="reveal" data-i18n="heroTitle">Convert videos effortlessly, right on your Mac.</h1>
       <p class="lead reveal" data-i18n="heroLead">
-        LazyConverter is a native app for fast conversion and light editing. Everything runs locally with FFmpeg.
+        LazyConverter is a native app for fast conversion and light editing with FFmpeg.
       </p>
       <div class="hero-actions reveal">
         <a class="btn ghost" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer"
@@ -121,7 +123,8 @@
     <section class="section split" id="requirements">
       <div class="section-title reveal">
         <h2 data-i18n="reqTitle">Requirements</h2>
-        <p data-i18n="reqSubtitle">To run this app you need to have <strong>FFmpeg</strong> installed on your system.</p>
+        <p data-i18n="reqSubtitle">To run this app you need to have <strong>FFmpeg</strong> installed on your system.
+        </p>
         <p data-i18n="reqCommandText" style="margin-top: 12px;">Execute the next commands to install them:</p>
       </div>
       <div class="terminal-box reveal">
@@ -149,10 +152,10 @@ brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
   <script>
     const translations = {
       en: {
-        eyebrow: "macOS • SwiftUI • Local FFmpeg",
+        eyebrow: "macOS • SwiftUI • FFmpeg",
         heroTitle: "Convert videos effortlessly, right on your Mac.",
         heroLead:
-          "LazyConverter is a native app for fast conversion and light editing. Everything runs locally with FFmpeg.",
+          "LazyConverter is a native app for fast conversion and light editing with FFmpeg.",
         ctaGithub: "View on GitHub",
         ctaFeatures: "See features",
         ctaDownload: "Download",
@@ -195,15 +198,15 @@ brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
         footer: "LazyConverter — Video conversion made simple on Mac."
       },
       es: {
-        eyebrow: "macOS • SwiftUI • FFmpeg local",
+        eyebrow: "macOS • SwiftUI • FFmpeg",
         heroTitle: "Convierte videos sin esfuerzo, directo en tu Mac.",
         heroLead:
-          "LazyConverter es una app nativa para conversión rápida y edición básica. Todo se procesa localmente con FFmpeg.",
+          "LazyConverter es una app nativa para conversión rápida y edición con FFmpeg.",
         ctaGithub: "Ver en GitHub",
         ctaFeatures: "Ver características",
         ctaDownload: "Descargar",
         featuresTitle: "Características clave",
-        featuresSubtitle: "Un set compacto de herramientas para conversión y edición ligera.",
+        featuresSubtitle: "Un set compacto de herramientas para conversión y edición.",
         feature1Title: "Conversión flexible",
         feature1Body:
           "Exporta a MP4, MKV y otros formatos comunes. Ajusta resolución (original, 4K, 1080p, 720p, etc.).",
