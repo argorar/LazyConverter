@@ -186,7 +186,7 @@ class FFmpegConverter {
     }
 
     private func requestNeedsBaseFilterPass(_ request: FFmpegConversionRequest) -> Bool {
-        if request.trimStart != nil || request.trimEnd != nil {
+        if !request.trimSegments.isEmpty {
             return true
         }
         if request.resolution != .original {
@@ -483,13 +483,14 @@ class FFmpegConverter {
             && !request.cropDynamicKeyframes.isEmpty
         let stabilizationEnabled =
             stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
-        let clipBounds = resolvedClipBounds(request)
+        
         let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
-        let speedClipStart = clipBounds?.start ?? 0.0
+        let speedClipStart = request.trimSegments.map { $0.start }.min() ?? 0.0
         let fallbackSpeedEndFromPoints =
             request.dynamicSpeedPoints.map(\.time).max() ?? speedClipStart
-        let speedClipEnd =
-            clipBounds?.end ?? max(sourceDuration, fallbackSpeedEndFromPoints, speedClipStart)
+        let maxTrimEnd = request.trimSegments.map { $0.end }.max() ?? (sourceDuration > 0 ? sourceDuration : speedClipStart)
+        let speedClipEnd = max(sourceDuration, fallbackSpeedEndFromPoints, maxTrimEnd)
+        
         let dynamicSpeedFilter =
             request.dynamicSpeedEnabled
             ? SpeedMapPoint.buildDynamicSpeedSetptsFilter(
@@ -504,48 +505,54 @@ class FFmpegConverter {
             request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
             && !request.dynamicSpeedEnabled
         var hasMergedSetpts = false
-
-        // 1. TRIM FILTER (prioridad máxima)
-        if let clipBounds {
-            let trimAtInput = usingDynamicCrop || (!stabilizationEnabled && canKeepAudio)
-            if trimAtInput {
-                if request.trimStart != nil {
-                    arguments += ["-ss", dot(clipBounds.start)]
-                }
-                if request.trimEnd != nil {
-                    arguments += ["-to", dot(clipBounds.end)]
-                }
-            } else {
-                var trimComponents: [String] = []
-                if request.trimStart != nil {
-                    trimComponents.append("start=\(dot(clipBounds.start))")
-                }
-                if request.trimEnd != nil {
-                    trimComponents.append("end=\(dot(clipBounds.end))")
-                }
-                
-                if !trimComponents.isEmpty {
-                    let trimFilter = "trim=\(trimComponents.joined(separator: ":"))"
-                    let clipDuration = max(0.0, clipBounds.end - clipBounds.start)
-                    let mergedSetptsFilter =
-                        dynamicSpeedFilter
-                        ?? (hasStaticSpeedChange
-                            ? SpeedMapPoint.buildSpeedSetptsFilter(
-                                duration: clipDuration, speed: speed, resetPTSWhenNoSpeed: true)
-                            : "setpts=PTS-STARTPTS")
-                    if stabilizationEnabled {
-                        videoFilters.append(trimFilter)
-                        videoFilters.append(mergedSetptsFilter)
-                        hasMergedSetpts = true
-                    } else {
-                        videoFilters.append("\(trimFilter),\(mergedSetptsFilter)")
-                        hasMergedSetpts = true
-                    }
-                }
-            }
-        }
-        arguments += ["-i", request.inputURL.path]
         
+        arguments += ["-i", request.inputURL.path]
+
+        var finalVideoPad = "[0:v]"
+        var finalAudioPad = canKeepAudio ? "[0:a]" : ""
+        var filterComplexArgs: [String] = []
+
+        if !request.trimSegments.isEmpty {
+            let segments = request.trimSegments.sorted()
+            let n = segments.count
+            
+            var complexGraph = ""
+            // Video split
+            complexGraph += "[0:v]split=\(n)"
+            for i in 0..<n { complexGraph += "[v_in\(i)]" }
+            complexGraph += ";"
+            
+            // Audio split
+            if canKeepAudio {
+                complexGraph += "[0:a]asplit=\(n)"
+                for i in 0..<n { complexGraph += "[a_in\(i)]" }
+                complexGraph += ";"
+            }
+            
+            // Trims
+            var concatInputs = ""
+            for (i, seg) in segments.enumerated() {
+                complexGraph += "[v_in\(i)]trim=start=\(dot(seg.start)):end=\(dot(seg.end)),setpts=PTS-STARTPTS[v_out\(i)];"
+                if canKeepAudio {
+                    complexGraph += "[a_in\(i)]atrim=start=\(dot(seg.start)):end=\(dot(seg.end)),asetpts=PTS-STARTPTS[a_out\(i)];"
+                }
+                concatInputs += "[v_out\(i)]"
+                if canKeepAudio { concatInputs += "[a_out\(i)]" }
+            }
+            
+            // Concat
+            complexGraph += "\(concatInputs)concat=n=\(n):v=1:a=\(canKeepAudio ? 1 : 0)[v_concat]"
+            finalVideoPad = "[v_concat]"
+            if canKeepAudio {
+                complexGraph += "[a_concat];"
+                finalAudioPad = "[a_concat]"
+            } else {
+                complexGraph += ";"
+            }
+            
+            filterComplexArgs.append(complexGraph)
+        }
+
         if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
             arguments += ["-pix_fmt", pixFmt]
         }
@@ -560,10 +567,8 @@ class FFmpegConverter {
         // crop
         if request.cropEnable {
             if request.cropDynamicEnabled, let videoInfo = request.videoInfo {
-                let sourceDuration = max(0.0, videoInfo.duration)
-                let clipStart = resolvedClipStart(request, sourceDuration: sourceDuration)
-                let clipEnd = resolvedClipEnd(
-                    request, sourceDuration: sourceDuration, start: clipStart)
+                let clipStart = request.trimSegments.map { $0.start }.min() ?? 0.0
+                let clipEnd = request.trimSegments.map { $0.end }.max() ?? sourceDuration
                 let clipDuration = max(0.0, clipEnd - clipStart)
                 let setptsFilter =
                     dynamicSpeedFilter
@@ -575,8 +580,8 @@ class FFmpegConverter {
                 if let dynamicCrop = CropDynamicKeyframe.buildDynamicCropFilter(
                     keyframes: request.cropDynamicKeyframes,
                     sourceDuration: sourceDuration,
-                    trimStart: request.trimStart,
-                    trimEnd: request.trimEnd,
+                    trimStart: clipStart,
+                    trimEnd: clipEnd,
                     setptsFilter: setptsFilter
                 ) {
                     videoFilters.append(dynamicCrop)
@@ -622,12 +627,28 @@ class FFmpegConverter {
             }
         }
         
-        if !videoFilters.isEmpty {
-            arguments += ["-vf", videoFilters.joined(separator: ",")]
-        }
-        
-        if !audioFilters.isEmpty {
-            arguments += ["-af", audioFilters.joined(separator: ",")]
+        if filterComplexArgs.isEmpty {
+            if !videoFilters.isEmpty {
+                arguments += ["-vf", videoFilters.joined(separator: ",")]
+            }
+            if !audioFilters.isEmpty {
+                arguments += ["-af", audioFilters.joined(separator: ",")]
+            }
+        } else {
+            var graph = filterComplexArgs.joined(separator: " ")
+            if !videoFilters.isEmpty {
+                graph += " \(finalVideoPad)\(videoFilters.joined(separator: ","))[v_final]"
+                finalVideoPad = "[v_final]"
+            }
+            if !audioFilters.isEmpty && canKeepAudio {
+                graph += " \(finalAudioPad)\(audioFilters.joined(separator: ","))[a_final]"
+                finalAudioPad = "[a_final]"
+            }
+            arguments += ["-filter_complex", graph]
+            arguments += ["-map", finalVideoPad]
+            if canKeepAudio {
+                arguments += ["-map", finalAudioPad]
+            }
         }
 
         let (videoCodec, audioCodec) = codecForFormat(
@@ -708,10 +729,11 @@ class FFmpegConverter {
     private func resolvedClipStart(_ request: FFmpegConversionRequest, sourceDuration: Double)
         -> Double
     {
+        let minTrimStart = request.trimSegments.map { $0.start }.min()
         if sourceDuration <= 0 {
-            return max(0.0, request.trimStart ?? 0.0)
+            return max(0.0, minTrimStart ?? 0.0)
         }
-        let rawStart = max(0.0, request.trimStart ?? 0.0)
+        let rawStart = max(0.0, minTrimStart ?? 0.0)
         return min(rawStart, sourceDuration)
     }
 
@@ -719,7 +741,8 @@ class FFmpegConverter {
         _ request: FFmpegConversionRequest, sourceDuration: Double, start: Double
     ) -> Double {
         let rawEnd: Double
-        if let trimEnd = request.trimEnd {
+        let maxTrimEnd = request.trimSegments.map { $0.end }.max()
+        if let trimEnd = maxTrimEnd {
             rawEnd = max(0.0, trimEnd)
         } else if sourceDuration > 0 {
             rawEnd = sourceDuration
@@ -737,7 +760,7 @@ class FFmpegConverter {
     private func resolvedClipBounds(_ request: FFmpegConversionRequest) -> (
         start: Double, end: Double
     )? {
-        guard request.trimStart != nil || request.trimEnd != nil else { return nil }
+        guard !request.trimSegments.isEmpty else { return nil }
         
         let sourceDuration = max(0.0, request.videoInfo?.duration ?? 0.0)
         let start = resolvedClipStart(request, sourceDuration: sourceDuration)
@@ -747,8 +770,8 @@ class FFmpegConverter {
     }
     
     private func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
-        if let bounds = resolvedClipBounds(request) {
-            return max(0.0, bounds.end - bounds.start)
+        if !request.trimSegments.isEmpty {
+            return request.trimSegments.reduce(0.0) { $0 + max(0.0, $1.end - $1.start) }
         }
         return max(0.0, request.videoInfo?.duration ?? 0.0)
     }

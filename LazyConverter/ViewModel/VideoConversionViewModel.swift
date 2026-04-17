@@ -72,7 +72,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var stabilizationLevel: VideoStabilizationLevel = .medium
     @Published var loopEnabled: Bool = false
     @Published var liveCurrentTime: Double = 0
-    @Published var trimStart: Double? = nil {
+    @Published var trimSegments: [TrimSegment] = [] {
         didSet {
             if cropDynamicEnabled {
                 ensureStartDynamicKeyframe()
@@ -82,16 +82,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             }
         }
     }
-    @Published var trimEnd: Double? = nil {
-        didSet {
-            if cropDynamicEnabled {
-                ensureStartDynamicKeyframe()
-            }
-            if dynamicSpeedEnabled {
-                ensureDynamicSpeedBoundaryPoints()
-            }
-        }
-    }
+    @Published var activeTrimSegmentID: UUID? = nil
     @Published var showUpdateDialog = false
     @Published var latestDownloadURL: String? = nil
     @Published var hasUpdateAvailable = false
@@ -187,8 +178,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             useGPU: useGPU,
             loopEnabled: loopEnabled,
             outputDirectory: outputDirectory,
-            trimStart: trimStart,
-            trimEnd: trimEnd,
+            trimStart: trimSegments.map { $0.start }.min(),
+            trimEnd: trimSegments.map { $0.end }.max(),
             cropEnabled: cropEnabled,
             cropRect: cropEnabled ? cropRect : nil,
             colorAdjustments: colorAdjustments,
@@ -229,8 +220,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         selectedFileName = nil
         videoInfo = nil
         liveCurrentTime = 0
-        trimStart = nil
-        trimEnd = nil
+        trimSegments.removeAll()
+        activeTrimSegmentID = nil
         speedPercent = 100.0
         maxOutputSizeMBInput = ""
         dynamicSpeedEnabled = false
@@ -305,25 +296,23 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         let resolvedFrameRate = max(1.0, frameRate ?? videoInfo?.frameRate ?? 30.0)
         let boundaryTolerance = 0.5 / resolvedFrameRate
         
-        let trimStartValue = trimStart
-        let trimEndValue = trimEnd
-        let hasTrim = trimStartValue != nil || trimEndValue != nil
-        
         var capturedTime = max(0, time)
         
-        if hasTrim {
+        if !trimSegments.isEmpty {
             let fallbackEnd = max(capturedTime, videoInfo?.duration ?? capturedTime)
-            let rawLowerBound = trimStartValue ?? 0.0
-            let rawUpperBound = trimEndValue ?? fallbackEnd
-            let lowerBound = min(rawLowerBound, rawUpperBound)
-            let upperBound = max(rawLowerBound, rawUpperBound)
             
-            if capturedTime < (lowerBound - boundaryTolerance) || capturedTime > (upperBound + boundaryTolerance) {
-
-                return
+            // Allow crop if the time falls inside of ANY segment
+            var isInsideAny = false
+            for seg in trimSegments {
+                let lowerBound = seg.start
+                let upperBound = seg.end
+                if capturedTime >= (lowerBound - boundaryTolerance) && capturedTime <= (upperBound + boundaryTolerance) {
+                    isInsideAny = true
+                    capturedTime = min(max(capturedTime, lowerBound), upperBound)
+                    break
+                }
             }
-            
-            capturedTime = min(max(capturedTime, lowerBound), upperBound)
+            if !isInsideAny { return }
         }
         
         let frameIndex = max(0, Int(round(capturedTime * resolvedFrameRate)))
@@ -407,9 +396,11 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
     private func resolvedDynamicBoundsTimes() -> (start: Double, end: Double) {
         let sourceDuration = max(0.0, videoInfo?.duration ?? 0.0)
-        let rawStart = max(0.0, trimStart ?? 0.0)
+        let minStart = trimSegments.map { $0.start }.min()
+        let maxEnd = trimSegments.map { $0.end }.max()
+        let rawStart = max(0.0, minStart ?? 0.0)
         let defaultEnd = sourceDuration > 0 ? sourceDuration : rawStart
-        let rawEnd = max(0.0, trimEnd ?? defaultEnd)
+        let rawEnd = max(0.0, maxEnd ?? defaultEnd)
 
         return (start: min(rawStart, rawEnd), end: max(rawStart, rawEnd))
     }
@@ -464,16 +455,18 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
     func resolvedDynamicSpeedBoundsTimes() -> (start: Double, end: Double) {
         let sourceDuration = max(0.0, videoInfo?.duration ?? 0.0)
-        let rawStart = max(0.0, trimStart ?? 0.0)
+        let minStart = trimSegments.map { $0.start }.min()
+        let maxEnd = trimSegments.map { $0.end }.max()
+        let rawStart = max(0.0, minStart ?? 0.0)
         let defaultEnd: Double
-        if let trimEnd {
-            defaultEnd = max(0.0, trimEnd)
+        if let maxEnd {
+            defaultEnd = max(0.0, maxEnd)
         } else if sourceDuration > 0 {
             defaultEnd = sourceDuration
         } else {
             defaultEnd = max(rawStart, liveCurrentTime)
         }
-        let rawEnd = max(0.0, trimEnd ?? defaultEnd)
+        let rawEnd = max(0.0, maxEnd ?? defaultEnd)
         return (start: min(rawStart, rawEnd), end: max(rawStart, rawEnd))
     }
 
@@ -688,8 +681,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
         let initialRect = cropRect
         let trackerPivot = cropTrackerPivot
-        let trimStartValue = trimStart
-        let trimEndValue = trimEnd
+        let trimStartValue = trimSegments.map { $0.start }.min()
+        let trimEndValue = trimSegments.map { $0.end }.max()
         let info = videoInfo
 
         Task(priority: .userInitiated) { [weak self] in
@@ -747,12 +740,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         )
         self.outputFileURL = outputURL
         
-        let trimStartSeconds: Double? = trimStart
-        let trimEndSeconds: Double? = trimEnd
-        
-        print("🔹 FFmpeg TRIM:")
-        print("  📍 Start: \(trimStartSeconds != nil ? "\(trimStartSeconds!)s" : "NONE")")
-        print("  🎯 End:   \(trimEndSeconds != nil ? "\(trimEndSeconds!)s" : "NONE")")
+        print("🔹 FFmpeg TRIM SEGMENTS: \(trimSegments.count)")
 
         let request = FFmpegConversionRequest(
             inputURL: inputURL,
@@ -767,8 +755,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             useGPU: useGPU,
             stabilizationLevel: stabilizationEnabled ? stabilizationLevel : nil,
             loopEnabled: loopEnabled,
-            trimStart: trimStartSeconds,
-            trimEnd: trimEndSeconds,
+            trimSegments: trimSegments,
             videoInfo: videoInfo,
             cropEnable: cropEnabled,
             cropDynamicEnabled: cropDynamicEnabled,

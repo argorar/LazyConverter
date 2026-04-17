@@ -133,3 +133,5 @@
 "watermark.cancel" = "Cancel";
 "watermark.reset" = "Reset watermark";
 "watermark.drag_hint" = "Drag to position the watermark on the player";
+"trim.add_segment" = "Add Segment";
+"trim.no_segments" = "No segments added.";

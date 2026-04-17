@@ -21,8 +21,7 @@ struct FFmpegConversionRequest {
     let useGPU: Bool
     let stabilizationLevel: VideoStabilizationLevel?
     let loopEnabled: Bool
-    let trimStart: Double?
-    let trimEnd: Double?
+    let trimSegments: [TrimSegment]
     let videoInfo: VideoInfo?
     let cropEnable: Bool
     let cropDynamicEnabled: Bool
@@ -47,8 +46,7 @@ struct FFmpegConversionRequest {
         useGPU: Bool,
         stabilizationLevel: VideoStabilizationLevel? = nil,
         loopEnabled: Bool,
-        trimStart: Double? = nil,
-        trimEnd: Double? = nil,
+        trimSegments: [TrimSegment] = [],
         videoInfo: VideoInfo?,
         cropEnable: Bool,
         cropDynamicEnabled: Bool = false,
@@ -72,8 +70,7 @@ struct FFmpegConversionRequest {
         self.useGPU = useGPU
         self.stabilizationLevel = stabilizationLevel
         self.loopEnabled = loopEnabled
-        self.trimStart = trimStart
-        self.trimEnd = trimEnd
+        self.trimSegments = trimSegments
         self.videoInfo = videoInfo
         self.cropEnable = cropEnable
         self.cropDynamicEnabled = cropDynamicEnabled

@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "416"
             endingLineNumber = "416"
-            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:includeOutputSizeLimit:)"
+            landmarkName = "executeMainAndOptionalLoop(request:executablePath:arguments:videoDuration:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -48,8 +48,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "118"
             endingLineNumber = "118"
-            landmarkName = "selectedFileURL"
-            landmarkType = "24">
+            landmarkName = "init()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -64,7 +64,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "brightness"
+            landmarkName = "contrast"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -176,7 +176,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "88"
             endingLineNumber = "88"
-            landmarkName = "runStabilizationTwoPassPipeline(request:stabilizationLevel:executablePath:videoDuration:completionCallback:)"
+            landmarkName = "runConversionPipeline(request:executablePath:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -192,7 +192,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "293"
             endingLineNumber = "293"
-            landmarkName = "buildFFmpegCommand(_:stabilizationTransformURL:outputURL:stabilizationEnabledOverride:includeOutputSizeLimit:)"
+            landmarkName = "runStabilizationTwoPassPipeline(request:stabilizationLevel:executablePath:videoDuration:watermarkImageURL:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -208,8 +208,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1072"
             endingLineNumber = "1072"
-            landmarkName = "FFmpegConverter"
-            landmarkType = "3">
+            landmarkName = "executeFFmpeg(executablePath:arguments:videoDuration:reportProgress:completionCallback:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -224,7 +224,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1029"
             endingLineNumber = "1029"
-            landmarkName = "getDuration(of:completion:)"
+            landmarkName = "qualityArguments(videoCodec:crf:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -240,8 +240,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1030"
             endingLineNumber = "1030"
-            landmarkName = "getDuration(of:completion:)"
-            landmarkType = "7">
+            landmarkName = "FFmpegConverter"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

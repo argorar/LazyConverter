@@ -133,3 +133,5 @@
 "watermark.cancel" = "Abbrechen";
 "watermark.reset" = "Wasserzeichen zurücksetzen";
 "watermark.drag_hint" = "Ziehen zum Positionieren des Wasserzeichens im Player";
+"trim.add_segment" = "Segment Hinzufügen";
+"trim.no_segments" = "Keine Segmente hinzugefügt.";

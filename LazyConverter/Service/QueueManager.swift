@@ -97,8 +97,16 @@ class QueueManager: ObservableObject {
                 useGPU: item.useGPU,
                 stabilizationLevel: nil,
                 loopEnabled: item.loopEnabled,
-                trimStart: item.trimStart,
-                trimEnd: item.trimEnd,
+                trimSegments: {
+                    if let start = item.trimStart, let end = item.trimEnd {
+                        return [TrimSegment(start: start, end: end)]
+                    } else if let start = item.trimStart {
+                        return [TrimSegment(start: start, end: Double.infinity)]
+                    } else if let end = item.trimEnd {
+                        return [TrimSegment(start: 0, end: end)]
+                    }
+                    return []
+                }(),
                 videoInfo: nil,
                 cropEnable: item.cropEnabled,
                 cropDynamicEnabled: false,

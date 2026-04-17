@@ -133,3 +133,5 @@
 "watermark.cancel" = "Cancelar";
 "watermark.reset" = "Reiniciar marca de agua";
 "watermark.drag_hint" = "Arrastra para posicionar la marca de agua en el player";
+"trim.add_segment" = "Agregar Segmento";
+"trim.no_segments" = "No hay segmentos añadidos.";

@@ -250,78 +250,108 @@ struct SettingsPanel: View {
                 Text(lang.t("trim.title"))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
+                Spacer()
+                Button(action: {
+                    let start = viewModel.trimSegments.map { $0.end }.max() ?? viewModel.liveCurrentTime
+                    let end = viewModel.videoInfo?.duration ?? (start + 5.0)
+                    let newSeg = TrimSegment(start: start, end: max(start + 0.1, end))
+                    viewModel.trimSegments.append(newSeg)
+                    viewModel.activeTrimSegmentID = newSeg.id
+                }) {
+                    Image(systemName: "plus")
+                    Text(lang.t("trim.add_segment"))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
             }
-            HStack(spacing: 12) {
-                Button(lang.t("button.start")) {
-                    if viewModel.selectedFileURL == nil { return }
-                    viewModel.trimStart = viewModel.liveCurrentTime
+            
+            if viewModel.trimSegments.isEmpty {
+                Text(lang.t("trim.no_segments"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(viewModel.trimSegments) { segment in
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(viewModel.activeTrimSegmentID == segment.id ? Color.accentColor : Color.secondary.opacity(0.5))
+                                .frame(width: 8, height: 8)
+                                
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(lang.t("trim.start"))
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                    Text(formatTime(segment.start))
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(viewModel.activeTrimSegmentID == segment.id ? .green : .primary)
+                                }
+                                HStack {
+                                    Text(lang.t("trim.end"))
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                    Text(formatTime(segment.end))
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(viewModel.activeTrimSegmentID == segment.id ? .blue : .primary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            if viewModel.activeTrimSegmentID == segment.id {
+                                VStack(spacing: 4) {
+                                    Button("Set Start") {
+                                        if let idx = viewModel.trimSegments.firstIndex(where: { $0.id == segment.id }) {
+                                            viewModel.trimSegments[idx].start = viewModel.liveCurrentTime
+                                        }
+                                    }
+                                    .font(.system(size: 10))
+                                    .buttonStyle(.bordered)
+                                    
+                                    Button("Set End") {
+                                        if let idx = viewModel.trimSegments.firstIndex(where: { $0.id == segment.id }) {
+                                            viewModel.trimSegments[idx].end = viewModel.liveCurrentTime
+                                        }
+                                    }
+                                    .font(.system(size: 10))
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                            
+                            Button(action: {
+                                viewModel.trimSegments.removeAll(where: { $0.id == segment.id })
+                                if viewModel.activeTrimSegmentID == segment.id {
+                                    viewModel.activeTrimSegmentID = nil
+                                }
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(viewModel.activeTrimSegmentID == segment.id ? Color.accentColor.opacity(0.1) : Color.gray.opacity(0.05))
+                        )
+                        .onTapGesture {
+                            viewModel.activeTrimSegmentID = segment.id
+                            viewModel.liveCurrentTime = segment.start
+                        }
+                    }
                 }
-                .background(viewModel.trimStart != nil ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
-                .foregroundColor(.white)
-                Button(lang.t("button.end")) {
-                    if viewModel.selectedFileURL == nil { return }
-                    viewModel.trimEnd = viewModel.liveCurrentTime
+            }
+            
+            if !viewModel.trimSegments.isEmpty {
+                Button(action: {
+                    viewModel.trimSegments.removeAll()
+                    viewModel.activeTrimSegmentID = nil
+                }) {
+                    Text(lang.t("button.clear"))
+                        .frame(maxWidth: .infinity)
                 }
-                .background(viewModel.trimEnd != nil ? Color.blue.opacity(0.2) : Color.gray.opacity(0.2))
-                .foregroundColor(.white)
-                Button(lang.t("button.clear")) {
-                    viewModel.trimStart = nil
-                    viewModel.trimEnd = nil
-                }
-                .background(Color.red.opacity(0.2))
+                .buttonStyle(.bordered)
                 .foregroundColor(.red)
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(lang.t("trim.start"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Text(viewModel.trimStart.map(formatTime) ?? "--:--.--")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(viewModel.trimStart != nil ? .green : .secondary)
-                        if viewModel.trimStart != nil {
-                            Button(action: { viewModel.trimStart = nil }) {
-                                Image(systemName: "xmark.circle")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                HStack {
-                    Text(lang.t("trim.end"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        Text(viewModel.trimEnd.map(formatTime) ?? "--:--.--")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(viewModel.trimEnd != nil ? .blue : .secondary)
-                        if viewModel.trimEnd != nil {
-                            Button(action: { viewModel.trimEnd = nil }) {
-                                Image(systemName: "xmark.circle")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                if let start = viewModel.trimStart, let end = viewModel.trimEnd {
-                    let duration = end - start
-                    HStack {
-                        Text(lang.t("trim.duration"))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(formatTime(duration))
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-                }
             }
         }
         .padding(12)

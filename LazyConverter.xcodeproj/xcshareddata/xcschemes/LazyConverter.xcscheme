@@ -15,7 +15,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6817341D2EFBA7BC008EFEF2"
+               BlueprintIdentifier = "69A100000000000000000002"
                BuildableName = "LazyConverter.app"
                BlueprintName = "LazyConverter"
                ReferencedContainer = "container:LazyConverter.xcodeproj">
@@ -44,7 +44,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "6817341D2EFBA7BC008EFEF2"
+            BlueprintIdentifier = "69A100000000000000000002"
             BuildableName = "LazyConverter.app"
             BlueprintName = "LazyConverter"
             ReferencedContainer = "container:LazyConverter.xcodeproj">
@@ -61,7 +61,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "6817341D2EFBA7BC008EFEF2"
+            BlueprintIdentifier = "69A100000000000000000002"
             BuildableName = "LazyConverter.app"
             BlueprintName = "LazyConverter"
             ReferencedContainer = "container:LazyConverter.xcodeproj">

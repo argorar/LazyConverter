@@ -139,32 +139,7 @@ struct VideoPreviewPanel: View {
                     }
                     .background {
                         GeometryReader { geo in
-                            Color.clear
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    DragGesture(minimumDistance: 0)
-                                        .onChanged { value in
-                                            guard isHoveringSeekSlider || isPointerDragScrubbing
-                                            else { return }
-                                            if !isPointerDragScrubbing {
-                                                isPointerDragScrubbing = true
-                                                startScrubbingSession()
-                                            }
-
-                                            let width = max(1.0, geo.size.width)
-                                            let clampedX = min(max(0.0, value.location.x), width)
-                                            let progress = Double(clampedX / width)
-                                            let range = sliderRange
-                                            scrubPosition =
-                                                range.lowerBound
-                                                + (range.upperBound - range.lowerBound) * progress
-                                        }
-                                        .onEnded { _ in
-                                            guard isPointerDragScrubbing else { return }
-                                            isPointerDragScrubbing = false
-                                            finishScrubbingSession()
-                                        }
-                                )
+                            sliderBackground(geo: geo)
                         }
                     }
 
@@ -183,28 +158,26 @@ struct VideoPreviewPanel: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                if let trimStart = viewModel.trimStart {
+            if let activeSegID = viewModel.activeTrimSegmentID, let seg = viewModel.trimSegments.first(where: { $0.id == activeSegID }) {
+                HStack(spacing: 12) {
                     Button(lang.t("button.start")) {
                         guard let player = player else { return }
-                        seekToTrimBound(player: player, seconds: trimStart, keepPlaying: false)
+                        seekToTrimBound(player: player, seconds: seg.start, keepPlaying: false)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
-                }
 
-                if let trimEnd = viewModel.trimEnd {
                     Button(lang.t("button.end")) {
                         guard let player = player else { return }
-                        seekToTrimBound(player: player, seconds: trimEnd, keepPlaying: false)
+                        seekToTrimBound(player: player, seconds: seg.end, keepPlaying: false)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                     .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
 
             if let info = videoInfo {
                 VideoPreviewView(videoInfo: info)
@@ -253,19 +226,15 @@ struct VideoPreviewPanel: View {
         .onChange(of: viewModel.colorAdjustments) { oldValue, newValue in
             applyVideoFilters()
         }
-        .onChange(of: viewModel.trimStart) { oldValue, newValue in
+        .onChange(of: viewModel.trimSegments) { oldValue, newValue in
             if let player = player {
-                enforceTrimBoundsIfNeeded(for: player)
-            }
-        }
-        .onChange(of: viewModel.trimEnd) { oldValue, newValue in
-            if let player = player {
-                enforceTrimBoundsIfNeeded(for: player)
+                self.enforceTrimBoundsIfNeeded(time: self.currentTime, duration: self.duration, player: player)
             }
         }
         .onChange(of: viewModel.cropDynamicEnabled) { oldValue, newValue in
             guard newValue, let player = player else { return }
-            let start = max(0, viewModel.trimStart ?? 0)
+            let minStart = viewModel.trimSegments.map { $0.start }.min()
+            let start = max(0, minStart ?? 0)
             seekToTrimBound(player: player, seconds: start, keepPlaying: false)
         }
     }
@@ -486,23 +455,89 @@ struct VideoPreviewPanel: View {
         }
     }
 
-    private func enforceTrimBoundsIfNeeded(for player: AVPlayer) {
-        guard !isSeekingToTrimBound else { return }
+    @ViewBuilder
+    private func sliderBackground(geo: GeometryProxy) -> some View {
+        ZStack(alignment: .leading) {
+            Color.clear
+                .contentShape(Rectangle())
+            
+            if duration > 0 && viewModel.trimSegments.count >= 2 {
+                ForEach(viewModel.trimSegments) { segment in
+                    TrimSegmentRectView(
+                        segment: segment,
+                        duration: duration,
+                        geoWidth: geo.size.width,
+                        isActive: viewModel.activeTrimSegmentID == segment.id
+                    )
+                }
+            }
+        }
+        .gesture(sliderDragGesture(geoWidth: geo.size.width))
+    }
 
+    private func sliderDragGesture(geoWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard isHoveringSeekSlider || isPointerDragScrubbing else { return }
+                if !isPointerDragScrubbing {
+                    isPointerDragScrubbing = true
+                    startScrubbingSession()
+                }
+
+                let width = max(1.0, geoWidth)
+                let clampedX = min(max(0.0, value.location.x), width)
+                let progress = Double(clampedX / width)
+                let range = sliderRange
+                scrubPosition =
+                    range.lowerBound
+                    + (range.upperBound - range.lowerBound) * progress
+            }
+            .onEnded { _ in
+                guard isPointerDragScrubbing else { return }
+                isPointerDragScrubbing = false
+                finishScrubbingSession()
+            }
+    }
+
+    private func enforceTrimBoundsIfNeeded(for player: AVPlayer) {
         let currentSeconds = player.currentTime().seconds
         guard !currentSeconds.isNaN && !currentSeconds.isInfinite else { return }
+        self.enforceTrimBoundsIfNeeded(time: currentSeconds, duration: self.duration, player: player)
+    }
 
-        let tolerance = 0.02
-        let start = viewModel.trimStart
-        let end = viewModel.trimEnd
-
-        if let start, currentSeconds < (start - tolerance) {
-            seekToTrimBound(player: player, seconds: start, keepPlaying: player.rate > 0.01)
-            return
+    private func enforceTrimBoundsIfNeeded(time: Double, duration: Double, player: AVPlayer) {
+        if viewModel.loopEnabled || isSeekingToTrimBound { return }
+        let segments = viewModel.trimSegments.sorted()
+        if segments.count != 1 { return } // No limits
+        
+        let tolerance = 0.05
+        
+        var insideSeg: TrimSegment?
+        var nextSeg: TrimSegment?
+        for seg in segments {
+            if time >= (seg.start - tolerance) && time <= (seg.end + tolerance) {
+                insideSeg = seg
+                break
+            } else if seg.start > time {
+                if nextSeg == nil || seg.start < nextSeg!.start {
+                    nextSeg = seg
+                }
+            }
         }
-
-        if let end, currentSeconds > (end + tolerance) {
-            seekToTrimBound(player: player, seconds: end, keepPlaying: false)
+        
+        if insideSeg == nil {
+            if let next = nextSeg {
+                seekToTrimBound(player: player, seconds: next.start, keepPlaying: player.rate > 0.01)
+            } else {
+                player.pause()
+            }
+        } else if let end = insideSeg?.end, time > (end - 0.01) {
+            // Reached the end of the current segment
+            if let next = segments.first(where: { $0.start > end }) {
+                seekToTrimBound(player: player, seconds: next.start, keepPlaying: player.rate > 0.01)
+            } else {
+                player.pause()
+            }
         }
     }
 
@@ -627,23 +662,12 @@ struct VideoPreviewPanel: View {
     }
 
     private var playbackBounds: (lower: Double, upper: Double) {
-        let lowerBound = max(0.0, viewModel.trimStart ?? 0.0)
-
-        var upperBound: Double
-        if let trimEnd = viewModel.trimEnd {
-            upperBound = trimEnd
-        } else if duration > 0 {
-            upperBound = duration
-        } else {
-            upperBound = max(lowerBound, currentTime)
+        if viewModel.trimSegments.count != 1 {
+           return (lower: 0.0, upper: duration > 0 ? duration : 0.0)
         }
-
-        if duration > 0 {
-            upperBound = min(upperBound, duration)
-        }
-
-        upperBound = max(lowerBound, upperBound)
-        return (lowerBound, upperBound)
+        let lower = viewModel.trimSegments.map { $0.start }.min() ?? 0.0
+        let upper = viewModel.trimSegments.map { $0.end }.max() ?? (duration > 0 ? duration : lower)
+        return (lower: lower, upper: upper)
     }
 
     private var sliderRange: ClosedRange<Double> {
@@ -1094,5 +1118,23 @@ private final class PlayerSurfaceNSView: NSView {
     override func layout() {
         super.layout()
         playerLayer.frame = bounds
+    }
+}
+
+struct TrimSegmentRectView: View {
+    let segment: TrimSegment
+    let duration: Double
+    let geoWidth: CGFloat
+    let isActive: Bool
+
+    var body: some View {
+        let segWidth = max(0, CGFloat((segment.end - segment.start) / duration) * geoWidth)
+        let segOffset = CGFloat(segment.start / duration) * geoWidth
+        
+        Rectangle()
+            .fill(isActive ? Color.accentColor.opacity(0.4) : Color.blue.opacity(0.2))
+            .cornerRadius(2)
+            .frame(width: segWidth, height: 4)
+            .offset(x: segOffset)
     }
 }
