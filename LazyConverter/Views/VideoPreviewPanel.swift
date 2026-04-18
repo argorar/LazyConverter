@@ -159,24 +159,38 @@ struct VideoPreviewPanel: View {
             }
 
             if let activeSegID = viewModel.activeTrimSegmentID, let seg = viewModel.trimSegments.first(where: { $0.id == activeSegID }) {
-                HStack(spacing: 12) {
-                    Button(lang.t("button.start")) {
+                HStack(spacing: 8) {
+                    Button(action: {
                         guard let player = player else { return }
                         seekToTrimBound(player: player, seconds: seg.start, keepPlaying: false)
+                    }) {
+                        Label(lang.t("button.start"), systemImage: "backward.frame")
+                            .font(.system(size: 11, weight: .medium))
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.15))
+                    .cornerRadius(6)
 
-                    Button(lang.t("button.end")) {
+                    Button(action: {
                         guard let player = player else { return }
                         seekToTrimBound(player: player, seconds: seg.end, keepPlaying: false)
+                    }) {
+                        HStack(spacing: 4) {
+                            Text(lang.t("button.end"))
+                                .font(.system(size: 11, weight: .medium))
+                            Image(systemName: "forward.frame")
+                        }
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .frame(width: trimJumpButtonWidth, height: trimJumpButtonHeight)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.15))
+                    .cornerRadius(6)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 4)
             }
 
             if let info = videoInfo {

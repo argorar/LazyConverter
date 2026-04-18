@@ -252,7 +252,7 @@ struct SettingsPanel: View {
                     .foregroundColor(.primary)
                 Spacer()
                 Button(action: {
-                    let start = viewModel.trimSegments.map { $0.end }.max() ?? viewModel.liveCurrentTime
+                    let start = viewModel.trimSegments.map { $0.end }.max() ?? 0.0
                     let end = viewModel.videoInfo?.duration ?? (start + 5.0)
                     let newSeg = TrimSegment(start: start, end: max(start + 0.1, end))
                     viewModel.trimSegments.append(newSeg)
