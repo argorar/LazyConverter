@@ -285,6 +285,8 @@ struct VideoPanel: View {
             maxOutputSizeMB: viewModel.maxOutputSizeMB,
             useGPU: viewModel.useGPU,
             loopEnabled: viewModel.loopEnabled,
+            superCompression: viewModel.superCompression,
+            superCompressionGPU: viewModel.superCompressionGPU,
             outputDirectory: viewModel.outputDirectory,
             trimStart: viewModel.trimSegments.map { $0.start }.min(),
             trimEnd: viewModel.trimSegments.map { $0.end }.max(),

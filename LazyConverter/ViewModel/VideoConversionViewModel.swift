@@ -67,6 +67,55 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
     @Published private(set) var cropDynamicLockedAspectRatio: CGFloat?
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
+    @Published var cropAspectRatio: CropAspectRatioOption = .free {
+        didSet {
+            applyCropAspectRatio(cropAspectRatio)
+        }
+    }
+    
+    var effectiveLockedNormalizedAspectRatio: CGFloat? {
+        guard let targetRatio = cropAspectRatio.ratio else { return nil }
+        guard let size = videoInfo?.videoSize, size.width > 0, size.height > 0 else { return nil }
+        return targetRatio * (CGFloat(size.height) / CGFloat(size.width))
+    }
+    
+    private func applyCropAspectRatio(_ option: CropAspectRatioOption) {
+        guard let targetRatio = option.ratio else { return }
+        guard let size = videoInfo?.videoSize, size.width > 0, size.height > 0 else { return }
+        
+        let center = CGPoint(x: cropRect.midX, y: cropRect.midY)
+        var pixelW = cropRect.width * CGFloat(size.width)
+        var pixelH = cropRect.height * CGFloat(size.height)
+        
+        if pixelW / pixelH > targetRatio {
+            pixelW = pixelH * targetRatio
+        } else {
+            pixelH = pixelW / targetRatio
+        }
+        
+        var newNormW = pixelW / CGFloat(size.width)
+        var newNormH = pixelH / CGFloat(size.height)
+        let normAspect = targetRatio * (CGFloat(size.height) / CGFloat(size.width))
+        
+        if newNormW > 1.0 {
+            newNormW = 1.0
+            newNormH = newNormW / normAspect
+        }
+        if newNormH > 1.0 {
+            newNormH = 1.0
+            newNormW = newNormH * normAspect
+        }
+        
+        var newX = center.x - newNormW / 2
+        var newY = center.y - newNormH / 2
+        
+        if newX < 0 { newX = 0 }
+        if newY < 0 { newY = 0 }
+        if newX + newNormW > 1 { newX = 1 - newNormW; if newX < 0 { newX = 0 } }
+        if newY + newNormH > 1 { newY = 1 - newNormH; if newY < 0 { newY = 0 } }
+        
+        cropRect = CGRect(x: newX, y: newY, width: newNormW, height: newNormH)
+    }
     @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot
     @Published var stabilizationEnabled: Bool = false
     @Published var stabilizationLevel: VideoStabilizationLevel = .medium
@@ -89,6 +138,17 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var colorAdjustments = ColorAdjustments.default
     @Published var queueManager = QueueManager()
     @Published var showQueueWindow = false
+    @Published var superCompression: Bool = false {
+        didSet {
+            if superCompression {
+                cropEnabled = false
+                dynamicSpeedEnabled = false
+                stabilizationEnabled = false
+                colorAdjustments = ColorAdjustments.default
+            }
+        }
+    }
+    @Published var superCompressionGPU: Bool = false
     @Published var frameRateSettings = FrameRateSettings()
     @Published var watermarkConfig = WatermarkConfig()
     @Published var showWatermarkSheet = false
@@ -177,6 +237,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             maxOutputSizeMB: maxOutputSizeMB,
             useGPU: useGPU,
             loopEnabled: loopEnabled,
+            superCompression: superCompression,
+            superCompressionGPU: superCompressionGPU,
             outputDirectory: outputDirectory,
             trimStart: trimSegments.map { $0.start }.min(),
             trimEnd: trimSegments.map { $0.end }.max(),
@@ -755,6 +817,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             useGPU: useGPU,
             stabilizationLevel: stabilizationEnabled ? stabilizationLevel : nil,
             loopEnabled: loopEnabled,
+            superCompression: superCompression,
+            superCompressionGPU: superCompressionGPU,
             trimSegments: trimSegments,
             videoInfo: videoInfo,
             cropEnable: cropEnabled,

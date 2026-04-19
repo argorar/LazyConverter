@@ -54,7 +54,8 @@ class FFmpegConverter {
         let effectiveDuration = resolvedOutputDuration(request)
 
         var watermarkImageURL: URL?
-        if let wmConfig = request.watermarkConfig, wmConfig.isEnabled,
+        if !request.superCompression,
+           let wmConfig = request.watermarkConfig, wmConfig.isEnabled,
            let videoSize = request.videoInfo?.videoSize {
             watermarkImageURL = WatermarkImageGenerator.generate(
                 config: wmConfig,
@@ -654,8 +655,16 @@ class FFmpegConverter {
         let (videoCodec, audioCodec) = codecForFormat(
             request.format, useGPU: request.useGPU, maxOutputSizeMB: request.maxOutputSizeMB)
 
-        arguments += ["-c:v", videoCodec]
+        var finalVideoCodec = videoCodec
+        var finalAudioCodec = audioCodec
+        
+        if request.superCompression {
+            finalVideoCodec = request.superCompressionGPU ? "hevc_videotoolbox" : "libx265"
+            finalAudioCodec = "aac"
+            arguments += ["-tag:v", "hvc1"]
+        }
 
+        arguments += ["-c:v", finalVideoCodec]
 
         if request.format == .webm {
             arguments += [
@@ -676,15 +685,22 @@ class FFmpegConverter {
             ]
         }
 
-        if !includeOutputSizeLimit || request.maxOutputSizeMB == nil {
-            arguments += qualityArguments(videoCodec: videoCodec, crf: request.quality)
+        if request.superCompression {
+            if request.superCompressionGPU {
+                arguments += ["-q:v", "65", "-profile:v", "main10"]
+            } else {
+                arguments += ["-crf", "28", "-preset", "slow"]
+            }
+        } else if !includeOutputSizeLimit || request.maxOutputSizeMB == nil {
+            arguments += qualityArguments(videoCodec: finalVideoCodec, crf: request.quality)
         }
 
         if request.videoInfo?.hasAudio == true && request.speedPercent == 100.0
             && !request.dynamicSpeedEnabled
         {
-            arguments += ["-c:a", audioCodec]
-            arguments += ["-b:a", "128k"]
+            arguments += ["-c:a", finalAudioCodec]
+            let audioBitrate = request.superCompression ? "96k" : "128k"
+            arguments += ["-b:a", audioBitrate]
         } else {
             arguments += ["-an"]
         }

@@ -135,3 +135,6 @@
 "watermark.drag_hint" = "Ziehen zum Positionieren des Wasserzeichens im Player";
 "trim.add_segment" = "Segment Hinzufügen";
 "trim.no_segments" = "Keine Segmente hinzugefügt.";
+"super_compression.title" = "Superkomprimierung";
+"super_compression.desc" = "Maximale Reduktion mit HEVC. Sehr langsam.";
+"super_compression.gpu.title" = "GPU-Beschleunigung";

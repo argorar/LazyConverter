@@ -135,3 +135,6 @@
 "watermark.drag_hint" = "Drag to position the watermark on the player";
 "trim.add_segment" = "Add Segment";
 "trim.no_segments" = "No segments added.";
+"super_compression.title" = "Super Compression";
+"super_compression.desc" = "Max size reduction with HEVC. Very slow.";
+"super_compression.gpu.title" = "Use GPU Acceleration";

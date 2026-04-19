@@ -97,6 +97,8 @@ class QueueManager: ObservableObject {
                 useGPU: item.useGPU,
                 stabilizationLevel: nil,
                 loopEnabled: item.loopEnabled,
+                superCompression: item.superCompression,
+                superCompressionGPU: item.superCompressionGPU,
                 trimSegments: {
                     if let start = item.trimStart, let end = item.trimEnd {
                         return [TrimSegment(start: start, end: end)]

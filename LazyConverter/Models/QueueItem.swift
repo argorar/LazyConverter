@@ -25,6 +25,8 @@ struct QueueItem: Identifiable, Equatable {
     let maxOutputSizeMB: Int?
     let useGPU: Bool
     let loopEnabled: Bool
+    let superCompression: Bool
+    let superCompressionGPU: Bool
     let outputDirectory: OutputDirectory
     let trimStart: Double?
     let trimEnd: Double?
@@ -44,6 +46,8 @@ struct QueueItem: Identifiable, Equatable {
         self.maxOutputSizeMB = settings.maxOutputSizeMB
         self.useGPU = settings.useGPU
         self.loopEnabled = settings.loopEnabled
+        self.superCompression = settings.superCompression
+        self.superCompressionGPU = settings.superCompressionGPU
         self.outputDirectory = settings.outputDirectory
         self.trimStart = settings.trimStart
         self.trimEnd = settings.trimEnd
@@ -91,6 +95,8 @@ struct ConversionSettings {
     let maxOutputSizeMB: Int?
     let useGPU: Bool
     let loopEnabled: Bool
+    let superCompression: Bool
+    let superCompressionGPU: Bool
     let outputDirectory: OutputDirectory
     let trimStart: Double?
     let trimEnd: Double?

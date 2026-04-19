@@ -101,6 +101,21 @@ struct SettingsPanel: View {
             }
 
             if viewModel.cropEnabled {
+                HStack {
+                    Text("Aspect Ratio:")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $viewModel.cropAspectRatio) {
+                        ForEach(CropAspectRatioOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(width: 100)
+                    Spacer()
+                }
+
                 HStack(alignment: .center, spacing: 8) {
                     Toggle(lang.t("crop.dynamic"), isOn: $viewModel.cropDynamicEnabled)
                         .toggleStyle(.switch)
@@ -190,6 +205,41 @@ struct SettingsPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
+        
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $viewModel.superCompression) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.badge.clock.fill")
+                        .foregroundColor(viewModel.superCompression ? .orange : .secondary)
+                    Text(lang.t("super_compression.title"))
+                        .font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .toggleStyle(.switch)
+            
+            if viewModel.superCompression {
+                Text(lang.t("super_compression.desc"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .transition(.opacity)
+                
+                Toggle(isOn: $viewModel.superCompressionGPU) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "cpu")
+                            .foregroundColor(viewModel.superCompressionGPU ? .accentColor : .secondary)
+                        Text(lang.t("super_compression.gpu.title"))
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .padding(.top, 4)
+                .transition(.opacity)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
     }
 

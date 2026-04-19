@@ -135,3 +135,6 @@
 "watermark.drag_hint" = "Arrastra para posicionar la marca de agua en el player";
 "trim.add_segment" = "Agregar Segmento";
 "trim.no_segments" = "No hay segmentos añadidos.";
+"super_compression.title" = "Super Compresión";
+"super_compression.desc" = "Reduce tamaño al máximo con HEVC. Lento.";
+"super_compression.gpu.title" = "Usar Aceleración GPU";

@@ -48,7 +48,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "118"
             endingLineNumber = "118"
-            landmarkName = "init()"
+            landmarkName = "applyCropAspectRatio(_:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "contrast"
-            landmarkType = "24">
+            landmarkName = "VideoConversionViewModel"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -78,9 +78,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "254"
-            endingLineNumber = "254"
-            landmarkName = "checkYtDlpAvailability()"
+            startingLineNumber = "253"
+            endingLineNumber = "253"
+            landmarkName = "addCurrentVideoToQueue()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -94,9 +94,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "267"
-            endingLineNumber = "267"
-            landmarkName = "startYtDlpDownload()"
+            startingLineNumber = "266"
+            endingLineNumber = "266"
+            landmarkName = "selectFile(url:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -110,9 +110,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "277"
-            endingLineNumber = "277"
-            landmarkName = "startYtDlpDownload()"
+            startingLineNumber = "276"
+            endingLineNumber = "276"
+            landmarkName = "selectFile(url:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -142,10 +142,10 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "214"
-            endingLineNumber = "214"
-            landmarkName = "selectFile(url:)"
-            landmarkType = "7">
+            startingLineNumber = "213"
+            endingLineNumber = "213"
+            landmarkName = "VideoConversionViewModel"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -158,9 +158,9 @@
             filePath = "LazyConverter/ViewModel/VideoConversionViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "220"
-            endingLineNumber = "220"
-            landmarkName = "clearSelection()"
+            startingLineNumber = "219"
+            endingLineNumber = "219"
+            landmarkName = "resetCrop()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -208,7 +208,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1072"
             endingLineNumber = "1072"
-            landmarkName = "executeFFmpeg(executablePath:arguments:videoDuration:reportProgress:completionCallback:)"
+            landmarkName = "outputSizeLimitArguments(maxOutputSizeMB:duration:hasAudio:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -224,7 +224,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1029"
             endingLineNumber = "1029"
-            landmarkName = "qualityArguments(videoCodec:crf:)"
+            landmarkName = "codecForFormat(_:useGPU:maxOutputSizeMB:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -240,8 +240,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "1030"
             endingLineNumber = "1030"
-            landmarkName = "FFmpegConverter"
-            landmarkType = "3">
+            landmarkName = "codecForFormat(_:useGPU:maxOutputSizeMB:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

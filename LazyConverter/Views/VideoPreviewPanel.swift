@@ -55,7 +55,7 @@ struct VideoPreviewPanel: View {
                                             x: 0, y: 0, width: geo.size.width,
                                             height: geo.size.height),
                                         showTrackerTarget: viewModel.cropTrackerEnabled,
-                                        lockedAspectRatio: viewModel.cropDynamicLockedAspectRatio,
+                                        lockedAspectRatio: viewModel.cropDynamicLockedAspectRatio ?? viewModel.effectiveLockedNormalizedAspectRatio,
                                         onCropDragged: { cropRect in
                                             let playerTime = player?.currentTime().seconds
                                             let currentFrameTime: Double

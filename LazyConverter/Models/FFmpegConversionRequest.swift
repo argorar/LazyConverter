@@ -21,6 +21,8 @@ struct FFmpegConversionRequest {
     let useGPU: Bool
     let stabilizationLevel: VideoStabilizationLevel?
     let loopEnabled: Bool
+    let superCompression: Bool
+    let superCompressionGPU: Bool
     let trimSegments: [TrimSegment]
     let videoInfo: VideoInfo?
     let cropEnable: Bool
@@ -46,6 +48,8 @@ struct FFmpegConversionRequest {
         useGPU: Bool,
         stabilizationLevel: VideoStabilizationLevel? = nil,
         loopEnabled: Bool,
+        superCompression: Bool = false,
+        superCompressionGPU: Bool = false,
         trimSegments: [TrimSegment] = [],
         videoInfo: VideoInfo?,
         cropEnable: Bool,
@@ -70,6 +74,8 @@ struct FFmpegConversionRequest {
         self.useGPU = useGPU
         self.stabilizationLevel = stabilizationLevel
         self.loopEnabled = loopEnabled
+        self.superCompression = superCompression
+        self.superCompressionGPU = superCompressionGPU
         self.trimSegments = trimSegments
         self.videoInfo = videoInfo
         self.cropEnable = cropEnable
