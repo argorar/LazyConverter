@@ -476,7 +476,7 @@ class FFmpegConverter {
         includeOutputSizeLimit: Bool = true
     ) -> [String] {
         var videoFilters: [String] = []
-        var audioFilters: [String] = []
+        let audioFilters: [String] = []
         var arguments: [String] = []
         var deferredStaticCropFilter: String?
         let usingDynamicCrop =

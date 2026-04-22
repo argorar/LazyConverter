@@ -114,7 +114,7 @@ extension SpeedMapPoint {
     ) -> [SpeedMapPoint] {
         guard clipEnd > clipStart else { return [] }
 
-        var filtered = points
+        let filtered = points
             .filter { point in
                 point.time.isFinite && point.speed.isFinite &&
                 point.time >= (clipStart - epsilon) &&

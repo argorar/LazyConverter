@@ -637,7 +637,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         guard bounds.end >= bounds.start else { return [] }
 
         let epsilon = 0.000001
-        var normalized = points
+        let normalized = points
             .filter { point in
                 point.time.isFinite && point.speed.isFinite &&
                 point.time >= (bounds.start - epsilon) &&
