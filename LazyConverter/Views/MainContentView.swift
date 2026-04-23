@@ -82,6 +82,10 @@ struct MainContentView: View {
                     } message: {
                         Text(lang.t("update.message"))
                     }
+            .sheet(isPresented: $viewModel.showMergeWindow) {
+                MergeVideosView()
+                    .environmentObject(lang)
+            }
         }
     }
 }

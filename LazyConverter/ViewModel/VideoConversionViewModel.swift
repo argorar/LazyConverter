@@ -138,6 +138,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var colorAdjustments = ColorAdjustments.default
     @Published var queueManager = QueueManager()
     @Published var showQueueWindow = false
+    @Published var showMergeWindow = false
     @Published var superCompression: Bool = false {
         didSet {
             if superCompression {

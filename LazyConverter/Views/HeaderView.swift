@@ -41,6 +41,18 @@ struct HeaderView: View {
                         .padding(.trailing, 6)
                     }
                     
+                    Button(lang.t("merge.open_button")) {
+                        viewModel.showMergeWindow = true
+                    }
+                    .font(.system(size: 12, weight: .semibold, design: .default))
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(nsColor: .separatorColor))
+                    .cornerRadius(6)
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 6)
+                    
                     Text(Bundle.main.appVersion)
                         .font(.system(size: 12, weight: .semibold, design: .default))
                         .foregroundColor(.secondary)

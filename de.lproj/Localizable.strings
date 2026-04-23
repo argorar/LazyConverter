@@ -138,3 +138,14 @@
 "super_compression.title" = "Superkomprimierung";
 "super_compression.desc" = "Maximale Reduktion mit HEVC. Sehr langsam.";
 "super_compression.gpu.title" = "GPU-Beschleunigung";
+"merge.title" = "Videos zusammenführen";
+"merge.open_button" = "Zusammenführen";
+"merge.list_title" = "Videos zum Zusammenführen";
+"merge.empty_state" = "Füge Videos hinzu, um sie zusammenzuführen";
+"merge.add_button" = "Videos hinzufügen";
+"merge.start_button" = "Zusammenführen";
+"merge.error.not_enough_videos" = "Bitte wähle mindestens 2 Videos zum Zusammenführen.";
+"merge.error.failed" = "Zusammenführen fehlgeschlagen.";
+"merge.status.starting" = "Videos werden zum Zusammenführen vorbereitet…";
+"merge.status.processing" = "Videos werden zusammengeführt…";
+"merge.status.success" = "Videos erfolgreich zusammengeführt!";

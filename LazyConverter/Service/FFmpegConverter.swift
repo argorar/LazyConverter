@@ -1315,6 +1315,205 @@ class FFmpegConverter {
         }
     }
     
+    private struct MergeInputInfo {
+        let url: URL
+        let duration: Double
+        let hasAudio: Bool
+        let width: Int
+        let height: Int
+    }
+
+    /// Merge multiple video files into a single output file.
+    /// Uses filter_complex with scale+pad to normalise resolutions and concat to join them.
+    /// Automatically detects which inputs have audio and handles all combinations.
+    func mergeVideos(
+        urls: [URL],
+        outputURL: URL,
+        progressCallback: @escaping (Double) -> Void,
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+    ) {
+        self.progressCallback = progressCallback
+
+        guard let ffmpegPath = resolvedFFmpegPath(),
+              FileManager.default.isExecutableFile(atPath: ffmpegPath) else {
+            completionCallback(.failure(.ffmpegNotFound))
+            return
+        }
+
+        guard urls.count > 1 else {
+            completionCallback(.failure(.conversionFailed))
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+
+            let inputs = self.probeMergeInputsSync(for: urls)
+            let totalDuration = inputs.reduce(0.0) { $0 + $1.duration }
+            let arguments = self.buildMergeVideosCommand(inputs: inputs, outputURL: outputURL)
+            self.logCommand(executablePath: ffmpegPath, arguments: arguments)
+            self.executeFFmpeg(
+                executablePath: ffmpegPath,
+                arguments: arguments,
+                videoDuration: max(0.001, totalDuration),
+                completionCallback: completionCallback
+            )
+        }
+    }
+
+    /// Builds the FFmpeg arguments for merging N videos using filter_complex concat.
+    /// All inputs are scaled + padded to the largest resolution found among inputs.
+    /// Handles three audio scenarios: all have audio, none have audio, or mixed.
+    private func buildMergeVideosCommand(inputs: [MergeInputInfo], outputURL: URL) -> [String] {
+        let n = inputs.count
+        var arguments: [String] = []
+
+        // Determine the target canvas from the largest width and height across inputs
+        let maxW = max(2, inputs.map { $0.width }.max() ?? 1920)
+        let maxH = max(2, inputs.map { $0.height }.max() ?? 1080)
+        // Ensure even dimensions (required by most codecs)
+        let targetW = maxW % 2 == 0 ? maxW : maxW + 1
+        let targetH = maxH % 2 == 0 ? maxH : maxH + 1
+        print("📐 Merge target resolution: \(targetW)x\(targetH)")
+
+        for input in inputs {
+            arguments += ["-i", input.url.path]
+        }
+
+        let noneHaveAudio = inputs.allSatisfy { !$0.hasAudio }
+        let includeAudio = !noneHaveAudio
+
+        // For the mixed case, add anullsrc inputs to generate silence
+        // for videos that lack audio. Track which ffmpeg input index
+        // provides the audio for each original input.
+        var audioInputIndex: [Int: Int] = [:]   // original index → ffmpeg input index for audio
+        var nextInputIndex = n
+
+        if includeAudio {
+            for (i, input) in inputs.enumerated() {
+                if input.hasAudio {
+                    audioInputIndex[i] = i
+                } else {
+                    // Add a silent audio source whose duration matches this video
+                    arguments += [
+                        "-f", "lavfi",
+                        "-t", String(format: "%.3f", input.duration),
+                        "-i", "anullsrc=r=44100:cl=stereo"
+                    ]
+                    audioInputIndex[i] = nextInputIndex
+                    nextInputIndex += 1
+                }
+            }
+        }
+
+        var filterGraph = ""
+        for i in 0..<n {
+            filterGraph += "[\(i):v]scale=\(targetW):\(targetH):force_original_aspect_ratio=decrease,pad=\(targetW):\(targetH):(ow-iw)/2:(oh-ih)/2,setsar=1[v\(i)];"
+        }
+
+        for i in 0..<n {
+            filterGraph += "[v\(i)]"
+            if includeAudio {
+                let aIdx = audioInputIndex[i]!
+                filterGraph += "[\(aIdx):a]"
+            }
+        }
+        filterGraph += "concat=n=\(n):v=1:a=\(includeAudio ? 1 : 0)"
+        if includeAudio {
+            filterGraph += "[outv][outa]"
+        } else {
+            filterGraph += "[outv]"
+        }
+
+        arguments += ["-filter_complex", filterGraph]
+        arguments += ["-map", "[outv]"]
+        if includeAudio {
+            arguments += ["-map", "[outa]"]
+        }
+        arguments += ["-c:v", "h264_videotoolbox"]
+        arguments += ["-q:v", "65"]
+        if includeAudio {
+            arguments += ["-c:a", "aac", "-b:a", "128k"]
+        }
+        arguments += ["-progress", "pipe:1", "-y", outputURL.path]
+
+        return arguments
+    }
+
+    private func probeMergeInputsSync(for urls: [URL]) -> [MergeInputInfo] {
+        let ffprobePath = findFFprobe()
+        var results: [MergeInputInfo] = []
+
+        for url in urls {
+            let output = probeValueSync(
+                ffprobePath: ffprobePath,
+                arguments: [
+                    "-v", "error",
+                    "-show_entries", "format=duration:stream=width,height,codec_type",
+                    "-of", "json",
+                    url.path
+                ]
+            )
+
+            var duration: Double = 0
+            var width: Int = 0
+            var height: Int = 0
+            var hasAudio = false
+
+            if let json = output,
+               let data = json.data(using: .utf8),
+               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+
+                // Duration from format
+                if let format = root["format"] as? [String: Any],
+                   let durStr = format["duration"] as? String,
+                   let dur = Double(durStr) {
+                    duration = dur
+                }
+
+                // Streams: video resolution + audio detection
+                if let streams = root["streams"] as? [[String: Any]] {
+                    for stream in streams {
+                        let codecType = stream["codec_type"] as? String ?? ""
+                        if codecType == "video" && width == 0 {
+                            width = stream["width"] as? Int ?? 0
+                            height = stream["height"] as? Int ?? 0
+                        }
+                        if codecType == "audio" {
+                            hasAudio = true
+                        }
+                    }
+                }
+            }
+
+            results.append(MergeInputInfo(url: url, duration: duration, hasAudio: hasAudio, width: width, height: height))
+            print("🔍 Merge input: \(url.lastPathComponent) — \(width)x\(height), duration: \(duration)s, audio: \(hasAudio)")
+        }
+
+        return results
+    }
+
+    private func probeValueSync(ffprobePath: String, arguments: [String]) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ffprobePath)
+        process.arguments = arguments
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            return String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
+        }
+    }
+
     func cancel() {
         print("⏹️ Cancelando proceso ffmpeg...")
         process?.terminate()
