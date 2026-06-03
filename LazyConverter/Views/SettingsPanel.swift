@@ -636,6 +636,31 @@ struct SettingsPanel: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 260)
                 }
+                HStack {
+                    Text(lang.t("advanced.rife.path"))
+                    Spacer()
+                    HStack {
+                        Text(viewModel.rifeExecutablePath.isEmpty ? lang.t("advanced.rife.not_selected") : URL(fileURLWithPath: viewModel.rifeExecutablePath).lastPathComponent)
+                            .foregroundColor(viewModel.rifeExecutablePath.isEmpty ? .secondary : .primary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 180, alignment: .trailing)
+                        
+                        Button(lang.t("advanced.rife.select")) {
+                            viewModel.selectRifeExecutable()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        
+                        if !viewModel.rifeExecutablePath.isEmpty {
+                            Button(action: { viewModel.rifeExecutablePath = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
             .padding(.top, 12)
         }

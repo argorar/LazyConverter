@@ -23,10 +23,14 @@
 "advanced.style" = "Estilo";
 "advanced.defaultWatermark" = "Marca de agua predeterminada";
 "advanced.defaultWatermark.placeholder" = "Texto por defecto";
+"advanced.rife.path" = "Ejecutable RIFE";
+"advanced.rife.not_selected" = "No seleccionado";
+"advanced.rife.select" = "Seleccionar...";
 "button.start" = "Inicio";
 "button.end" = "Fin";
 "button.clear" = "Limpiar";
 "player.waiting" = "Esperando player...";
+"player.fullscreen" = "Pantalla completa";
 "frame.current" = "⏱️ Frame actual:";
 "update.title" = "¡Información!";
 "update.message" = "LazyConverter tiene una nueva versión disponible.";

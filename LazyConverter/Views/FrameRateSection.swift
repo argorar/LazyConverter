@@ -56,6 +56,25 @@ struct FrameRateSection: View {
                             frameRateButton(fps: fps)
                         }
                     }
+                    
+                    if !viewModel.rifeExecutablePath.isEmpty {
+                        Toggle(isOn: $viewModel.frameRateSettings.useRifeGPU) {
+                            HStack {
+                                Image(systemName: "cpu")
+                                    .foregroundColor(viewModel.frameRateSettings.useRifeGPU ? .accentColor : .secondary)
+                                Text("Use GPU (RIFE)")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        .padding(.top, 4)
+                        
+                        if viewModel.frameRateSettings.useRifeGPU {
+                            Text("Note: RIFE will interpolate the video to your selected framerate using the RAM Disk (saving SSD wear).")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 .padding(.top, 4)
                 

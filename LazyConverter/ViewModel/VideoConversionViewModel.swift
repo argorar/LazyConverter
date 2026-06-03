@@ -13,6 +13,7 @@ import Foundation
 
 class VideoConversionViewModel: NSObject, ObservableObject {
     @AppStorage("selectedOutputDirectory") private var storedOutputDirectory: String = OutputDirectory.downloads.rawValue
+    @AppStorage("rifeExecutablePath") var rifeExecutablePath: String = ""
     
     @Published var selectedFileName: String?
     @Published var selectedFormat: VideoFormat = .mp4
@@ -247,7 +248,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             cropRect: cropEnabled ? cropRect : nil,
             colorAdjustments: colorAdjustments,
             frameRateSettings: frameRateSettings,
-            watermarkConfig: watermarkConfig.isEnabled ? watermarkConfig : nil
+            watermarkConfig: watermarkConfig.isEnabled ? watermarkConfig : nil,
+            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath
         )
         
         queueManager.addToQueue(url: url, settings: settings)
@@ -276,6 +278,18 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         isTrackingCrop = false
         activeTrackerJobID = nil
         watermarkConfig = .default
+    }
+    
+    func selectRifeExecutable() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.message = lang?.t("advanced.rife.select") ?? "Select rife-ncnn-vulkan executable"
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            rifeExecutablePath = url.path
+        }
     }
     
     func clearSelection() {
@@ -308,6 +322,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         activeTrackerJobID = nil
         resetColorAdjustments()
         resetWatermark()
+        superCompression = false
+        frameRateSettings = .default
     }
 
     func checkYtDlpAvailability() {
@@ -839,7 +855,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 DispatchQueue.main.async {
                     self?.handleConversionResult(result)
                 }
-            }
+            },
+            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath
         )
         
         FFmpegConverter.shared.convert(request)

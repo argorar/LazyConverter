@@ -107,6 +107,43 @@ extension SpeedMapPoint {
         return "(\(setpts))"
     }
 
+    static func calculateDynamicDuration(
+        points: [SpeedMapPoint],
+        clipStart: Double,
+        clipEnd: Double
+    ) -> Double {
+        let normalizedPoints = normalize(points: points, clipStart: clipStart, clipEnd: clipEnd)
+        guard normalizedPoints.count >= 2 else { return clipEnd - clipStart }
+        
+        let speedMapStartTime = normalizedPoints[0].time
+        var totalDuration = 0.0
+        
+        for i in 0..<(normalizedPoints.count - 1) {
+            let left = normalizedPoints[i]
+            let right = normalizedPoints[i + 1]
+            
+            let startSpeed = max(minSpeed, left.speed)
+            let endSpeed = max(minSpeed, right.speed)
+            
+            let sectionStart = left.time - speedMapStartTime
+            let sectionEnd = right.time - speedMapStartTime
+            let sectionDuration = sectionEnd - sectionStart
+            
+            if sectionDuration <= epsilon {
+                continue
+            }
+            
+            if abs(endSpeed - startSpeed) < epsilon {
+                totalDuration += sectionDuration / startSpeed
+            } else {
+                let speedChange = endSpeed - startSpeed
+                totalDuration += (sectionDuration / speedChange) * log(endSpeed / startSpeed)
+            }
+        }
+        
+        return totalDuration
+    }
+
     private static func normalize(
         points: [SpeedMapPoint],
         clipStart: Double,

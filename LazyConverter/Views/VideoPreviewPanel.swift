@@ -29,6 +29,7 @@ struct VideoPreviewPanel: View {
     @State private var scrollEventMonitor: Any?
     @State private var isHoveringSeekSlider = false
     @State private var isPointerDragScrubbing = false
+    @State private var fullscreenWindowController: FullscreenPlayerWindowController?
     private let playerControlButtonSize: CGFloat = 28
     private let trimJumpButtonWidth: CGFloat = 84
     private let trimJumpButtonHeight: CGFloat = 28
@@ -151,6 +152,14 @@ struct VideoPreviewPanel: View {
                     .frame(width: playerControlButtonSize, height: playerControlButtonSize)
                     .disabled(!hasAudioInCurrentVideo)
 
+                    Button(action: openFullscreen) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .frame(width: playerControlButtonSize, height: playerControlButtonSize)
+                    .help(lang.t("player.fullscreen"))
+
                     Text(formatTime(scrubPosition))
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.secondary)
@@ -214,6 +223,8 @@ struct VideoPreviewPanel: View {
             removePlayerObserver()
             removeKeyboardMonitor()
             removeScrollMonitor()
+            fullscreenWindowController?.close()
+            fullscreenWindowController = nil
             player?.pause()
             player = nil
         }
@@ -310,6 +321,11 @@ struct VideoPreviewPanel: View {
 
         if event.charactersIgnoringModifiers?.lowercased() == "m" {
             toggleMute()
+            return nil
+        }
+
+        if event.charactersIgnoringModifiers?.lowercased() == "f" {
+            openFullscreen()
             return nil
         }
 
@@ -613,6 +629,17 @@ struct VideoPreviewPanel: View {
         }
         player.isMuted.toggle()
         isPlayerMuted = player.isMuted
+    }
+
+    private func openFullscreen() {
+        guard let player = player else { return }
+        let controller = FullscreenPlayerWindowController(
+            player: player,
+            hasAudio: hasAudioInCurrentVideo,
+            langManager: lang
+        )
+        controller.showFullscreen()
+        self.fullscreenWindowController = controller
     }
 
     private func syncMuteButtonState() {
@@ -1100,7 +1127,7 @@ private struct DynamicSpeedOverlayView: View {
     }
 }
 
-private struct PlayerSurfaceView: NSViewRepresentable {
+struct PlayerSurfaceView: NSViewRepresentable {
     let player: AVPlayer
 
     func makeNSView(context: Context) -> PlayerSurfaceNSView {
@@ -1115,7 +1142,7 @@ private struct PlayerSurfaceView: NSViewRepresentable {
     }
 }
 
-private final class PlayerSurfaceNSView: NSView {
+final class PlayerSurfaceNSView: NSView {
     let playerLayer = AVPlayerLayer()
 
     override init(frame frameRect: NSRect) {
@@ -1132,6 +1159,187 @@ private final class PlayerSurfaceNSView: NSView {
     override func layout() {
         super.layout()
         playerLayer.frame = bounds
+    }
+}
+
+// MARK: - Fullscreen Player
+
+final class FullscreenPlayerWindowController: NSObject {
+    private var window: NSWindow?
+    private var liveTimer: Timer?
+    private var controlsTimer: Timer?
+    private var keyMonitor: Any?
+    private var mouseMonitor: Any?
+    private let player: AVPlayer
+    private let hasAudio: Bool
+    private var isClosed = false
+
+    init(player: AVPlayer, hasAudio: Bool, langManager: LanguageManager) {
+        self.player = player
+        self.hasAudio = hasAudio
+        super.init()
+    }
+
+    func showFullscreen() {
+        guard let screen = NSScreen.main else { return }
+
+        let win = NSWindow(
+            contentRect: screen.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        win.level = .screenSaver
+        win.isOpaque = true
+        win.backgroundColor = .black
+        win.hasShadow = false
+        win.ignoresMouseEvents = false
+        win.acceptsMouseMovedEvents = true
+        win.collectionBehavior = [.stationary, .ignoresCycle]
+
+        let playerLayer = AVPlayerLayer()
+        playerLayer.player = player
+        playerLayer.videoGravity = .resizeAspect
+        playerLayer.frame = NSRect(origin: .zero, size: screen.frame.size)
+
+        let containerView = NSView(frame: NSRect(origin: .zero, size: screen.frame.size))
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.black.cgColor
+        containerView.layer?.addSublayer(playerLayer)
+
+        win.contentView = containerView
+        win.makeKeyAndOrderFront(nil)
+
+        self.window = win
+
+        // Hide cursor in fullscreen
+        NSCursor.hide()
+
+        installKeyMonitor()
+        installMouseMonitor()
+        startLiveTimer()
+    }
+
+    func close() {
+        guard !isClosed else { return }
+        isClosed = true
+
+        liveTimer?.invalidate()
+        liveTimer = nil
+        controlsTimer?.invalidate()
+        controlsTimer = nil
+
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+        if let monitor = mouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseMonitor = nil
+        }
+
+        NSCursor.unhide()
+
+        window?.orderOut(nil)
+        window = nil
+    }
+
+    private func togglePlayback() {
+        if player.rate > 0.01 {
+            player.pause()
+        } else {
+            player.play()
+        }
+    }
+
+    private func toggleMute() {
+        guard hasAudio else { return }
+        player.isMuted.toggle()
+    }
+
+    private func stepFrame(direction: Int) {
+        let fps = 30.0
+        let frameStep = 1.0 / fps
+        let current = player.currentTime().seconds
+        let base = current.isFinite ? current : 0
+        let dur = player.currentItem?.duration.seconds ?? 0
+        let target = min(max(base + frameStep * Double(direction), 0), dur > 0 ? dur : .greatestFiniteMagnitude)
+        let time = CMTime(seconds: target, preferredTimescale: 600)
+        player.pause()
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, !self.isClosed else { return event }
+            switch event.keyCode {
+            case 53: // ESC
+                self.close()
+                return nil
+            case 49: // Space
+                self.togglePlayback()
+                return nil
+            case 123: // Left arrow
+                self.stepFrame(direction: -1)
+                return nil
+            case 124: // Right arrow
+                self.stepFrame(direction: 1)
+                return nil
+            default:
+                if event.charactersIgnoringModifiers?.lowercased() == "m" {
+                    self.toggleMute()
+                    return nil
+                }
+                if event.charactersIgnoringModifiers?.lowercased() == "f" {
+                    self.close()
+                    return nil
+                }
+                return event
+            }
+        }
+    }
+
+    private func installMouseMonitor() {
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+            guard let self, !self.isClosed else { return event }
+            if event.type == .leftMouseDown {
+                // Double-click detection
+                if event.clickCount == 2 {
+                    self.close()
+                    return nil
+                }
+            }
+            // Show cursor briefly on mouse move
+            NSCursor.unhide()
+            self.scheduleHideCursor()
+            return event
+        }
+    }
+
+    private func startLiveTimer() {
+        // Just keep the player layer in sync - no SwiftUI needed
+        liveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self, !self.isClosed else { return }
+            // Resize player layer if screen changes
+            if let layer = self.window?.contentView?.layer?.sublayers?.first as? AVPlayerLayer,
+               let frame = self.window?.contentView?.bounds {
+                if layer.frame != frame {
+                    layer.frame = frame
+                }
+            }
+        }
+    }
+
+    private func scheduleHideCursor() {
+        controlsTimer?.invalidate()
+        controlsTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            guard let self, !self.isClosed else { return }
+            NSCursor.hide()
+        }
+    }
+
+    deinit {
+        close()
     }
 }
 

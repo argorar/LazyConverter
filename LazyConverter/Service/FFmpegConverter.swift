@@ -16,6 +16,10 @@ class FFmpegConverter {
     private var progressCallback: ((Double) -> Void)?
     private(set) var lastErrorLog: String?
     
+    func setProgressCallback(_ callback: @escaping (Double) -> Void) {
+        self.progressCallback = callback
+    }
+    
     func convert(_ request: FFmpegConversionRequest) {
         self.progressCallback = request.progressCallback
         
@@ -46,11 +50,21 @@ class FFmpegConverter {
         }
     }
     
-    private func runConversionPipeline(
+    func runConversionPipeline(
         request: FFmpegConversionRequest,
         executablePath: String,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
     ) {
+        if let rifeExecutablePath = request.rifeExecutablePath, request.frameRateSettings.useRifeGPU {
+            runRifeInterpolationPipeline(
+                request: request,
+                rifeExecutablePath: rifeExecutablePath,
+                ffmpegExecutablePath: executablePath,
+                completionCallback: completionCallback
+            )
+            return
+        }
+        
         let effectiveDuration = resolvedOutputDuration(request)
 
         var watermarkImageURL: URL?
@@ -468,7 +482,7 @@ class FFmpegConverter {
         )
     }
 
-    private func buildFFmpegCommand(
+    func buildFFmpegCommand(
         _ request: FFmpegConversionRequest,
         stabilizationTransformURL: URL? = nil,
         outputURL: URL? = nil,
@@ -785,7 +799,7 @@ class FFmpegConverter {
         return (start, end)
     }
     
-    private func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
+    func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
         if !request.trimSegments.isEmpty {
             return request.trimSegments.reduce(0.0) { $0 + max(0.0, $1.end - $1.start) }
         }
@@ -906,7 +920,7 @@ class FFmpegConverter {
         return arguments
     }
 
-    private func logCommand(executablePath: String, arguments: [String]) {
+    func logCommand(executablePath: String, arguments: [String]) {
         print("🔹 Ejecutando ffmpeg:")
         print("    \(executablePath) \\")
         for arg in arguments {
@@ -996,7 +1010,7 @@ class FFmpegConverter {
         return arguments
     }
 
-    private func makeTemporaryOutputURL(in directory: URL, baseName: String, fileExtension: String)
+    func makeTemporaryOutputURL(in directory: URL, baseName: String, fileExtension: String)
         -> URL
     {
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -1010,7 +1024,7 @@ class FFmpegConverter {
         return directory.appendingPathComponent(filename)
     }
 
-    private func codecForFormat(_ format: VideoFormat, useGPU: Bool, maxOutputSizeMB: Int?) -> (
+    func codecForFormat(_ format: VideoFormat, useGPU: Bool, maxOutputSizeMB: Int?) -> (
         video: String, audio: String
     ) {
         var videoCodec = "h264_videotoolbox"
@@ -1033,7 +1047,7 @@ class FFmpegConverter {
         }
     }
 
-    private func qualityArguments(videoCodec: String, crf: Int) -> [String] {
+    func qualityArguments(videoCodec: String, crf: Int) -> [String] {
         if videoCodec == "h264_videotoolbox" {
             // Map CRF 1-51 (lower is better) to q:v 1-100 (higher is better)
             let clampedCrf = max(1, min(51, crf))
@@ -1044,7 +1058,7 @@ class FFmpegConverter {
         return ["-crf", "\(crf)"]
     }
 
-    private func outputSizeLimitArguments(maxOutputSizeMB: Int?, duration: Double, hasAudio: Bool)
+    func outputSizeLimitArguments(maxOutputSizeMB: Int?, duration: Double, hasAudio: Bool)
         -> [String]
     {
         guard let maxOutputSizeMB = maxOutputSizeMB, maxOutputSizeMB > 0 else { return [] }
@@ -1075,7 +1089,7 @@ class FFmpegConverter {
         return args
     }
 
-    private func executeFFmpeg(
+    func executeFFmpeg(
         executablePath: String,
         arguments: [String],
         videoDuration: TimeInterval,

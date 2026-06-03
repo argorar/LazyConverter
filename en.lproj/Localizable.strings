@@ -23,10 +23,14 @@
 "advanced.style" = "Style";
 "advanced.defaultWatermark" = "Default watermark";
 "advanced.defaultWatermark.placeholder" = "Default text";
+"advanced.rife.path" = "RIFE Executable";
+"advanced.rife.not_selected" = "Not selected";
+"advanced.rife.select" = "Select...";
 "button.start" = "Start";
 "button.end" = "End";
 "button.clear" = "Clear";
 "player.waiting" = "Waiting for player...";
+"player.fullscreen" = "Fullscreen";
 "frame.current" = "⏱️ Current frame:";
 "update.title" = "Information!";
 "update.message" = "LazyConverter has a new version available.";

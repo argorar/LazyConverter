@@ -23,10 +23,14 @@
 "advanced.style" = "Stil";
 "advanced.defaultWatermark" = "Standard-Wasserzeichen";
 "advanced.defaultWatermark.placeholder" = "Text für neue Wasserzeichen";
+"advanced.rife.path" = "RIFE-Programm";
+"advanced.rife.not_selected" = "Nicht ausgewählt";
+"advanced.rife.select" = "Auswählen...";
 "button.start" = "Start";
 "button.end" = "Ende";
 "button.clear" = "Löschen";
 "player.waiting" = "Warte auf Player...";
+"player.fullscreen" = "Vollbild";
 "frame.current" = "⏱️ Aktueller Frame:";
 "update.title" = "Information!";
 "update.message" = "LazyConverter hat eine neue Version verfügbar.";

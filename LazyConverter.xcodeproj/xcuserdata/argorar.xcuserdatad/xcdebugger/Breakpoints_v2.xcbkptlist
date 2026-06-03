@@ -14,9 +14,9 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "416"
-            endingLineNumber = "416"
-            landmarkName = "executeMainAndOptionalLoop(request:executablePath:arguments:videoDuration:completionCallback:)"
+            startingLineNumber = "414"
+            endingLineNumber = "414"
+            landmarkName = "runStabilizationTwoPassPipeline(request:stabilizationLevel:executablePath:videoDuration:watermarkImageURL:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -30,8 +30,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "43"
-            endingLineNumber = "43"
+            startingLineNumber = "41"
+            endingLineNumber = "41"
             landmarkName = "convert(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -64,8 +64,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "134"
             endingLineNumber = "134"
-            landmarkName = "VideoConversionViewModel"
-            landmarkType = "3">
+            landmarkName = "trimSegments"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -96,8 +96,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "266"
             endingLineNumber = "266"
-            landmarkName = "selectFile(url:)"
-            landmarkType = "7">
+            landmarkName = "canConvert"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -126,10 +126,10 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "54"
-            endingLineNumber = "54"
-            landmarkName = "runConversionPipeline(request:executablePath:completionCallback:)"
-            landmarkType = "7">
+            startingLineNumber = "52"
+            endingLineNumber = "52"
+            landmarkName = "FFmpegConverter"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -160,8 +160,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "219"
             endingLineNumber = "219"
-            landmarkName = "resetCrop()"
-            landmarkType = "7">
+            landmarkName = "VideoConversionViewModel"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -174,8 +174,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "88"
-            endingLineNumber = "88"
+            startingLineNumber = "86"
+            endingLineNumber = "86"
             landmarkName = "runConversionPipeline(request:executablePath:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -190,8 +190,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "293"
-            endingLineNumber = "293"
+            startingLineNumber = "291"
+            endingLineNumber = "291"
             landmarkName = "runStabilizationTwoPassPipeline(request:stabilizationLevel:executablePath:videoDuration:watermarkImageURL:completionCallback:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -206,8 +206,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1072"
-            endingLineNumber = "1072"
+            startingLineNumber = "1070"
+            endingLineNumber = "1070"
             landmarkName = "outputSizeLimitArguments(maxOutputSizeMB:duration:hasAudio:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -222,8 +222,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1029"
-            endingLineNumber = "1029"
+            startingLineNumber = "1027"
+            endingLineNumber = "1027"
             landmarkName = "codecForFormat(_:useGPU:maxOutputSizeMB:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -238,8 +238,8 @@
             filePath = "LazyConverter/Service/FFmpegConverter.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1030"
-            endingLineNumber = "1030"
+            startingLineNumber = "1028"
+            endingLineNumber = "1028"
             landmarkName = "codecForFormat(_:useGPU:maxOutputSizeMB:)"
             landmarkType = "7">
          </BreakpointContent>

@@ -35,6 +35,7 @@ struct QueueItem: Identifiable, Equatable {
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
     let watermarkConfig: WatermarkConfig?
+    let rifeExecutablePath: String?
     
     init(url: URL, settings: ConversionSettings) {
         self.url = url
@@ -56,6 +57,7 @@ struct QueueItem: Identifiable, Equatable {
         self.colorAdjustments = settings.colorAdjustments
         self.frameRateSettings = settings.frameRateSettings
         self.watermarkConfig = settings.watermarkConfig
+        self.rifeExecutablePath = settings.rifeExecutablePath
     }
 }
 
@@ -105,4 +107,5 @@ struct ConversionSettings {
     let colorAdjustments: ColorAdjustments
     let frameRateSettings: FrameRateSettings
     let watermarkConfig: WatermarkConfig?
+    let rifeExecutablePath: String?
 }

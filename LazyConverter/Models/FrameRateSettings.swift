@@ -10,6 +10,7 @@ import Foundation
 struct FrameRateSettings: Codable, Equatable {
     var mode: FrameRateMode = .keep
     var targetFrameRate: FrameRate = .fps60
+    var useRifeGPU: Bool = false
     
     var isActive: Bool {
         return mode != .keep
@@ -23,6 +24,7 @@ struct FrameRateSettings: Codable, Equatable {
                     return nil
    
                 case .interpolate:
+                    if useRifeGPU { return nil }
                     let fps = targetFrameRate.ffmpegValue
                     return "minterpolate=fps=\(fps):mi_mode=mci:mc_mode=obmc:me=epzs:me_mode=bidir:vsbmc=1:scd=fdiff"
                 }

@@ -34,6 +34,7 @@ struct FFmpegConversionRequest {
     let watermarkConfig: WatermarkConfig?
     let progressCallback: (Double) -> Void
     let completionCallback: (Result<URL, FFmpegError>) -> Void
+    let rifeExecutablePath: String?
     
     init(
         inputURL: URL,
@@ -60,7 +61,8 @@ struct FFmpegConversionRequest {
         frameRateSettings: FrameRateSettings,
         watermarkConfig: WatermarkConfig? = nil,
         progressCallback: @escaping (Double) -> Void,
-        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
+        completionCallback: @escaping (Result<URL, FFmpegError>) -> Void,
+        rifeExecutablePath: String? = nil
     ) {
         self.inputURL = inputURL
         self.outputURL = outputURL
@@ -87,5 +89,6 @@ struct FFmpegConversionRequest {
         self.watermarkConfig = watermarkConfig
         self.progressCallback = progressCallback
         self.completionCallback = completionCallback
+        self.rifeExecutablePath = rifeExecutablePath
     }
 }
