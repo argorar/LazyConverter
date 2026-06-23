@@ -15,6 +15,15 @@ struct VideoColorInfo {
 }
 
 extension VideoColorInfo {
+    func validFFmpegPixelFormat() -> String {
+        switch pixelFormat {
+        case "yuv420p10le":
+            return "yuv420p"
+        default:
+            return pixelFormat
+        }
+    }
+
     func validFFmpegPrimaries() -> String {
         switch colorPrimaries {
         case "bt709": return "bt709"

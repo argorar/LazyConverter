@@ -568,7 +568,7 @@ class FFmpegConverter {
             filterComplexArgs.append(complexGraph)
         }
 
-        if let pixFmt = request.videoInfo?.colorInfo.pixelFormat, !pixFmt.isEmpty {
+        if let pixFmt = request.videoInfo?.colorInfo.validFFmpegPixelFormat(), !pixFmt.isEmpty {
             arguments += ["-pix_fmt", pixFmt]
         }
         
