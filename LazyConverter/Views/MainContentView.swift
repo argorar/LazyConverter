@@ -49,12 +49,23 @@ struct MainContentView: View {
                     
                     Divider()
                     
-                    // PANEL DERECHO: Todas las configuraciones con Scroll
-                    ScrollView {
-                        SettingsPanel(viewModel: viewModel)
-                            .frame(maxWidth: .infinity)
+                    // PANEL DERECHO: Configuraciones o previsualización de YouTube
+                    if let previewURL = viewModel.ytDlpPreviewURL {
+                        YouTubePreviewPanel(
+                            url: previewURL,
+                            title: lang.t("ytdlp.fragment.preview.title"),
+                            closeTitle: lang.t("error.log_close")
+                        ) {
+                            viewModel.ytDlpPreviewURL = nil
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            SettingsPanel(viewModel: viewModel)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 24)
                 

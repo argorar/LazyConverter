@@ -1,12 +1,13 @@
 //
-//  YouTubePreviewSheet.swift
+//  YouTubePreviewPanel.swift
 //  LazyConverter
 //
+//  Created by Sebastián Agudelo on 29/08/26.
 
 import SwiftUI
 import WebKit
 
-struct YouTubePreviewSheet: View {
+struct YouTubePreviewPanel: View {
     let url: URL
     let title: String
     let closeTitle: String
@@ -23,9 +24,10 @@ struct YouTubePreviewSheet: View {
 
             YouTubeWebView(url: url)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(16)
-        .frame(minWidth: 720, minHeight: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

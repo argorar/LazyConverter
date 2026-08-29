@@ -247,20 +247,6 @@ struct VideoPanel: View {
             .padding(16)
             .frame(minWidth: 520, minHeight: 300)
         }
-        .sheet(isPresented: Binding(
-            get: { viewModel.ytDlpPreviewURL != nil },
-            set: { if !$0 { viewModel.ytDlpPreviewURL = nil } }
-        )) {
-            if let previewURL = viewModel.ytDlpPreviewURL {
-                YouTubePreviewSheet(
-                    url: previewURL,
-                    title: lang.t("ytdlp.fragment.preview.title"),
-                    closeTitle: lang.t("error.log_close")
-                ) {
-                    viewModel.ytDlpPreviewURL = nil
-                }
-            }
-        }
     }
 
     @ViewBuilder
