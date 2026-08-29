@@ -38,6 +38,19 @@ Automatically shows:
 - Native **AVPlayer** integration
 - Live time readout: `current / total (XX%)`
 - Crop overlay when enabled
+- Full-screen playback with keyboard controls
+
+### 🌐 YouTube Downloads
+- Download videos directly with **yt-dlp**
+- Download only a selected segment by setting its start and end times
+- Preview the selected segment before downloading
+
+### ⚡ RIFE Frame Interpolation
+- Increase a video's frame rate with GPU-powered RIFE interpolation
+- Configure the **rife-ncnn-vulkan** executable from Advanced Settings
+- Requires the `rife-ncnn-vulkan` executable and its `rife-v4.25` model folder to remain together
+
+  Download the required macOS binaries from the [official rife-ncnn-vulkan releases](https://github.com/nihui/rife-ncnn-vulkan/releases), extract them, and select the `rife-ncnn-vulkan` executable in **Advanced Settings**.
 
 ## 🚀 Quick Start
 
@@ -65,6 +78,8 @@ Optional to download videos from internet use yt-dlp:
 ```bash
 brew install yt-dlp
 ```
+
+For RIFE frame interpolation, download and configure `rife-ncnn-vulkan` as described above.
 
 ## ⬇️ Downloads
 
