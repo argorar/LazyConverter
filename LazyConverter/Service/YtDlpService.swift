@@ -42,6 +42,7 @@ final class YtDlpService {
 
     func download(
         videoURLString: String,
+        section: ClosedRange<Double>? = nil,
         progress: @escaping (Double) -> Void,
         completion: @escaping (Result<URL, Error>) -> Void
     ) {
@@ -62,6 +63,11 @@ final class YtDlpService {
             return
         }
 
+        guard section == nil || isYouTubeURL(trimmed) else {
+            completion(.failure(YtDlpServiceError.invalidInput))
+            return
+        }
+
         let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
 
         let process = Process()
@@ -72,6 +78,13 @@ final class YtDlpService {
             arguments += [
                 "--format", "bestvideo+bestaudio/best",
                 "--merge-output-format", "mp4"
+            ]
+        }
+
+        if let section {
+            arguments += [
+                "--download-sections", "*\(formattedTime(section.lowerBound))-\(formattedTime(section.upperBound))",
+                "--force-keyframes-at-cuts"
             ]
         }
 
@@ -318,6 +331,41 @@ final class YtDlpService {
         process = nil
     }
 
+    func fetchDuration(
+        videoURLString: String,
+        completion: @escaping (Double?) -> Void
+    ) {
+        let trimmed = videoURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isYouTubeURL(trimmed),
+              let ytDlpPath = findYtDlpPath(),
+              FileManager.default.isExecutableFile(atPath: ytDlpPath) else {
+            completion(nil)
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            let metadataProcess = Process()
+            metadataProcess.executableURL = URL(fileURLWithPath: ytDlpPath)
+            metadataProcess.arguments = ["--no-playlist", "--skip-download", "--print", "%(duration)s", trimmed]
+            let output = Pipe()
+            metadataProcess.standardOutput = output
+            metadataProcess.standardError = Pipe()
+
+            do {
+                try metadataProcess.run()
+                metadataProcess.waitUntilExit()
+                let data = output.fileHandleForReading.readDataToEndOfFile()
+                let value = String(data: data, encoding: .utf8)?
+                    .split(whereSeparator: \.isNewline)
+                    .first
+                    .flatMap { Double($0) }
+                DispatchQueue.main.async { completion(value) }
+            } catch {
+                DispatchQueue.main.async { completion(nil) }
+            }
+        }
+    }
+
     private func extractProgressPercent(from line: String) -> Double? {
         extractHighestProgressPercent(from: line)
     }
@@ -396,15 +444,19 @@ final class YtDlpService {
         FFmpegConverter.shared.resolvedFFmpegPath()
     }
 
-    private func isYouTubeURL(_ input: String) -> Bool {
+    func isYouTubeURL(_ input: String) -> Bool {
         if let url = URL(string: input),
            let host = url.host?.lowercased() {
             return host == "youtu.be" ||
-            host.contains("youtube.com") ||
-            host.contains("youtube-nocookie.com")
+            host == "youtube.com" || host.hasSuffix(".youtube.com") ||
+            host == "youtube-nocookie.com" || host.hasSuffix(".youtube-nocookie.com")
         }
 
-        let lower = input.lowercased()
-        return lower.contains("youtube.com") || lower.contains("youtu.be")
+        return false
+    }
+
+    private func formattedTime(_ seconds: Double) -> String {
+        let totalSeconds = max(0, Int(seconds.rounded(.down)))
+        return String(format: "%02d:%02d:%02d", totalSeconds / 3600, (totalSeconds % 3600) / 60, totalSeconds % 60)
     }
 }

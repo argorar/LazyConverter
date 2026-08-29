@@ -156,12 +156,28 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var showWatermarkSheet = false
     @Published var outputDirectory: OutputDirectory = .downloads
     @Published var isYtDlpInstalled: Bool = false
-    @Published var ytDlpURLInput: String = ""
+    @Published var ytDlpURLInput: String = "" {
+        didSet {
+            guard ytDlpURLInput != oldValue else { return }
+            isYtDlpFragmentSelectorVisible = false
+            isLoadingYtDlpDuration = false
+            ytDlpVideoDuration = nil
+            ytDlpDurationURL = nil
+            ytDlpPreviewURL = nil
+        }
+    }
     @Published var isYtDlpDownloading: Bool = false
     @Published var ytDlpDownloadProgress: Double = 0.0
     @Published var ytDlpDownloadedFileURL: URL?
     @Published var ytDlpErrorMessage: String?
     @Published var ytDlpErrorLog: String?
+    @Published var isYtDlpFragmentSelectorVisible = false
+    @Published var isLoadingYtDlpDuration = false
+    @Published private(set) var ytDlpVideoDuration: Double?
+    @Published var ytDlpFragmentStartText = "00:00:00"
+    @Published var ytDlpFragmentEndText = "00:01:00"
+    @Published var ytDlpPreviewURL: URL?
+    private var ytDlpDurationURL: String?
     private var dynamicStartFrameIndex: Int?
     private var dynamicAutoEndFrameIndex: Int?
     private var activeTrackerJobID: UUID?
@@ -367,6 +383,150 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 }
             }
         )
+    }
+
+    var isYouTubeURLInput: Bool {
+        YtDlpService.shared.isYouTubeURL(ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    var ytDlpFragmentRange: ClosedRange<Double>? {
+        guard let start = seconds(from: ytDlpFragmentStartText),
+              let end = seconds(from: ytDlpFragmentEndText),
+              end > start else { return nil }
+        return start...end
+    }
+
+    func showYtDlpFragmentSelector() {
+        guard isYouTubeURLInput else { return }
+        isYtDlpFragmentSelectorVisible = true
+        loadYtDlpDurationIfNeeded()
+    }
+
+    func setYtDlpFragment(start: Double, end: Double) {
+        ytDlpFragmentStartText = formattedTime(start)
+        ytDlpFragmentEndText = formattedTime(end)
+    }
+
+    func startYtDlpFragmentDownload() {
+        guard let section = ytDlpFragmentRange else {
+            ytDlpErrorMessage = lang?.t("ytdlp.fragment.invalid") ?? "Choose a valid start and end time"
+            return
+        }
+        if let duration = ytDlpVideoDuration, section.upperBound > duration {
+            ytDlpErrorMessage = lang?.t("ytdlp.fragment.out_of_range") ?? "The selected end time is outside the video"
+            return
+        }
+
+        let input = ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        isYtDlpDownloading = true
+        ytDlpDownloadProgress = 0
+        ytDlpDownloadedFileURL = nil
+        ytDlpErrorMessage = nil
+        ytDlpErrorLog = nil
+
+        YtDlpService.shared.download(
+            videoURLString: input,
+            section: section,
+            progress: { [weak self] progress in
+                self?.ytDlpDownloadProgress = progress
+            },
+            completion: { [weak self] result in
+                guard let self else { return }
+                self.isYtDlpDownloading = false
+                switch result {
+                case .success(let fileURL):
+                    self.ytDlpDownloadProgress = 100
+                    self.ytDlpDownloadedFileURL = fileURL
+                    self.ytDlpErrorLog = nil
+                case .failure(let error):
+                    self.ytDlpErrorMessage = error.localizedDescription
+                    self.ytDlpErrorLog = YtDlpService.shared.lastErrorLog
+                }
+            }
+        )
+    }
+
+    func previewYtDlpFragment() {
+        guard let sourceURL = URL(string: ytDlpURLInput),
+              let range = ytDlpFragmentRange,
+              let videoID = youTubeVideoID(from: sourceURL) else { return }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.youtube.com"
+        components.path = "/embed/\(videoID)"
+        components.queryItems = [
+            URLQueryItem(name: "start", value: String(Int(range.lowerBound))),
+            URLQueryItem(name: "end", value: String(Int(range.upperBound))),
+            URLQueryItem(name: "autoplay", value: "1"),
+            URLQueryItem(name: "playsinline", value: "1"),
+            URLQueryItem(name: "rel", value: "0")
+        ]
+        ytDlpPreviewURL = components.url
+    }
+
+    private func youTubeVideoID(from url: URL) -> String? {
+        let host = url.host?.lowercased() ?? ""
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        let candidate: String?
+
+        if host == "youtu.be" {
+            candidate = pathComponents.first
+        } else if host == "youtube.com" || host.hasSuffix(".youtube.com") ||
+                    host == "youtube-nocookie.com" || host.hasSuffix(".youtube-nocookie.com") {
+            if let videoID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "v" })?
+                .value {
+                candidate = videoID
+            } else if let marker = pathComponents.firstIndex(where: { $0 == "shorts" || $0 == "embed" }),
+                      pathComponents.indices.contains(marker + 1) {
+                candidate = pathComponents[marker + 1]
+            } else {
+                candidate = nil
+            }
+        } else {
+            candidate = nil
+        }
+
+        guard let candidate,
+              !candidate.isEmpty,
+              candidate.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }) else { return nil }
+        return candidate
+    }
+
+    private func loadYtDlpDurationIfNeeded() {
+        let input = ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard ytDlpDurationURL != input, !isLoadingYtDlpDuration else { return }
+        isLoadingYtDlpDuration = true
+        YtDlpService.shared.fetchDuration(videoURLString: input) { [weak self] duration in
+            guard let self, self.ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines) == input else { return }
+            self.isLoadingYtDlpDuration = false
+            self.ytDlpDurationURL = input
+            self.ytDlpVideoDuration = duration
+            if let duration, duration > 0 {
+                self.setYtDlpFragment(start: 0, end: min(duration, 60))
+            }
+        }
+    }
+
+    private func seconds(from input: String) -> Double? {
+        let parts = input.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ":")
+        let values = parts.compactMap { Double($0) }
+        guard (1...3).contains(parts.count),
+              values.count == parts.count,
+              values.allSatisfy({ $0.isFinite && $0 >= 0 }) else { return nil }
+
+        switch values.count {
+        case 1: return values[0]
+        case 2: return values[0] * 60 + values[1]
+        default: return values[0] * 3600 + values[1] * 60 + values[2]
+        }
+    }
+
+    private func formattedTime(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded(.down)))
+        return String(format: "%02d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
     }
 
     func recordDynamicCrop(at time: Double, frameRate: Double?, cropRect: CGRect) {

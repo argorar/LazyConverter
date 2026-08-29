@@ -7,6 +7,7 @@
 
 
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers
 import AVFoundation
 import AVKit
@@ -138,7 +139,19 @@ struct VideoPanel: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(viewModel.isYtDlpDownloading || viewModel.ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        if viewModel.isYouTubeURLInput {
+                            Button(lang.t("ytdlp.fragment.download")) {
+                                viewModel.showYtDlpFragmentSelector()
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(viewModel.isYtDlpDownloading)
+                        }
                         Spacer()
+                    }
+
+                    if viewModel.isYtDlpFragmentSelectorVisible {
+                        ytDlpFragmentSelector
                     }
 
                     if viewModel.isYtDlpDownloading {
@@ -159,6 +172,13 @@ struct VideoPanel: View {
                             .foregroundColor(.red)
                         Spacer()
                         if let log = viewModel.ytDlpErrorLog, !log.isEmpty {
+                            Button(lang.t("error.log_copy")) {
+                                copyYtDlpLog()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.red)
+
                             Button(lang.t("error.view_log")) {
                                 showYtDlpErrorLog = true
                             }
@@ -215,6 +235,9 @@ struct VideoPanel: View {
                 .cornerRadius(6)
 
                 HStack {
+                    Button(lang.t("error.log_copy")) {
+                        copyYtDlpLog()
+                    }
                     Spacer()
                     Button(lang.t("error.log_close")) {
                         showYtDlpErrorLog = false
@@ -224,6 +247,102 @@ struct VideoPanel: View {
             .padding(16)
             .frame(minWidth: 520, minHeight: 300)
         }
+        .sheet(isPresented: Binding(
+            get: { viewModel.ytDlpPreviewURL != nil },
+            set: { if !$0 { viewModel.ytDlpPreviewURL = nil } }
+        )) {
+            if let previewURL = viewModel.ytDlpPreviewURL {
+                YouTubePreviewSheet(
+                    url: previewURL,
+                    title: lang.t("ytdlp.fragment.preview.title"),
+                    closeTitle: lang.t("error.log_close")
+                ) {
+                    viewModel.ytDlpPreviewURL = nil
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var ytDlpFragmentSelector: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label(lang.t("ytdlp.fragment.title"), systemImage: "scissors")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                if viewModel.isLoadingYtDlpDuration {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(lang.t("ytdlp.fragment.start"))
+                        .font(.system(size: 11, weight: .medium))
+                    TextField("00:00:00", text: $viewModel.ytDlpFragmentStartText)
+                        .textFieldStyle(.roundedBorder)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(lang.t("ytdlp.fragment.end"))
+                        .font(.system(size: 11, weight: .medium))
+                    TextField("00:00:00", text: $viewModel.ytDlpFragmentEndText)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            .disabled(viewModel.isYtDlpDownloading)
+
+            HStack(spacing: 8) {
+                Button(lang.t("ytdlp.fragment.first_minute")) {
+                    viewModel.setYtDlpFragment(start: 0, end: min(viewModel.ytDlpVideoDuration ?? 60, 60))
+                }
+                .buttonStyle(.bordered)
+
+                if let duration = viewModel.ytDlpVideoDuration, duration > 0 {
+                    Button(lang.t("ytdlp.fragment.last_minute")) {
+                        viewModel.setYtDlpFragment(start: max(0, duration - 60), end: duration)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Spacer()
+
+                Button(lang.t("ytdlp.fragment.preview")) {
+                    viewModel.previewYtDlpFragment()
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.ytDlpFragmentRange == nil)
+
+                Button(lang.t("ytdlp.fragment.confirm")) {
+                    viewModel.startYtDlpFragmentDownload()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isYtDlpDownloading || viewModel.ytDlpFragmentRange == nil)
+            }
+
+            if let range = viewModel.ytDlpFragmentRange {
+                Text(String(format: lang.t("ytdlp.fragment.summary"), formattedTime(range.lowerBound), formattedTime(range.upperBound), formattedTime(range.upperBound - range.lowerBound)))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            Text(lang.t("ytdlp.fragment.precise"))
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .background(Color.accentColor.opacity(0.08))
+        .cornerRadius(8)
+    }
+
+    private func formattedTime(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded(.down)))
+        return String(format: "%02d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
+    }
+
+    private func copyYtDlpLog() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(viewModel.ytDlpErrorLog ?? "", forType: .string)
     }
     
     private func selectFiles() {
