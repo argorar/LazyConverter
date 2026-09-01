@@ -568,7 +568,10 @@ class FFmpegConverter {
             filterComplexArgs.append(complexGraph)
         }
 
-        if let pixFmt = request.videoInfo?.colorInfo.validFFmpegPixelFormat(), !pixFmt.isEmpty {
+        if let colorInfo = request.videoInfo?.colorInfo {
+            let pixFmt = request.superCompression && request.superCompressionGPU
+                ? colorInfo.superCompressionHEVCPixelFormat()
+                : colorInfo.validFFmpegPixelFormat()
             arguments += ["-pix_fmt", pixFmt]
         }
         
@@ -701,7 +704,8 @@ class FFmpegConverter {
 
         if request.superCompression {
             if request.superCompressionGPU {
-                arguments += ["-q:v", "65", "-profile:v", "main10"]
+                let profile = request.videoInfo?.colorInfo.superCompressionHEVCProfile() ?? "main"
+                arguments += ["-q:v", "65", "-profile:v", profile]
             } else {
                 arguments += ["-crf", "28", "-preset", "slow"]
             }

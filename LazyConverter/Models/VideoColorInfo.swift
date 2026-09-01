@@ -15,6 +15,18 @@ struct VideoColorInfo {
 }
 
 extension VideoColorInfo {
+    private var isTenBit: Bool {
+        pixelFormat.contains("10") || pixelFormat.hasPrefix("p010")
+    }
+
+    func superCompressionHEVCPixelFormat() -> String {
+        isTenBit ? "p010le" : "yuv420p"
+    }
+
+    func superCompressionHEVCProfile() -> String {
+        isTenBit ? "main10" : "main"
+    }
+
     func validFFmpegPixelFormat() -> String {
         switch pixelFormat {
         case "yuv420p10le":
