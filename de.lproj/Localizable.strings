@@ -107,6 +107,7 @@
 "dynamic_speed.description" = "Zeigt eine Geschwindigkeitskurve über dem Player. Klicke zum Hinzufügen von Punkten und ziehe sie vertikal (0-100%).";
 "dynamic_speed.delete_point" = "Punkt löschen";
 "loop.title" = "Schleife";
+"reverse.title" = "Rückwärts";
 "theme.dark" = "Dunkel";
 "theme.light" = "Hell";
 "style.glass" = "Glass";

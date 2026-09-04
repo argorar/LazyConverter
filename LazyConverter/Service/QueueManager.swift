@@ -97,6 +97,7 @@ class QueueManager: ObservableObject {
                 useGPU: item.useGPU,
                 stabilizationLevel: nil,
                 loopEnabled: item.loopEnabled,
+                reverseEnabled: item.reverseEnabled,
                 superCompression: item.superCompression,
                 superCompressionGPU: item.superCompressionGPU,
                 trimSegments: {

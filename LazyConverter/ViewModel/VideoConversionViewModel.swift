@@ -121,6 +121,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var stabilizationEnabled: Bool = false
     @Published var stabilizationLevel: VideoStabilizationLevel = .medium
     @Published var loopEnabled: Bool = false
+    @Published var reverseEnabled: Bool = false
     @Published var liveCurrentTime: Double = 0
     @Published var trimSegments: [TrimSegment] = [] {
         didSet {
@@ -255,6 +256,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             maxOutputSizeMB: maxOutputSizeMB,
             useGPU: useGPU,
             loopEnabled: loopEnabled,
+            reverseEnabled: reverseEnabled,
             superCompression: superCompression,
             superCompressionGPU: superCompressionGPU,
             outputDirectory: outputDirectory,
@@ -332,6 +334,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
         loopEnabled = false
+        reverseEnabled = false
         stabilizationEnabled = false
         stabilizationLevel = .medium
         isTrackingCrop = false
@@ -994,6 +997,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             useGPU: useGPU,
             stabilizationLevel: stabilizationEnabled ? stabilizationLevel : nil,
             loopEnabled: loopEnabled,
+            reverseEnabled: reverseEnabled,
             superCompression: superCompression,
             superCompressionGPU: superCompressionGPU,
             trimSegments: trimSegments,

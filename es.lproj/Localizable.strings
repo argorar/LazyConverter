@@ -107,6 +107,7 @@
 "dynamic_speed.description" = "Muestra un mapa de velocidad sobre el player. Haz clic para agregar puntos y arrástralos verticalmente (0-100%).";
 "dynamic_speed.delete_point" = "Borrar punto";
 "loop.title" = "Bucle";
+"reverse.title" = "Inverso";
 "theme.dark" = "Oscuro";
 "theme.light" = "Claro";
 "style.glass" = "Glass";

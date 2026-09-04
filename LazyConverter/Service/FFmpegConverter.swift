@@ -491,7 +491,7 @@ class FFmpegConverter {
         includeOutputSizeLimit: Bool = true
     ) -> [String] {
         var videoFilters: [String] = []
-        let audioFilters: [String] = []
+        var audioFilters: [String] = []
         var arguments: [String] = []
         var deferredStaticCropFilter: String?
         let usingDynamicCrop =
@@ -646,6 +646,13 @@ class FFmpegConverter {
                 videoFilters.append(
                     SpeedMapPoint.buildSpeedSetptsFilter(
                         duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
+            }
+        }
+
+        if request.reverseEnabled {
+            videoFilters.append("reverse")
+            if canKeepAudio {
+                audioFilters.append("areverse")
             }
         }
         

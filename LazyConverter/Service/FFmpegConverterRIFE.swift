@@ -24,6 +24,7 @@ extension FFmpegConverter {
                request.speedPercent != 100.0 ||
                request.dynamicSpeedEnabled ||
                request.loopEnabled ||
+               request.reverseEnabled ||
                !request.trimSegments.isEmpty ||
                request.cropEnable ||
                request.colorAdjustments != .default ||
@@ -59,6 +60,7 @@ extension FFmpegConverter {
             useGPU: request.useGPU,
             stabilizationLevel: nil, // Do stabilization later
             loopEnabled: false, // Do loop later
+            reverseEnabled: false, // Do reverse later
             superCompression: false,
             superCompressionGPU: false,
             trimSegments: request.trimSegments,
@@ -384,6 +386,7 @@ extension FFmpegConverter {
                                 useGPU: request.useGPU,
                                 stabilizationLevel: request.stabilizationLevel,
                                 loopEnabled: request.loopEnabled,
+                                reverseEnabled: request.reverseEnabled,
                                 superCompression: request.superCompression,
                                 superCompressionGPU: request.superCompressionGPU,
                                 trimSegments: [],
