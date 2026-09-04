@@ -306,7 +306,8 @@ class FFmpegConverter {
             let detectArguments = self.buildStabilizationDetectCommand(
                 inputURL: stabilizationInputURL,
                 transformsURL: transformsURL,
-                level: stabilizationLevel
+                level: stabilizationLevel,
+                useGPU: request.useGPU
             )
             self.logCommand(executablePath: executablePath, arguments: detectArguments)
             self.executeFFmpeg(
@@ -521,6 +522,9 @@ class FFmpegConverter {
             && !request.dynamicSpeedEnabled
         var hasMergedSetpts = false
         
+        if request.useGPU {
+            arguments += ["-hwaccel", "videotoolbox"]
+        }
         arguments += ["-i", request.inputURL.path]
 
         var finalVideoPad = "[0:v]"
@@ -696,7 +700,7 @@ class FFmpegConverter {
             ]
         } else if request.format == .av1 {
             arguments += [
-                "-preset", "4",
+                "-preset", "7",
                 "-svtav1-params", "scd=1",
                 "-svtav1-params", "scm=0",
             ]
@@ -813,9 +817,14 @@ class FFmpegConverter {
     private func buildStabilizationDetectCommand(
         inputURL: URL,
         transformsURL: URL,
-        level: VideoStabilizationLevel
+        level: VideoStabilizationLevel,
+        useGPU: Bool = false
     ) -> [String] {
-        var arguments: [String] = [
+        var arguments: [String] = []
+        if useGPU {
+            arguments += ["-hwaccel", "videotoolbox"]
+        }
+        arguments += [
             "-i", inputURL.path,
         ]
         let detectFilter = level.buildDetectFilter(
@@ -839,7 +848,11 @@ class FFmpegConverter {
         transformsURL: URL,
         includeOutputSizeLimit: Bool
     ) -> [String] {
-        var arguments: [String] = [
+        var arguments: [String] = []
+        if request.useGPU {
+            arguments += ["-hwaccel", "videotoolbox"]
+        }
+        arguments += [
             "-i", inputURL.path,
         ]
 
@@ -941,7 +954,11 @@ class FFmpegConverter {
         useGPU: Bool,
         maxOutputSizeMB: Int?
     ) -> [String] {
-        var arguments: [String] = [
+        var arguments: [String] = []
+        if useGPU {
+            arguments += ["-hwaccel", "videotoolbox"]
+        }
+        arguments += [
             "-i", inputURL.path,
             "-i", watermarkURL.path,
             "-filter_complex", "[0:v][1:v]overlay=0:0",
@@ -977,7 +994,11 @@ class FFmpegConverter {
         maxOutputSizeMB: Int?,
         duration: Double
     ) -> [String] {
-        var arguments: [String] = ["-i", inputURL.path]
+        var arguments: [String] = []
+        if useGPU {
+            arguments += ["-hwaccel", "videotoolbox"]
+        }
+        arguments += ["-i", inputURL.path]
         let (videoCodec, audioCodec) = codecForFormat(
             format, useGPU: useGPU, maxOutputSizeMB: maxOutputSizeMB)
 
@@ -1395,7 +1416,7 @@ class FFmpegConverter {
         print("📐 Merge target resolution: \(targetW)x\(targetH)")
 
         for input in inputs {
-            arguments += ["-i", input.url.path]
+            arguments += ["-hwaccel", "videotoolbox", "-i", input.url.path]
         }
 
         let noneHaveAudio = inputs.allSatisfy { !$0.hasAudio }

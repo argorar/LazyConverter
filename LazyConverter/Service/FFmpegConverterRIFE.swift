@@ -202,7 +202,11 @@ extension FFmpegConverter {
                 }
             }
             
-            let extractArgs = [
+            var extractArgs: [String] = []
+            if request.useGPU {
+                extractArgs += ["-hwaccel", "videotoolbox"]
+            }
+            extractArgs += [
                 "-i", prerifeURL.path,
                 "-progress", "pipe:1",
                 "\(inputFramesDir)/frame_%08d.png"

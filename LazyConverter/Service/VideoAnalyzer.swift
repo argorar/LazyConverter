@@ -6,126 +6,139 @@
 //
 
 import Foundation
-import AVFoundation
-import AppKit
-
+import CoreGraphics
 
 // MARK: - Video Analyzer
 class VideoAnalyzer {
     static func analyze(_ url: URL) async -> VideoInfo? {
         guard url.isFileURL else { return nil }
-        
-        do {
-            let asset = AVURLAsset(url: url)
-            let duration = try await asset.load(.duration)
-            let tracks = try await asset.load(.tracks)
-            
-            guard let videoTrack = tracks.first(where: { $0.mediaType == .video }) else {
-                return nil
-            }
-            let audioTrack = tracks.first { $0.mediaType == .audio }
 
-            let size = try await videoTrack.load(.naturalSize)
+        return await Task.detached {
+            guard let ffprobePath = findFFprobe() else { return nil }
 
-            let transform: CGAffineTransform = try await videoTrack.load(.preferredTransform)
-            let videoSize = size.applying(transform)
-
-            let fileSize = (try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
-
-            let fps = try await Double(videoTrack.load(.nominalFrameRate))
-
-            let colorInfo = await Task.detached {
-                return await extractColorInfoWithFFprobe(url: url)
-            }.value
-            
-            return VideoInfo(
-                duration: duration.seconds,
-                videoSize: videoSize,
-                hasAudio: audioTrack != nil,
-                fileSizeMB: Double(fileSize) / 1_048_576,
-                fileName: url.lastPathComponent,
-                originalURL: url,
-                frameRate: fps,
-                colorInfo: colorInfo
-            )
-        } catch {
-            print("❌ Error analizando video: \(error)")
-            return nil
-        }
-    }
-    
-    private static func extractColorInfoWithFFprobe(url: URL) -> VideoColorInfo {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: findFFprobe())
-            
-            // ffprobe query COMPLETA para color info
+            process.executableURL = URL(fileURLWithPath: ffprobePath)
             process.arguments = [
                 "-v", "error",
-                "-select_streams", "v:0",
-                "-show_entries", "stream=pix_fmt,color_primaries,color_trc,color_space,color_range,side_data_list",
-                "-of", "csv=p=0",
+                "-show_format",
+                "-show_streams",
+                "-of", "json",
                 url.path
             ]
-            
+
             let pipe = Pipe()
             process.standardOutput = pipe
-            
+
             do {
                 try process.run()
                 process.waitUntilExit()
-                
+
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String( data: data, encoding: .utf8)?
-                  .trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                // Parsear salida CSV: pix_fmt,color_primaries,color_trc,color_space,color_range
-                let fields = output?.components(separatedBy: ",")
-                
-                let pixelFormat = fields?.first ?? "yuv420p"
-                let primaries = fields?.dropFirst().first ?? "bt709"
-                let trc = fields?.dropFirst(2).first ?? "bt709"
-                let matrix = fields?.dropFirst(3).first ?? "bt709"
-                let range = fields?.dropFirst(4).first ?? "tv"
-                
-                return VideoColorInfo(
+                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    return nil
+                }
+
+                let streams = json["streams"] as? [[String: Any]] ?? []
+                guard let videoStream = streams.first(where: { ($0["codec_type"] as? String) == "video" }) else {
+                    return nil
+                }
+
+                // Dimensiones y rotación
+                var width = Double(videoStream["width"] as? Int ?? 0)
+                var height = Double(videoStream["height"] as? Int ?? 0)
+
+                var rotation = 0
+                if let sideDataList = videoStream["side_data_list"] as? [[String: Any]] {
+                    for sideData in sideDataList {
+                        if let rot = sideData["rotation"] as? Int {
+                            rotation = rot
+                        } else if let rot = sideData["rotation"] as? Double {
+                            rotation = Int(rot)
+                        }
+                    }
+                }
+                if rotation == 0, let tags = videoStream["tags"] as? [String: Any],
+                   let rotateStr = tags["rotate"] as? String, let rot = Int(rotateStr) {
+                    rotation = rot
+                }
+
+                if abs(rotation) == 90 || abs(rotation) == 270 {
+                    swap(&width, &height)
+                }
+
+                // Duración
+                let formatDict = json["format"] as? [String: Any] ?? [:]
+                let durationStr = (formatDict["duration"] as? String) ?? (videoStream["duration"] as? String) ?? "0"
+                let duration = Double(durationStr) ?? 0.0
+
+                // Tamaño de archivo
+                let sizeStr = formatDict["size"] as? String
+                let fileSize = (sizeStr.flatMap { Int($0) }) ?? (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue ?? 0
+
+                // Frame rate
+                let fpsString = (videoStream["avg_frame_rate"] as? String) ?? (videoStream["r_frame_rate"] as? String)
+                let fps = parseFrameRate(fpsString)
+
+                // Audio
+                let hasAudio = streams.contains(where: { ($0["codec_type"] as? String) == "audio" })
+
+                // Color info
+                let pixelFormat = videoStream["pix_fmt"] as? String ?? "yuv420p"
+                let primaries = videoStream["color_primaries"] as? String ?? "bt709"
+                let trc = videoStream["color_trc"] as? String ?? "bt709"
+                let matrix = videoStream["color_space"] as? String ?? "bt709"
+                let range = videoStream["color_range"] as? String ?? "tv"
+
+                let colorInfo = VideoColorInfo(
                     pixelFormat: pixelFormat,
                     colorPrimaries: primaries,
                     colorTrc: trc,
                     colorSpace: matrix,
                     colorRange: range
                 )
-                
+
+                return VideoInfo(
+                    duration: duration,
+                    videoSize: CGSize(width: width, height: height),
+                    hasAudio: hasAudio,
+                    fileSizeMB: Double(fileSize) / 1_048_576.0,
+                    fileName: url.lastPathComponent,
+                    originalURL: url,
+                    frameRate: fps,
+                    colorInfo: colorInfo
+                )
             } catch {
-                print("Error ejecutando ffprobe: \(error)")
+                print("❌ Error analizando video con ffprobe: \(error)")
+                return nil
             }
-            
-            return VideoColorInfo(
-                pixelFormat: "yuv420p",
-                colorPrimaries: "bt709",
-                colorTrc: "bt709",
-                colorSpace: "bt709",
-                colorRange: "tv"
-            )
+        }.value
+    }
+
+    private static func parseFrameRate(_ string: String?) -> Double {
+        guard let string = string, !string.isEmpty, string != "0/0" else { return 30.0 }
+        let parts = string.split(separator: "/")
+        if parts.count == 2,
+           let num = Double(parts[0]),
+           let den = Double(parts[1]), den > 0 {
+            return num / den
         }
-    
-    private static func findFFprobe() -> String {
-        // Buscar en Bundle (EMBEDDED)
-        if let bundlePath = Bundle.main.path(forResource: "ffprobe", ofType: nil) {
-            print("✅ FFprobe encontrado en Bundle: \(bundlePath)")
+        return Double(string) ?? 30.0
+    }
+
+    private static func findFFprobe() -> String? {
+        if let bundlePath = Bundle.main.path(forResource: "ffprobe", ofType: nil),
+           FileManager.default.isExecutableFile(atPath: bundlePath) {
             return bundlePath
         }
-        
-        // Fallback rutas sistema
+
         let systemPaths = ["/usr/local/bin/ffprobe", "/opt/homebrew/bin/ffprobe"]
         for path in systemPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                print("✅ FFprobe en sistema: \(path)")
+            if FileManager.default.isExecutableFile(atPath: path) {
                 return path
             }
         }
-        
-        fatalError("❌ FFprobe no encontrado ni en Bundle ni en sistema")
-    }
 
+        return nil
+    }
 }
 
