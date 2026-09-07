@@ -40,6 +40,11 @@ struct FrameRateSection: View {
                 Text(lang.t("framerate.interpolate")).tag(FrameRateMode.interpolate)
             }
             .pickerStyle(.segmented)
+            .onChange(of: viewModel.frameRateSettings.mode) { mode in
+                if mode == .interpolate && !viewModel.rifeExecutablePath.isEmpty {
+                    viewModel.frameRateSettings.useRifeGPU = true
+                }
+            }
 
             if viewModel.frameRateSettings.mode == .interpolate {
                 VStack(alignment: .leading, spacing: 8) {
