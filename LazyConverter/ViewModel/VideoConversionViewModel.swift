@@ -18,7 +18,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var selectedFileName: String?
     @Published var selectedFormat: VideoFormat = .mp4
     @Published var selectedResolution: VideoResolution = .original
-    @Published var quality: Double = 18
+    @Published var quality: Double = 25
     @Published var maxOutputSizeMBInput: String = ""
     @Published var useGPU: Bool = false
     @Published var isProcessing: Bool = false
@@ -179,6 +179,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var ytDlpFragmentEndText = "00:01:00"
     @Published var ytDlpPreviewURL: URL?
     private var ytDlpDurationURL: String?
+    private var activeYtDlpDownloadID: UUID?
     private var dynamicStartFrameIndex: Int?
     private var dynamicAutoEndFrameIndex: Int?
     private var activeTrackerJobID: UUID?
@@ -243,6 +244,26 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         dynamicAutoEndFrameIndex = nil
         isTrackingCrop = false
         activeTrackerJobID = nil
+    }
+
+    func resetYtDlp() {
+        if isYtDlpDownloading {
+            activeYtDlpDownloadID = nil
+            YtDlpService.shared.cancelDownload()
+            isYtDlpDownloading = false
+        }
+        ytDlpURLInput = ""
+        ytDlpDownloadProgress = 0.0
+        ytDlpDownloadedFileURL = nil
+        ytDlpErrorMessage = nil
+        ytDlpErrorLog = nil
+        isYtDlpFragmentSelectorVisible = false
+        isLoadingYtDlpDuration = false
+        ytDlpVideoDuration = nil
+        ytDlpDurationURL = nil
+        ytDlpFragmentStartText = "00:00:00"
+        ytDlpFragmentEndText = "00:01:00"
+        ytDlpPreviewURL = nil
     }
     
     func addCurrentVideoToQueue() {
@@ -343,6 +364,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         resetWatermark()
         superCompression = false
         frameRateSettings = .default
+        resetYtDlp()
     }
 
     func checkYtDlpAvailability() {
@@ -361,6 +383,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             return
         }
 
+        let downloadID = UUID()
+        activeYtDlpDownloadID = downloadID
         isYtDlpDownloading = true
         ytDlpDownloadProgress = 0
         ytDlpDownloadedFileURL = nil
@@ -370,10 +394,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         YtDlpService.shared.download(
             videoURLString: input,
             progress: { [weak self] progress in
-                self?.ytDlpDownloadProgress = progress
+                guard let self, self.activeYtDlpDownloadID == downloadID else { return }
+                self.ytDlpDownloadProgress = progress
             },
             completion: { [weak self] result in
-                guard let self else { return }
+                guard let self, self.activeYtDlpDownloadID == downloadID else { return }
+                self.activeYtDlpDownloadID = nil
                 self.isYtDlpDownloading = false
                 switch result {
                 case .success(let fileURL):
@@ -420,6 +446,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             return
         }
 
+        let downloadID = UUID()
+        activeYtDlpDownloadID = downloadID
         let input = ytDlpURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
         isYtDlpDownloading = true
         ytDlpDownloadProgress = 0
@@ -431,10 +459,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             videoURLString: input,
             section: section,
             progress: { [weak self] progress in
-                self?.ytDlpDownloadProgress = progress
+                guard let self, self.activeYtDlpDownloadID == downloadID else { return }
+                self.ytDlpDownloadProgress = progress
             },
             completion: { [weak self] result in
-                guard let self else { return }
+                guard let self, self.activeYtDlpDownloadID == downloadID else { return }
+                self.activeYtDlpDownloadID = nil
                 self.isYtDlpDownloading = false
                 switch result {
                 case .success(let fileURL):
