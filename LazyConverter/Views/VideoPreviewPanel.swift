@@ -103,6 +103,9 @@ struct VideoPreviewPanel: View {
                                         },
                                         onDeletePoint: { time in
                                             viewModel.deleteDynamicSpeedPoint(near: time)
+                                        },
+                                        onReplaceAllPoints: { newPoints in
+                                            viewModel.replaceDynamicSpeedPoints(newPoints)
                                         }
                                     )
                                     .padding(.horizontal, 10)
@@ -853,6 +856,10 @@ private struct DynamicSpeedOverlayView: View {
     let onAddPoint: (Double, Double) -> Void
     let onUpdatePoint: (Double, Double) -> Void
     let onDeletePoint: (Double) -> Void
+    let onReplaceAllPoints: ([SpeedMapPoint]) -> Void
+
+    @State private var draggingPointTime: Double? = nil
+    @State private var dragInitialPoints: [SpeedMapPoint]? = nil
 
     private let overlayHeight: CGFloat = 150
 
@@ -920,6 +927,7 @@ private struct DynamicSpeedOverlayView: View {
                         let pointX = xPosition(for: point.time, width: width)
                         let pointY = yPosition(forSpeedPercent: point.speed * 100.0, height: height)
 
+                        let labelHalfWidth: CGFloat = draggingPointTime == point.time ? 35 : 25
                         VStack(spacing: 2) {
                             Text(speedLabel(point.speed))
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -932,11 +940,14 @@ private struct DynamicSpeedOverlayView: View {
                         .padding(.vertical, 2)
                         .background(Color.black.opacity(0.4))
                         .cornerRadius(4)
+                        .scaleEffect(draggingPointTime == point.time ? 1.5 : 1.0)
                         .position(
-                            x: pointX,
-                            y: max(10, min(height - 10, pointY - 18))
+                            x: max(labelHalfWidth, min(width - labelHalfWidth, pointX)),
+                            y: max(10, min(height - 10, pointY - (draggingPointTime == point.time ? 28 : 18)))
                         )
+                        .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.6), value: draggingPointTime)
                         .allowsHitTesting(false)
+                        .zIndex(draggingPointTime == point.time ? 1 : 0)
 
                         Circle()
                             .fill(Color.pink.opacity(0.95))
@@ -945,13 +956,22 @@ private struct DynamicSpeedOverlayView: View {
                                 Circle()
                                     .stroke(Color.white.opacity(0.9), lineWidth: 1)
                             )
+                            .scaleEffect(draggingPointTime == point.time ? 2.0 : 1.0)
                             .position(x: pointX, y: pointY)
+                            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.6), value: draggingPointTime)
+                            .zIndex(draggingPointTime == point.time ? 1 : 0)
                             .gesture(
                                 DragGesture(minimumDistance: 0)
                                     .onChanged { value in
+                                        if draggingPointTime != point.time {
+                                            draggingPointTime = point.time
+                                        }
                                         let newSpeedPercent = speedPercent(
                                             forY: value.location.y, height: height)
                                         onUpdatePoint(point.time, newSpeedPercent)
+                                    }
+                                    .onEnded { _ in
+                                        draggingPointTime = nil
                                     }
                             )
                             .simultaneousGesture(
@@ -978,6 +998,25 @@ private struct DynamicSpeedOverlayView: View {
                             let time = timeForX(value.location.x, width: width)
                             let speedPercent = speedPercent(forY: value.location.y, height: height)
                             onAddPoint(time, speedPercent)
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 5)
+                        .onChanged { value in
+                            guard draggingPointTime == nil else { return }
+                            if dragInitialPoints == nil {
+                                dragInitialPoints = points
+                            }
+                            guard let initials = dragInitialPoints else { return }
+                            let deltaSpeed = -Double(value.translation.height / height) * 100.0
+                            let newPoints = initials.map { pt -> SpeedMapPoint in
+                                let newSpeedPercent = min(max((pt.speed * 100.0) + deltaSpeed, 1.0), 100.0)
+                                return SpeedMapPoint(time: pt.time, speed: newSpeedPercent / 100.0)
+                            }
+                            onReplaceAllPoints(newPoints)
+                        }
+                        .onEnded { _ in
+                            dragInitialPoints = nil
                         }
                 )
             }

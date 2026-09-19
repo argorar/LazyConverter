@@ -791,6 +791,14 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         )
     }
 
+    func replaceDynamicSpeedPoints(_ points: [SpeedMapPoint]) {
+        dynamicSpeedPoints = normalizedDynamicSpeedPoints(
+            points,
+            bounds: resolvedDynamicSpeedBoundsTimes(),
+            includeBoundaries: true
+        )
+    }
+
     func resetDynamicSpeedPoints() {
         dynamicSpeedPoints.removeAll()
         if dynamicSpeedEnabled {
