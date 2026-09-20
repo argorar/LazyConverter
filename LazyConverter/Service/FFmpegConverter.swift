@@ -55,7 +55,7 @@ class FFmpegConverter {
         executablePath: String,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
     ) {
-        if let rifeExecutablePath = request.rifeExecutablePath, request.frameRateSettings.useRifeGPU {
+        if let rifeExecutablePath = request.rifeExecutablePath, request.frameRateSettings.mode == .interpolate, request.frameRateSettings.useRifeGPU {
             runRifeInterpolationPipeline(
                 request: request,
                 rifeExecutablePath: rifeExecutablePath,
@@ -494,9 +494,6 @@ class FFmpegConverter {
         var audioFilters: [String] = []
         var arguments: [String] = []
         var deferredStaticCropFilter: String?
-        let usingDynamicCrop =
-            request.cropEnable && request.cropDynamicEnabled
-            && !request.cropDynamicKeyframes.isEmpty
         let stabilizationEnabled =
             stabilizationEnabledOverride ?? (request.stabilizationLevel != nil)
         
@@ -588,7 +585,7 @@ class FFmpegConverter {
         
         // crop
         if request.cropEnable {
-            if request.cropDynamicEnabled, let videoInfo = request.videoInfo {
+            if request.cropDynamicEnabled {
                 let clipStart = request.trimSegments.map { $0.start }.min() ?? 0.0
                 let clipEnd = request.trimSegments.map { $0.end }.max() ?? sourceDuration
                 let clipDuration = max(0.0, clipEnd - clipStart)
