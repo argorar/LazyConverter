@@ -355,20 +355,20 @@ enum CropTrackerService {
 
     private static func cropString(from rect: CGRect, pixelSize: CGSize) -> String? {
         let clamped = clampNormalizedRect(rect)
-        let widthPixels = max(1, Int(round(abs(pixelSize.width))))
-        let heightPixels = max(1, Int(round(abs(pixelSize.height))))
-        let widthPixelsCGFloat = CGFloat(widthPixels)
-        let heightPixelsCGFloat = CGFloat(heightPixels)
+        let totalW = max(2, (Int(round(abs(pixelSize.width))) / 2) * 2)
+        let totalH = max(2, (Int(round(abs(pixelSize.height))) / 2) * 2)
+        let widthPixelsCGFloat = CGFloat(totalW)
+        let heightPixelsCGFloat = CGFloat(totalH)
 
-        var cropW = max(1, Int(round(clamped.width * widthPixelsCGFloat)))
-        var cropH = max(1, Int(round(clamped.height * heightPixelsCGFloat)))
-        var cropX = Int(round(clamped.origin.x * widthPixelsCGFloat))
-        var cropY = Int(round(clamped.origin.y * heightPixelsCGFloat))
+        var cropW = max(2, (Int(round(clamped.width * widthPixelsCGFloat)) / 2) * 2)
+        var cropH = max(2, (Int(round(clamped.height * heightPixelsCGFloat)) / 2) * 2)
+        cropW = min(cropW, totalW)
+        cropH = min(cropH, totalH)
+        var cropX = (Int(round(clamped.origin.x * widthPixelsCGFloat)) / 2) * 2
+        var cropY = (Int(round(clamped.origin.y * heightPixelsCGFloat)) / 2) * 2
 
-        cropW = min(cropW, widthPixels)
-        cropH = min(cropH, heightPixels)
-        cropX = max(0, min(widthPixels - cropW, cropX))
-        cropY = max(0, min(heightPixels - cropH, cropY))
+        cropX = max(0, min(totalW - cropW, cropX))
+        cropY = max(0, min(totalH - cropH, cropY))
 
         guard cropW > 0, cropH > 0 else { return nil }
         return "\(cropX):\(cropY):\(cropW):\(cropH)"

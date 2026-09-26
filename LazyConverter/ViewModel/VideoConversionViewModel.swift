@@ -144,7 +144,6 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     @Published var superCompression: Bool = false {
         didSet {
             if superCompression {
-                cropEnabled = false
                 dynamicSpeedEnabled = false
                 stabilizationEnabled = false
                 colorAdjustments = ColorAdjustments.default
@@ -702,13 +701,17 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     private func cropString(from normalizedRect: CGRect) -> String? {
         guard let videoSize = videoInfo?.videoSize else { return nil }
         let rect = clampNormalizedRect(normalizedRect)
-        let width = abs(videoSize.width)
-        let height = abs(videoSize.height)
+        let totalW = max(2, (Int(abs(videoSize.width)) / 2) * 2)
+        let totalH = max(2, (Int(abs(videoSize.height)) / 2) * 2)
 
-        let x = Int(rect.origin.x * width)
-        let y = Int(rect.origin.y * height)
-        let w = Int(rect.size.width * width)
-        let h = Int(rect.size.height * height)
+        var w = max(2, (Int(rect.size.width * CGFloat(totalW)) / 2) * 2)
+        var h = max(2, (Int(rect.size.height * CGFloat(totalH)) / 2) * 2)
+        w = min(w, totalW)
+        h = min(h, totalH)
+        var x = (Int(rect.origin.x * CGFloat(totalW)) / 2) * 2
+        var y = (Int(rect.origin.y * CGFloat(totalH)) / 2) * 2
+        x = max(0, min(totalW - w, x))
+        y = max(0, min(totalH - h, y))
         return "\(x):\(y):\(w):\(h)"
     }
 

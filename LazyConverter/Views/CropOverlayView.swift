@@ -107,7 +107,7 @@ struct CropOverlayView: View {
                 
                 // Texto con dimensiones en píxeles
                 VStack(spacing: 2) {
-                    Text("\(Int(cropRect.width * videoSize.width)) × \(Int(cropRect.height * videoSize.height))")
+                    Text("\((Int(cropRect.width * videoSize.width) / 2) * 2) × \((Int(cropRect.height * videoSize.height) / 2) * 2)")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)

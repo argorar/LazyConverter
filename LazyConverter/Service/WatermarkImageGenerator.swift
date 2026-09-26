@@ -25,8 +25,8 @@ enum WatermarkImageGenerator {
         let canvasW: Int
         let canvasH: Int
         if let crop = cropRect {
-            canvasW = Int(crop.width * fullW)
-            canvasH = Int(crop.height * fullH)
+            canvasW = max(2, (Int(crop.width * fullW) / 2) * 2)
+            canvasH = max(2, (Int(crop.height * fullH) / 2) * 2)
         } else {
             canvasW = Int(fullW)
             canvasH = Int(fullH)

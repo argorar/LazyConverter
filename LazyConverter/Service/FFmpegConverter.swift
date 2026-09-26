@@ -519,17 +519,39 @@ class FFmpegConverter {
             && !request.dynamicSpeedEnabled
         var hasMergedSetpts = false
         
+        let segments = request.trimSegments.sorted()
+        let hasSingleTrim = segments.count == 1
+        let minTrimStart = segments.map(\.start).min() ?? 0.0
+        let seekOffset: Double
+
         if request.useGPU {
             arguments += ["-hwaccel", "videotoolbox"]
         }
+
+        if hasSingleTrim {
+            let seg = segments[0]
+            let clipDuration = max(0.0, seg.end - seg.start)
+            if seg.start > 0 {
+                arguments += ["-ss", dot(seg.start)]
+            }
+            if clipDuration > 0 {
+                arguments += ["-t", dot(clipDuration)]
+            }
+            seekOffset = seg.start
+        } else if !segments.isEmpty && minTrimStart > 0 {
+            arguments += ["-ss", dot(minTrimStart)]
+            seekOffset = minTrimStart
+        } else {
+            seekOffset = 0.0
+        }
+
         arguments += ["-i", request.inputURL.path]
 
         var finalVideoPad = "[0:v]"
         var finalAudioPad = canKeepAudio ? "[0:a]" : ""
         var filterComplexArgs: [String] = []
 
-        if !request.trimSegments.isEmpty {
-            let segments = request.trimSegments.sorted()
+        if segments.count > 1 {
             let n = segments.count
             
             var complexGraph = ""
@@ -548,9 +570,11 @@ class FFmpegConverter {
             // Trims
             var concatInputs = ""
             for (i, seg) in segments.enumerated() {
-                complexGraph += "[v_in\(i)]trim=start=\(dot(seg.start)):end=\(dot(seg.end)),setpts=PTS-STARTPTS[v_out\(i)];"
+                let adjustedStart = max(0.0, seg.start - seekOffset)
+                let adjustedEnd = max(0.0, seg.end - seekOffset)
+                complexGraph += "[v_in\(i)]trim=start=\(dot(adjustedStart)):end=\(dot(adjustedEnd)),setpts=PTS-STARTPTS[v_out\(i)];"
                 if canKeepAudio {
-                    complexGraph += "[a_in\(i)]atrim=start=\(dot(seg.start)):end=\(dot(seg.end)),asetpts=PTS-STARTPTS[a_out\(i)];"
+                    complexGraph += "[a_in\(i)]atrim=start=\(dot(adjustedStart)):end=\(dot(adjustedEnd)),asetpts=PTS-STARTPTS[a_out\(i)];"
                 }
                 concatInputs += "[v_out\(i)]"
                 if canKeepAudio { concatInputs += "[a_out\(i)]" }
@@ -607,10 +631,16 @@ class FFmpegConverter {
                     hasMergedSetpts = true
                 }
             } else if let cropRect = request.cropRec, let videoSize = request.videoInfo?.videoSize {
-                let x = Int(cropRect.origin.x * videoSize.width)
-                let y = Int(cropRect.origin.y * videoSize.height)
-                let w = Int(cropRect.size.width * videoSize.width)
-                let h = Int(cropRect.size.height * videoSize.height)
+                let totalW = max(2, (Int(videoSize.width) / 2) * 2)
+                let totalH = max(2, (Int(videoSize.height) / 2) * 2)
+                var w = max(2, (Int(cropRect.size.width * CGFloat(totalW)) / 2) * 2)
+                var h = max(2, (Int(cropRect.size.height * CGFloat(totalH)) / 2) * 2)
+                w = min(w, totalW)
+                h = min(h, totalH)
+                var x = (Int(cropRect.origin.x * CGFloat(totalW)) / 2) * 2
+                var y = (Int(cropRect.origin.y * CGFloat(totalH)) / 2) * 2
+                x = max(0, min(totalW - w, x))
+                y = max(0, min(totalH - h, y))
                 
                 deferredStaticCropFilter = "crop=\(w):\(h):\(x):\(y)"
             }
