@@ -39,8 +39,7 @@ extension VideoColorInfo {
     func validFFmpegPrimaries() -> String {
         switch colorPrimaries {
         case "bt709": return "bt709"
-        case "bt2020nc", "bt2020ncl": return "bt2020-nonconstant"
-        case "bt2020c": return "bt2020-constant"
+        case "bt2020", "bt2020nc", "bt2020ncl", "bt2020c": return "bt2020"
         case "smpte170m", "bt470bg": return "smpte170m"
         case "smpte240m": return "smpte240m"
         default: return "bt709"
@@ -62,9 +61,9 @@ extension VideoColorInfo {
     func validFFmpegColorspace() -> String {
         switch colorSpace {
         case "bt709": return "bt709"
-        case "bt470bg", "smpte170m": return "smpte170m"
-        case "bt601": return "bt601"
-        case "bt2020nc", "bt2020ncl": return "bt2020-nonconstant"
+        case "bt470bg", "smpte170m", "bt601": return "smpte170m"
+        case "bt2020nc", "bt2020ncl", "bt2020": return "bt2020nc"
+        case "bt2020c", "bt2020cl": return "bt2020c"
         case "smpte240m": return "smpte240m"
         default: return "bt709"
         }
