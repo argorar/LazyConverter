@@ -1207,8 +1207,14 @@ final class FullscreenPlayerWindowController: NSObject {
     private var window: NSWindow?
     private var liveTimer: Timer?
     private var controlsTimer: Timer?
+    private var scrollEndTimer: Timer?
     private var keyMonitor: Any?
     private var mouseMonitor: Any?
+    private var controlsView: NSView?
+    private var slider: NSSlider?
+    private var timeLabel: NSTextField?
+    private var isScrubbing = false
+    private var wasPlayingBeforeScrub = false
     private let player: AVPlayer
     private let hasAudio: Bool
     private var isClosed = false
@@ -1246,17 +1252,50 @@ final class FullscreenPlayerWindowController: NSObject {
         containerView.layer?.backgroundColor = NSColor.black.cgColor
         containerView.layer?.addSublayer(playerLayer)
 
+        let barWidth = min(720, screen.frame.size.width - 80)
+        let barHeight: CGFloat = 40
+        let bar = NSView(
+            frame: NSRect(
+                x: (screen.frame.size.width - barWidth) / 2,
+                y: 36,
+                width: barWidth,
+                height: barHeight
+            )
+        )
+        bar.wantsLayer = true
+        bar.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.65).cgColor
+        bar.layer?.cornerRadius = 12
+        bar.autoresizingMask = [.minXMargin, .maxXMargin, .maxYMargin]
+
+        let slider = NSSlider(value: 0, minValue: 0, maxValue: 1.0, target: self, action: #selector(sliderMoved(_:)))
+        slider.isContinuous = true
+        slider.controlSize = .small
+        slider.frame = NSRect(x: 16, y: (barHeight - 20) / 2, width: barWidth - 32 - 110, height: 20)
+        slider.autoresizingMask = [.width]
+        bar.addSubview(slider)
+
+        let timeLabel = NSTextField(labelWithString: "00:00 / 00:00")
+        timeLabel.alignment = .right
+        timeLabel.textColor = .white
+        timeLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+        timeLabel.frame = NSRect(x: barWidth - 110 - 16, y: (barHeight - 16) / 2, width: 110, height: 16)
+        timeLabel.autoresizingMask = [.minXMargin]
+        bar.addSubview(timeLabel)
+
+        containerView.addSubview(bar)
+        self.controlsView = bar
+        self.slider = slider
+        self.timeLabel = timeLabel
+
         win.contentView = containerView
         win.makeKeyAndOrderFront(nil)
 
         self.window = win
 
-        // Hide cursor in fullscreen
-        NSCursor.hide()
-
         installKeyMonitor()
         installMouseMonitor()
         startLiveTimer()
+        showControls()
     }
 
     func close() {
@@ -1267,6 +1306,8 @@ final class FullscreenPlayerWindowController: NSObject {
         liveTimer = nil
         controlsTimer?.invalidate()
         controlsTimer = nil
+        scrollEndTimer?.invalidate()
+        scrollEndTimer = nil
 
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
@@ -1278,6 +1319,11 @@ final class FullscreenPlayerWindowController: NSObject {
         }
 
         NSCursor.unhide()
+
+        controlsView?.removeFromSuperview()
+        controlsView = nil
+        slider = nil
+        timeLabel = nil
 
         window?.orderOut(nil)
         window = nil
@@ -1317,16 +1363,20 @@ final class FullscreenPlayerWindowController: NSObject {
                 return nil
             case 49: // Space
                 self.togglePlayback()
+                self.showControls()
                 return nil
             case 123: // Left arrow
                 self.stepFrame(direction: -1)
+                self.showControls()
                 return nil
             case 124: // Right arrow
                 self.stepFrame(direction: 1)
+                self.showControls()
                 return nil
             default:
                 if event.charactersIgnoringModifiers?.lowercased() == "m" {
                     self.toggleMute()
+                    self.showControls()
                     return nil
                 }
                 if event.charactersIgnoringModifiers?.lowercased() == "f" {
@@ -1339,41 +1389,153 @@ final class FullscreenPlayerWindowController: NSObject {
     }
 
     private func installMouseMonitor() {
-        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .scrollWheel]
+        ) { [weak self] event in
             guard let self, !self.isClosed else { return event }
+
+            if event.type == .scrollWheel {
+                self.handleScrollWheel(event)
+                return nil
+            }
+
             if event.type == .leftMouseDown {
-                // Double-click detection
+                if let controls = self.controlsView, controls.alphaValue > 0.1 {
+                    let point = controls.convert(event.locationInWindow, from: nil)
+                    if controls.bounds.contains(point) {
+                        self.showControls()
+                        return event
+                    }
+                }
                 if event.clickCount == 2 {
                     self.close()
                     return nil
                 }
+            } else if event.type == .leftMouseUp {
+                if self.isScrubbing {
+                    self.isScrubbing = false
+                    if self.wasPlayingBeforeScrub {
+                        self.player.play()
+                    }
+                }
             }
-            // Show cursor briefly on mouse move
-            NSCursor.unhide()
-            self.scheduleHideCursor()
+            self.showControls()
             return event
         }
     }
 
-    private func startLiveTimer() {
-        // Just keep the player layer in sync - no SwiftUI needed
-        liveTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+    private func handleScrollWheel(_ event: NSEvent) {
+        guard let item = player.currentItem else { return }
+        let duration = item.duration.seconds
+        guard duration.isFinite && duration > 0 else { return }
+
+        let dominantDelta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+            ? event.scrollingDeltaX
+            : event.scrollingDeltaY
+
+        if abs(dominantDelta) < 0.0001 { return }
+
+        let fps = 30.0
+        let frameStep = 1.0 / fps
+        let sensitivity = event.hasPreciseScrollingDeltas ? 2.0 : 4.0
+        let deltaSeconds = -Double(dominantDelta) * frameStep * sensitivity
+
+        if !isScrubbing {
+            isScrubbing = true
+            wasPlayingBeforeScrub = player.rate > 0.01
+            player.pause()
+        }
+
+        let current = player.currentTime().seconds
+        let baseTime = current.isFinite ? current : (slider?.doubleValue ?? 0)
+        let targetSeconds = min(max(baseTime + deltaSeconds, 0), duration)
+
+        let time = CMTime(seconds: targetSeconds, preferredTimescale: 600)
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+
+        slider?.doubleValue = targetSeconds
+        updateTimeText(current: targetSeconds, duration: duration)
+        showControls()
+
+        scrollEndTimer?.invalidate()
+        scrollEndTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
             guard let self, !self.isClosed else { return }
-            // Resize player layer if screen changes
+            self.isScrubbing = false
+            if self.wasPlayingBeforeScrub {
+                self.player.play()
+            }
+            self.scheduleHideControls()
+        }
+    }
+
+    @objc private func sliderMoved(_ sender: NSSlider) {
+        if !isScrubbing {
+            isScrubbing = true
+            wasPlayingBeforeScrub = player.rate > 0.01
+            player.pause()
+        }
+        let target = sender.doubleValue
+        let time = CMTime(seconds: target, preferredTimescale: 600)
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+        let dur = player.currentItem?.duration.seconds ?? 0
+        updateTimeText(current: target, duration: dur > 0 ? dur : target)
+        showControls()
+    }
+
+    private func startLiveTimer() {
+        liveTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self, !self.isClosed else { return }
             if let layer = self.window?.contentView?.layer?.sublayers?.first as? AVPlayerLayer,
                let frame = self.window?.contentView?.bounds {
                 if layer.frame != frame {
                     layer.frame = frame
                 }
             }
+            self.syncProgress()
         }
     }
 
-    private func scheduleHideCursor() {
+    private func syncProgress() {
+        guard !isScrubbing, let item = player.currentItem else { return }
+        let duration = item.duration.seconds
+        guard duration.isFinite && duration > 0 else { return }
+
+        let current = player.currentTime().seconds
+        let validCurrent = current.isFinite ? current : 0
+
+        slider?.maxValue = duration
+        slider?.doubleValue = min(max(validCurrent, 0), duration)
+        updateTimeText(current: validCurrent, duration: duration)
+    }
+
+    private func updateTimeText(current: Double, duration: Double) {
+        timeLabel?.stringValue = "\(formatSeconds(current)) / \(formatSeconds(duration))"
+    }
+
+    private func formatSeconds(_ seconds: Double) -> String {
+        guard seconds.isFinite && seconds >= 0 else { return "00:00" }
+        let total = Int(seconds)
+        let s = total % 60
+        let m = (total / 60) % 60
+        let h = total / 3600
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%02d:%02d", m, s)
+    }
+
+    private func showControls() {
+        NSCursor.unhide()
+        controlsView?.animator().alphaValue = 1.0
+        scheduleHideControls()
+    }
+
+    private func scheduleHideControls() {
         controlsTimer?.invalidate()
         controlsTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
-            guard let self, !self.isClosed else { return }
+            guard let self, !self.isClosed, !self.isScrubbing else { return }
             NSCursor.hide()
+            self.controlsView?.animator().alphaValue = 0.0
         }
     }
 
