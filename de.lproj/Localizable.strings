@@ -167,3 +167,8 @@
 "merge.status.starting" = "Videos werden zum Zusammenführen vorbereitet…";
 "merge.status.processing" = "Videos werden zusammengeführt…";
 "merge.status.success" = "Videos erfolgreich zusammengeführt!";
+"denoise.title" = "Rauschunterdrückung";
+"denoise.subtle" = "Dezent";
+"denoise.medium" = "Mittel";
+"denoise.strong" = "Stark";
+"denoise.description" = "Reduziert Bildrauschen (hqdn3d). Minimaler Geschwindigkeitsverlust.";

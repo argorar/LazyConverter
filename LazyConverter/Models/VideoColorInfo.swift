@@ -49,6 +49,7 @@ extension VideoColorInfo {
     func validFFmpegTrc() -> String {
         switch colorTrc {
         case "bt709": return "bt709"
+        case "iec61966-2-1": return "iec61966-2-1"
         case "gamma22": return "gamma22"
         case "gamma28": return "gamma28"
         case "smpte170m": return "smpte170m"
@@ -71,5 +72,33 @@ extension VideoColorInfo {
     
     func validFFmpegRange() -> String {
         return colorRange == "pc" ? "pc" : "tv"
+    }
+
+    func ffmpegOutputColorArguments(videoCodec: String? = nil) -> [String] {
+        var arguments = [
+            "-color_primaries", validFFmpegPrimaries(),
+            "-color_trc", validFFmpegTrc(),
+            "-colorspace", validFFmpegColorspace(),
+            "-color_range", validFFmpegRange(),
+        ]
+        if videoCodec == "libx265" {
+            let x265Range = validFFmpegRange() == "pc" ? "full" : "limited"
+            arguments += [
+                "-x265-params",
+                "colorprim=\(validFFmpegPrimaries()):transfer=\(validFFmpegTrc()):colormatrix=\(validFFmpegColorspace()):range=\(x265Range)",
+            ]
+        }
+        if videoCodec == "h264_videotoolbox" || videoCodec == "libx264" {
+            arguments += ["-bsf:v", h264MetadataBitstreamFilter()]
+        }
+        return arguments
+    }
+
+    private func h264MetadataBitstreamFilter() -> String {
+        let primaries = ["bt709": 1, "smpte170m": 6, "smpte240m": 7, "bt2020": 9][validFFmpegPrimaries()] ?? 1
+        let transfer = ["bt709": 1, "gamma22": 4, "gamma28": 5, "smpte170m": 6, "smpte240m": 7, "iec61966-2-1": 13, "smpte2084": 16, "arib-std-b67": 18][validFFmpegTrc()] ?? 1
+        let matrix = ["bt709": 1, "smpte170m": 6, "smpte240m": 7, "bt2020nc": 9, "bt2020c": 10][validFFmpegColorspace()] ?? 1
+        let range = validFFmpegRange() == "pc" ? 1 : 0
+        return "h264_metadata=colour_primaries=\(primaries):transfer_characteristics=\(transfer):matrix_coefficients=\(matrix):video_full_range_flag=\(range)"
     }
 }

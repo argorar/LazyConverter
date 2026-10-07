@@ -128,7 +128,8 @@ class FFmpegConverter {
                     format: request.format,
                     quality: request.quality,
                     useGPU: request.useGPU,
-                    maxOutputSizeMB: request.maxOutputSizeMB
+                    maxOutputSizeMB: request.maxOutputSizeMB,
+                    colorInfo: request.videoInfo?.colorInfo
                 )
                 self.logCommand(executablePath: executablePath, arguments: overlayArgs)
                 self.executeFFmpeg(
@@ -201,6 +202,8 @@ class FFmpegConverter {
     }
 
     private func requestNeedsBaseFilterPass(_ request: FFmpegConversionRequest) -> Bool {
+        if request.denoiseLevel != .off { return true }
+
         if !request.trimSegments.isEmpty {
             return true
         }
@@ -285,7 +288,8 @@ class FFmpegConverter {
                 format: request.format,
                 quality: request.quality,
                 useGPU: request.useGPU,
-                maxOutputSizeMB: request.maxOutputSizeMB
+                maxOutputSizeMB: request.maxOutputSizeMB,
+                colorInfo: request.videoInfo?.colorInfo
             )
             self.logCommand(executablePath: executablePath, arguments: overlayArgs)
             self.executeFFmpeg(
@@ -360,7 +364,8 @@ class FFmpegConverter {
                                                 && request.speedPercent == 100.0
                                                 && !request.dynamicSpeedEnabled,
                                             maxOutputSizeMB: request.maxOutputSizeMB,
-                                            duration: videoDuration * 2
+                                            duration: videoDuration * 2,
+                                            colorInfo: request.videoInfo?.colorInfo
                                         )
                                         self.logCommand(
                                             executablePath: executablePath,
@@ -454,7 +459,8 @@ class FFmpegConverter {
                             hasAudio: request.videoInfo?.hasAudio == true
                                 && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled,
                             maxOutputSizeMB: request.maxOutputSizeMB,
-                            duration: videoDuration * 2
+                            duration: videoDuration * 2,
+                            colorInfo: request.videoInfo?.colorInfo
                         )
                         self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
                         self.executeFFmpeg(
@@ -657,6 +663,10 @@ class FFmpegConverter {
             videoFilters.append(deferredStaticCropFilter)
         }
         
+        if let denoiseFilter = request.denoiseLevel.ffmpegFilter {
+            videoFilters.append(denoiseFilter)
+        }
+
         if let colorFilter = request.colorAdjustments.toFFmpegFilter() {
             videoFilters.append(colorFilter)
         }
@@ -761,20 +771,7 @@ class FFmpegConverter {
             arguments += ["-an"]
         }
 
-        if let primaries = request.videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
-            arguments += ["-color_primaries", primaries]
-        }
-        if let trc = request.videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
-            arguments += ["-color_trc", trc]
-        }
-        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(),
-            !colorspace.isEmpty
-        {
-            arguments += ["-colorspace", colorspace]
-        }
-        if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
-            arguments += ["-color_range", range]
-        }
+        arguments += request.videoInfo?.colorInfo.ffmpegOutputColorArguments(videoCodec: finalVideoCodec) ?? []
         if includeOutputSizeLimit {
             let duration = resolvedOutputDuration(request)
             arguments += outputSizeLimitArguments(
@@ -941,18 +938,7 @@ class FFmpegConverter {
             arguments += ["-an"]
         }
 
-        if let primaries = request.videoInfo?.colorInfo.validFFmpegPrimaries(), !primaries.isEmpty {
-            arguments += ["-color_primaries", primaries]
-        }
-        if let trc = request.videoInfo?.colorInfo.validFFmpegTrc(), !trc.isEmpty {
-            arguments += ["-color_trc", trc]
-        }
-        if let colorspace = request.videoInfo?.colorInfo.validFFmpegColorspace(), !colorspace.isEmpty {
-            arguments += ["-colorspace", colorspace]
-        }
-        if let range = request.videoInfo?.colorInfo.validFFmpegRange(), !range.isEmpty {
-            arguments += ["-color_range", range]
-        }
+        arguments += request.videoInfo?.colorInfo.ffmpegOutputColorArguments(videoCodec: videoCodec) ?? []
         if includeOutputSizeLimit {
             let duration = resolvedOutputDuration(request)
             let hasAudio =
@@ -986,7 +972,8 @@ class FFmpegConverter {
         format: VideoFormat,
         quality: Int,
         useGPU: Bool,
-        maxOutputSizeMB: Int?
+        maxOutputSizeMB: Int?,
+        colorInfo: VideoColorInfo?
     ) -> [String] {
         var arguments: [String] = []
         if useGPU {
@@ -1008,6 +995,7 @@ class FFmpegConverter {
         if maxOutputSizeMB == nil {
             arguments += qualityArguments(videoCodec: videoCodec, crf: quality)
         }
+        arguments += colorInfo?.ffmpegOutputColorArguments(videoCodec: videoCodec) ?? []
 
         arguments += [
             "-progress", "pipe:1",
@@ -1026,7 +1014,8 @@ class FFmpegConverter {
         useGPU: Bool,
         hasAudio: Bool,
         maxOutputSizeMB: Int?,
-        duration: Double
+        duration: Double,
+        colorInfo: VideoColorInfo?
     ) -> [String] {
         var arguments: [String] = []
         if useGPU {
@@ -1058,6 +1047,7 @@ class FFmpegConverter {
         if maxOutputSizeMB == nil {
             arguments += qualityArguments(videoCodec: videoCodec, crf: quality)
         }
+        arguments += colorInfo?.ffmpegOutputColorArguments(videoCodec: videoCodec) ?? []
         arguments += outputSizeLimitArguments(
             maxOutputSizeMB: maxOutputSizeMB, duration: duration, hasAudio: hasAudio)
         arguments += [

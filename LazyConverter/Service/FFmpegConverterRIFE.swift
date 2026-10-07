@@ -20,6 +20,8 @@ extension FFmpegConverter {
     // Stage 5: Final pass           → 85% – 100%
     
     private func requiresPreRifePass(request: FFmpegConversionRequest) -> Bool {
+        if request.denoiseLevel != .off { return true }
+
         return request.resolution != .original ||
                request.speedPercent != 100.0 ||
                request.dynamicSpeedEnabled ||
@@ -321,7 +323,7 @@ extension FFmpegConverter {
                         "-i", "\(outputFramesDir)/%08d.png",
                         "-i", prerifeURL.path,
                         "-map", "0:v", "-map", "1:a?",
-                        "-vf", "hqdn3d=2:2:3:3,unsharp=3:3:0.3:3:3:0.3"
+                        "-vf", "\(request.denoiseLevel.rifeFilter),unsharp=3:3:0.3:3:3:0.3"
                     ]
                     
                     let (videoCodec, _) = self.codecForFormat(request.format, useGPU: request.useGPU, maxOutputSizeMB: request.maxOutputSizeMB)
@@ -349,6 +351,7 @@ extension FFmpegConverter {
                     } else {
                         assembleArgs += self.outputSizeLimitArguments(maxOutputSizeMB: request.maxOutputSizeMB, duration: self.resolvedOutputDuration(request), hasAudio: request.videoInfo?.hasAudio == true)
                     }
+                    assembleArgs += request.videoInfo?.colorInfo.ffmpegOutputColorArguments(videoCodec: videoCodec) ?? []
                     
                     let outputDir = request.outputURL.deletingLastPathComponent()
                     let baseName = request.outputURL.deletingPathExtension().lastPathComponent

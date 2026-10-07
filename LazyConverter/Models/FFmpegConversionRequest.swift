@@ -36,6 +36,8 @@ struct FFmpegConversionRequest {
     let progressCallback: (Double) -> Void
     let completionCallback: (Result<URL, FFmpegError>) -> Void
     let rifeExecutablePath: String?
+    let denoiseLevel: DenoiseLevel
+
     
     init(
         inputURL: URL,
@@ -64,7 +66,7 @@ struct FFmpegConversionRequest {
         watermarkConfig: WatermarkConfig? = nil,
         progressCallback: @escaping (Double) -> Void,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void,
-        rifeExecutablePath: String? = nil
+        rifeExecutablePath: String? = nil, denoiseLevel: DenoiseLevel = .off
     ) {
         self.inputURL = inputURL
         self.outputURL = outputURL
@@ -93,5 +95,7 @@ struct FFmpegConversionRequest {
         self.progressCallback = progressCallback
         self.completionCallback = completionCallback
         self.rifeExecutablePath = rifeExecutablePath
+        self.denoiseLevel = denoiseLevel
+
     }
 }

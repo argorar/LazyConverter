@@ -37,6 +37,8 @@ struct QueueItem: Identifiable, Equatable {
     let frameRateSettings: FrameRateSettings
     let watermarkConfig: WatermarkConfig?
     let rifeExecutablePath: String?
+    let denoiseLevel: DenoiseLevel
+
     
     init(url: URL, settings: ConversionSettings) {
         self.url = url
@@ -60,6 +62,8 @@ struct QueueItem: Identifiable, Equatable {
         self.frameRateSettings = settings.frameRateSettings
         self.watermarkConfig = settings.watermarkConfig
         self.rifeExecutablePath = settings.rifeExecutablePath
+        self.denoiseLevel = settings.denoiseLevel
+
     }
 }
 
@@ -111,4 +115,6 @@ struct ConversionSettings {
     let frameRateSettings: FrameRateSettings
     let watermarkConfig: WatermarkConfig?
     let rifeExecutablePath: String?
+    let denoiseLevel: DenoiseLevel
+
 }

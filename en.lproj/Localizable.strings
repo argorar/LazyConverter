@@ -167,3 +167,8 @@
 "merge.status.starting" = "Preparing to merge videos…";
 "merge.status.processing" = "Merging videos…";
 "merge.status.success" = "Videos merged successfully!";
+"denoise.title" = "Noise Reduction";
+"denoise.subtle" = "Subtle";
+"denoise.medium" = "Medium";
+"denoise.strong" = "Strong";
+"denoise.description" = "Reduces noise (hqdn3d). Minimal impact on speed.";

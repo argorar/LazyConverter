@@ -85,7 +85,8 @@ class VideoAnalyzer {
                 // Color info
                 let pixelFormat = videoStream["pix_fmt"] as? String ?? "yuv420p"
                 let primaries = videoStream["color_primaries"] as? String ?? "bt709"
-                let trc = videoStream["color_trc"] as? String ?? "bt709"
+                let trc = (videoStream["color_transfer"] as? String)
+                    ?? (videoStream["color_trc"] as? String) ?? "bt709"
                 let matrix = videoStream["color_space"] as? String ?? "bt709"
                 let range = videoStream["color_range"] as? String ?? "tv"
 
@@ -141,4 +142,3 @@ class VideoAnalyzer {
         return nil
     }
 }
-

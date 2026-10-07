@@ -152,6 +152,8 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     }
     @Published var superCompressionGPU: Bool = false
     @Published var frameRateSettings = FrameRateSettings()
+    @Published var denoiseLevel: DenoiseLevel = .off
+
     @Published var watermarkConfig = WatermarkConfig()
     @Published var showWatermarkSheet = false
     @Published var outputDirectory: OutputDirectory = .downloads
@@ -287,7 +289,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
             colorAdjustments: colorAdjustments,
             frameRateSettings: frameRateSettings,
             watermarkConfig: watermarkConfig.isEnabled ? watermarkConfig : nil,
-            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath
+            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath, denoiseLevel: denoiseLevel
         )
         
         queueManager.addToQueue(url: url, settings: settings)
@@ -1061,7 +1063,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     self?.handleConversionResult(result)
                 }
             },
-            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath
+            rifeExecutablePath: rifeExecutablePath.isEmpty ? nil : rifeExecutablePath, denoiseLevel: denoiseLevel
         )
         
         FFmpegConverter.shared.convert(request)

@@ -38,6 +38,7 @@ struct SettingsPanel: View {
             SpeedSliderPanel(viewModel: viewModel)
             FrameRateSection(viewModel: viewModel)
             stabilizationSection
+            denoiseSection
             dynamicSpeedSection
             loopSection
             resolutionSection
@@ -502,6 +503,45 @@ struct SettingsPanel: View {
         .padding(12)
         .frame(maxWidth: .infinity)
         .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
+    }
+
+    private var denoiseSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(lang.t("denoise.title") ?? "Noise Reduction")
+                    .font(.system(size: 14, weight: .semibold))
+                Toggle("", isOn: denoiseToggleBinding)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                Spacer()
+            }
+            
+            if viewModel.denoiseLevel != .off {
+                Picker("", selection: $viewModel.denoiseLevel) {
+                    Text(lang.t("denoise.subtle") ?? "Subtle").tag(DenoiseLevel.subtle)
+                    Text(lang.t("denoise.medium") ?? "Medium").tag(DenoiseLevel.medium)
+                    Text(lang.t("denoise.strong") ?? "Strong").tag(DenoiseLevel.strong)
+                }
+                .pickerStyle(.segmented)
+                
+                Text(lang.t("denoise.description") ?? "Reduces video noise using hqdn3d filter. Affects processing time slightly.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .adaptiveCard(useGlass: theme.surfaceStyle == .glass, cornerRadius: 8, material: .hudWindow, fallbackColor: Color(nsColor: .separatorColor), fallbackOpacity: 0.3)
+    }
+
+    private var denoiseToggleBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.denoiseLevel != .off },
+            set: { enabled in viewModel.denoiseLevel = enabled ? .subtle : .off }
+        )
     }
 
     private var stabilizationToggleBinding: Binding<Bool> {

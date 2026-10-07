@@ -400,7 +400,7 @@ struct VideoPanel: View {
             cropRect: viewModel.cropEnabled ? viewModel.cropRect : nil,
             colorAdjustments: viewModel.colorAdjustments,
             frameRateSettings: viewModel.frameRateSettings,
-            watermarkConfig: viewModel.watermarkConfig.isEnabled ? viewModel.watermarkConfig : nil, rifeExecutablePath: nil
+            watermarkConfig: viewModel.watermarkConfig.isEnabled ? viewModel.watermarkConfig : nil, rifeExecutablePath: nil, denoiseLevel: viewModel.denoiseLevel
         )
         
         viewModel.queueManager.addMultipleToQueue(urls: urls, settings: settings)
