@@ -753,7 +753,18 @@ class FFmpegConverter {
         if request.superCompression {
             if request.superCompressionGPU {
                 let profile = request.videoInfo?.colorInfo.superCompressionHEVCProfile() ?? "main"
-                arguments += ["-q:v", "65", "-profile:v", profile]
+                arguments += ["-q:v", "48", "-profile:v", profile, "-spatial_aq", "1"]
+
+                if request.maxOutputSizeMB == nil,
+                   let fileSizeMB = request.videoInfo?.fileSizeMB,
+                   let duration = request.videoInfo?.duration,
+                   duration > 0, fileSizeMB > 0 {
+                    let originalBitrateKbps = (fileSizeMB * 8192.0) / duration
+                    let maxBitrateKbps = Int(originalBitrateKbps * 0.80)
+                    if maxBitrateKbps > 100 {
+                        arguments += ["-maxrate:v", "\(maxBitrateKbps)k", "-bufsize:v", "\(maxBitrateKbps * 2)k"]
+                    }
+                }
             } else {
                 arguments += ["-crf", "28", "-preset", "slow"]
             }
