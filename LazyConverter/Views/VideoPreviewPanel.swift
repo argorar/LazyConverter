@@ -49,6 +49,7 @@ struct VideoPreviewPanel: View {
                                     CropOverlayView(
                                         cropRect: $viewModel.cropRect,
                                         trackerPivot: $viewModel.cropTrackerPivot,
+                                        trackerScale: $viewModel.cropTrackerScale,
                                         videoSize: CGSize(
                                             width: Double(abs(videoInfo?.videoSize.width ?? 200)),
                                             height: Double(abs(videoInfo?.videoSize.height ?? 500))),

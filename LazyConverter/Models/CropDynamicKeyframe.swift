@@ -59,11 +59,15 @@ extension CropDynamicKeyframe {
         let firstCrop = parsedPoints[0].crop
         if sorted.count == 1 {
             return
-                "trim=0:\(dot(clipDuration)),crop='x=\(dot(firstCrop.x)):y=\(dot(firstCrop.y)):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+                "trim=0:\(dot(clipDuration, decimals: 3)),crop='x=\(dot(firstCrop.x)):y=\(dot(firstCrop.y)):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+        }
+
+        let hasVariableSize = parsedPoints.contains {
+            abs($0.crop.w - firstCrop.w) > 0.5 || abs($0.crop.h - firstCrop.h) > 0.5
         }
 
         let nSects = sorted.count - 1
-        let easeType = sorted.count > 8 ? "linear" : "easeInOutSine"
+        let easeType = sorted.count > 4 ? "linear" : "easeInOutSine"
         var cropXExprParts: [String] = []
         var cropYExprParts: [String] = []
         var cropWExprParts: [String] = []
@@ -81,7 +85,11 @@ extension CropDynamicKeyframe {
             let sectDuration = endTime - startTime
             if sectDuration <= 0.0000001 { continue }
 
-            let easeP = "((t-\(dot(startTime)))/\(dot(sectDuration)))"
+            let startTimeStr = dot(startTime, decimals: 3)
+            let endTimeStr = dot(endTime, decimals: 3)
+            let sectDurationStr = dot(sectDuration, decimals: 3)
+            let easeP = "((t-\(startTimeStr))/\(sectDurationStr))"
+
             guard
                 let easeX = getEasingExpression(
                     easingFunc: easeType,
@@ -94,33 +102,46 @@ extension CropDynamicKeyframe {
                     easeA: "(\(dot(leftCrop.y)))",
                     easeB: "(\(dot(rightCrop.y)))",
                     easeP: easeP
-                ),
-                let easeW = getEasingExpression(
-                    easingFunc: easeType,
-                    easeA: "(\(dot(leftCrop.w)))",
-                    easeB: "(\(dot(rightCrop.w)))",
-                    easeP: easeP
-                ),
-                let easeH = getEasingExpression(
-                    easingFunc: easeType,
-                    easeA: "(\(dot(leftCrop.h)))",
-                    easeB: "(\(dot(rightCrop.h)))",
-                    easeP: easeP
                 )
             else {
                 continue
             }
 
-            if sect == nSects - 1 {
-                cropXExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeX)")
-                cropYExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeY)")
-                cropWExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeW)")
-                cropHExprParts.append("between(t, \(dot(startTime)), \(dot(endTime)))*\(easeH)")
+            let easeW: String?
+            let easeH: String?
+            if hasVariableSize {
+                easeW = getEasingExpression(
+                    easingFunc: easeType,
+                    easeA: "(\(dot(leftCrop.w)))",
+                    easeB: "(\(dot(rightCrop.w)))",
+                    easeP: easeP
+                )
+                easeH = getEasingExpression(
+                    easingFunc: easeType,
+                    easeA: "(\(dot(leftCrop.h)))",
+                    easeB: "(\(dot(rightCrop.h)))",
+                    easeP: easeP
+                )
+                if easeW == nil || easeH == nil { continue }
             } else {
-                cropXExprParts.append("(gte(t, \(dot(startTime)))*lt(t, \(dot(endTime))))*\(easeX)")
-                cropYExprParts.append("(gte(t, \(dot(startTime)))*lt(t, \(dot(endTime))))*\(easeY)")
-                cropWExprParts.append("(gte(t, \(dot(startTime)))*lt(t, \(dot(endTime))))*\(easeW)")
-                cropHExprParts.append("(gte(t, \(dot(startTime)))*lt(t, \(dot(endTime))))*\(easeH)")
+                easeW = nil
+                easeH = nil
+            }
+
+            if sect == nSects - 1 {
+                cropXExprParts.append("between(t, \(startTimeStr), \(endTimeStr))*\(easeX)")
+                cropYExprParts.append("between(t, \(startTimeStr), \(endTimeStr))*\(easeY)")
+                if let easeW, let easeH {
+                    cropWExprParts.append("between(t, \(startTimeStr), \(endTimeStr))*\(easeW)")
+                    cropHExprParts.append("between(t, \(startTimeStr), \(endTimeStr))*\(easeH)")
+                }
+            } else {
+                cropXExprParts.append("(gte(t, \(startTimeStr))*lt(t, \(endTimeStr)))*\(easeX)")
+                cropYExprParts.append("(gte(t, \(startTimeStr))*lt(t, \(endTimeStr)))*\(easeY)")
+                if let easeW, let easeH {
+                    cropWExprParts.append("(gte(t, \(startTimeStr))*lt(t, \(endTimeStr)))*\(easeW)")
+                    cropHExprParts.append("(gte(t, \(startTimeStr))*lt(t, \(endTimeStr)))*\(easeH)")
+                }
             }
         }
 
@@ -128,6 +149,11 @@ extension CropDynamicKeyframe {
 
         let cropXExpr = cropXExprParts.joined(separator: "+")
         let cropYExpr = cropYExprParts.joined(separator: "+")
+
+        if !hasVariableSize {
+            return
+                "trim=0:\(dot(clipDuration, decimals: 3)),crop='x=\(cropXExpr):y=\(cropYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+        }
 
         guard !cropWExprParts.isEmpty, !cropHExprParts.isEmpty else { return nil }
         let cropWExpr = cropWExprParts.joined(separator: "+")
@@ -141,7 +167,7 @@ extension CropDynamicKeyframe {
         let scaledYExpr = "(\(cropYExpr))*\(zoomExpr)"
 
         return
-            "trim=0:\(dot(clipDuration)),scale=w='iw*\(zoomExpr)':h='ih*\(zoomExpr)':eval=frame,crop='x=\(scaledXExpr):y=\(scaledYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
+            "trim=0:\(dot(clipDuration, decimals: 3)),scale=w='iw*\(zoomExpr)':h='ih*\(zoomExpr)':eval=frame,crop='x=\(scaledXExpr):y=\(scaledYExpr):w=\(dot(firstCrop.w)):h=\(dot(firstCrop.h)):exact=1',settb=1/9000,\(setptsFilter)"
     }
 
     private static func parseCrop(_ crop: String) -> (x: Double, y: Double, w: Double, h: Double)? {
@@ -190,6 +216,9 @@ extension CropDynamicKeyframe {
         easeB: String,
         easeP: String
     ) -> String? {
+        if easeA == easeB {
+            return easeA
+        }
         let p = "(clip(\(easeP),0,1))"
         let t = "(2*\(p))"
         let m = "(\(p)-1)"
@@ -223,8 +252,12 @@ extension CropDynamicKeyframe {
         return "(\(easeA)+(\(easeB)-\(easeA))*\(ease))"
     }
     
-    private static func dot(_ value: Double) -> String {
-        let invariant = String(format: "%.15g", locale: Locale(identifier: "en_US_POSIX"), value)
-        return invariant.replacingOccurrences(of: ",", with: ".")
+    private static func dot(_ value: Double, decimals: Int = 2) -> String {
+        let factor = pow(10.0, Double(decimals))
+        let rounded = (value * factor).rounded() / factor
+        if rounded.truncatingRemainder(dividingBy: 1.0) == 0 {
+            return String(format: "%.0f", locale: Locale(identifier: "en_US_POSIX"), rounded)
+        }
+        return String(format: "%.\(decimals)f", locale: Locale(identifier: "en_US_POSIX"), rounded)
     }
 }

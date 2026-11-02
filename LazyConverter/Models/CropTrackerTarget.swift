@@ -9,25 +9,35 @@ import CoreGraphics
 
 enum CropTrackerTarget {
     static let defaultPivot = CGPoint(x: 0.5, y: 0.5)
+    static let defaultScale: CGFloat = 0.40
+    static let minScale: CGFloat = 0.15
+    static let maxScale: CGFloat = 0.85
 
-    static func squareSizePixels(cropRect: CGRect, videoSize: CGSize) -> CGFloat {
+    static func squareSizePixels(
+        cropRect: CGRect,
+        videoSize: CGSize,
+        scale: CGFloat = defaultScale
+    ) -> CGFloat {
         let width = max(1.0, abs(videoSize.width))
         let height = max(1.0, abs(videoSize.height))
         let cropWidthPixels = max(1.0, cropRect.width * width)
         let cropHeightPixels = max(1.0, cropRect.height * height)
 
-        let base = min(width, height) * 0.06
-        let maxInsideCrop = min(cropWidthPixels, cropHeightPixels) * 0.45
-        let clamped = min(max(24.0, base), maxInsideCrop)
-        return max(8.0, clamped)
+        let cropMinDim = min(cropWidthPixels, cropHeightPixels)
+        let clampedScale = max(minScale, min(maxScale, scale))
+        let targetSize = cropMinDim * clampedScale
+        let maxInsideCrop = cropMinDim * 0.90
+        let clamped = min(max(24.0, targetSize), maxInsideCrop)
+        return max(16.0, clamped)
     }
 
     static func normalizedTargetRect(
         in cropRect: CGRect,
         videoSize: CGSize,
-        pivot: CGPoint = defaultPivot
+        pivot: CGPoint = defaultPivot,
+        scale: CGFloat = defaultScale
     ) -> CGRect {
-        let sizePixels = squareSizePixels(cropRect: cropRect, videoSize: videoSize)
+        let sizePixels = squareSizePixels(cropRect: cropRect, videoSize: videoSize, scale: scale)
         let width = max(1.0, abs(videoSize.width))
         let height = max(1.0, abs(videoSize.height))
 

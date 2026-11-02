@@ -11,6 +11,7 @@ import AppKit
 struct CropOverlayView: View {
     @Binding var cropRect: CGRect
     @Binding var trackerPivot: CGPoint
+    @Binding var trackerScale: CGFloat
     let videoSize: CGSize
     let playerFrame: CGRect
     let showTrackerTarget: Bool
@@ -34,6 +35,7 @@ struct CropOverlayView: View {
     @State private var hoverLocation: CGPoint?
     @State private var lastTrackerPixelRect: CGRect = .zero
     @State private var isPivotCursorVisible = false
+    @State private var pinchBaseScale: CGFloat?
 
     var body: some View {
         GeometryReader { geo in
@@ -47,7 +49,8 @@ struct CropOverlayView: View {
             let trackerTarget = CropTrackerTarget.normalizedTargetRect(
                 in: cropRect,
                 videoSize: videoSize,
-                pivot: trackerPivot
+                pivot: trackerPivot,
+                scale: trackerScale
             )
             let trackerPixelRect = CGRect(
                 x: trackerTarget.origin.x * videoFrame.width + videoFrame.minX,
@@ -120,6 +123,9 @@ struct CropOverlayView: View {
             }
             .simultaneousGesture(
                 trackerPivotDragGesture(videoFrame: videoFrame, trackerPixelRect: trackerPixelRect)
+            )
+            .simultaneousGesture(
+                trackerPinchGesture()
             )
             .focusable(true)
             .focusEffectDisabled()
@@ -459,6 +465,22 @@ struct CropOverlayView: View {
                 isDraggingTrackerPivot = false
                 trackerPivotStart = trackerPivot
                 updatePivotCursor()
+            }
+    }
+
+    private func trackerPinchGesture() -> some Gesture {
+        MagnificationGesture()
+            .onChanged { magnification in
+                guard showTrackerTarget else { return }
+                let base = pinchBaseScale ?? trackerScale
+                if pinchBaseScale == nil {
+                    pinchBaseScale = base
+                }
+                let newScale = base * magnification
+                trackerScale = max(CropTrackerTarget.minScale, min(CropTrackerTarget.maxScale, newScale))
+            }
+            .onEnded { _ in
+                pinchBaseScale = nil
             }
     }
 

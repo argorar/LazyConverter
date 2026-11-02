@@ -118,6 +118,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropRect = CGRect(x: newX, y: newY, width: newNormW, height: newNormH)
     }
     @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot
+    @Published var cropTrackerScale: CGFloat = CropTrackerTarget.defaultScale
     @Published var stabilizationEnabled: Bool = false
     @Published var stabilizationLevel: VideoStabilizationLevel = .medium
     @Published var loopEnabled: Bool = false
@@ -239,6 +240,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
     func resetCrop() {
         cropRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
         cropTrackerPivot = CropTrackerTarget.defaultPivot
+        cropTrackerScale = CropTrackerTarget.defaultScale
         cropTrackerEnabled = false
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
@@ -312,6 +314,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         dynamicSpeedEnabled = false
         dynamicSpeedPoints.removeAll()
         cropTrackerPivot = CropTrackerTarget.defaultPivot
+        cropTrackerScale = CropTrackerTarget.defaultScale
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
@@ -352,6 +355,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropDynamicEnabled = false
         cropTrackerEnabled = false
         cropTrackerPivot = CropTrackerTarget.defaultPivot
+        cropTrackerScale = CropTrackerTarget.defaultScale
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
@@ -966,6 +970,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
         let initialRect = cropRect
         let trackerPivot = cropTrackerPivot
+        let trackerScale = cropTrackerScale
         let trimStartValue = trimSegments.map { $0.start }.min()
         let trimEndValue = trimSegments.map { $0.end }.max()
         let info = videoInfo
@@ -976,6 +981,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     inputURL: inputURL,
                     initialCropRect: initialRect,
                     trackerPivot: trackerPivot,
+                    trackerScale: trackerScale,
                     trimStart: trimStartValue,
                     trimEnd: trimEndValue,
                     videoInfo: info

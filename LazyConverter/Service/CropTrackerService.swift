@@ -37,6 +37,7 @@ enum CropTrackerService {
         inputURL: URL,
         initialCropRect: CGRect,
         trackerPivot: CGPoint = CropTrackerTarget.defaultPivot,
+        trackerScale: CGFloat = CropTrackerTarget.defaultScale,
         trimStart: Double?,
         trimEnd: Double?,
         videoInfo: VideoInfo?
@@ -59,9 +60,14 @@ enum CropTrackerService {
         let initialTargetRect = CropTrackerTarget.normalizedTargetRect(
             in: normalizedInitial,
             videoSize: pixelSize,
-            pivot: normalizedPivot
+            pivot: normalizedPivot,
+            scale: trackerScale
         )
-        let targetSizePixels = CropTrackerTarget.squareSizePixels(cropRect: normalizedInitial, videoSize: pixelSize)
+        let targetSizePixels = CropTrackerTarget.squareSizePixels(
+            cropRect: normalizedInitial,
+            videoSize: pixelSize,
+            scale: trackerScale
+        )
         let sourceFPS = await resolvedSourceFPS(videoTrack: videoTrack, videoInfo: videoInfo)
         let sampleFPS = resolvedSampleFPS(sourceFPS: sourceFPS, duration: bounds.end - bounds.start)
 
@@ -77,14 +83,11 @@ enum CropTrackerService {
         request.preferBackgroundProcessing = false
         let minimumConfidence = resolvedMinimumConfidence()
 
-        var keyframesByFrame: [Int: CropDynamicKeyframe] = [:]
+        var rawSamples: [(time: Double, rect: CGRect)] = []
         var lastTargetRect = initialTargetRect
         var lastRect = normalizedInitial
 
-        let startFrame = frameIndex(for: bounds.start, fps: sourceFPS)
-        if let startCrop = cropString(from: lastRect, pixelSize: pixelSize) {
-            keyframesByFrame[startFrame] = CropDynamicKeyframe(time: bounds.start, crop: startCrop)
-        }
+        rawSamples.append((time: bounds.start, rect: lastRect))
 
         let sampleTimes = makeSampleTimes(start: bounds.start, end: bounds.end, sampleFPS: sampleFPS)
         var processedFrames = 0
@@ -117,22 +120,26 @@ enum CropTrackerService {
                 // Keep last tracked rect if Vision fails on this frame.
             }
 
-            if let crop = cropString(from: lastRect, pixelSize: pixelSize) {
-                let frameKey = frameIndex(for: frame.time, fps: sourceFPS)
-                keyframesByFrame[frameKey] = CropDynamicKeyframe(time: frame.time, crop: crop)
-            }
+            rawSamples.append((time: frame.time, rect: lastRect))
         }
 
         if processedFrames == 0 {
             throw CropTrackerServiceError.noFrames
         }
 
-        let endFrame = frameIndex(for: bounds.end, fps: sourceFPS)
-        if let endCrop = cropString(from: lastRect, pixelSize: pixelSize) {
-            keyframesByFrame[endFrame] = CropDynamicKeyframe(time: bounds.end, crop: endCrop)
+        rawSamples.append((time: bounds.end, rect: lastRect))
+
+        let sortedSamples = rawSamples.sorted { $0.time < $1.time }
+        let smoothedSamples = smoothSamples(sortedSamples)
+        let optimizedSamples = optimizeKeyframes(samples: smoothedSamples, pixelSize: pixelSize)
+
+        var keyframes: [CropDynamicKeyframe] = []
+        for sample in optimizedSamples {
+            if let crop = cropString(from: sample.rect, pixelSize: pixelSize) {
+                keyframes.append(CropDynamicKeyframe(time: sample.time, crop: crop))
+            }
         }
 
-        let keyframes = keyframesByFrame.values.sorted { $0.time < $1.time }
         guard !keyframes.isEmpty else {
             throw CropTrackerServiceError.noKeyframes
         }
@@ -278,6 +285,12 @@ enum CropTrackerService {
         let pixelDeltaX = deltaX * widthPixels
         let pixelDeltaY = deltaY * heightPixels
 
+        // Deadband: avoid micro-jitter when object is stationary
+        let jumpDistance = hypot(pixelDeltaX, pixelDeltaY)
+        if jumpDistance < 2.0 {
+            return previous
+        }
+
         let maxJumpX = resolvedMaxJumpPixels(targetSizePixels: targetSizePixels, axis: .horizontal)
         let maxJumpY = resolvedMaxJumpPixels(targetSizePixels: targetSizePixels, axis: .vertical)
         let clampedDeltaX = max(-maxJumpX, min(maxJumpX, pixelDeltaX))
@@ -304,6 +317,134 @@ enum CropTrackerService {
         return clampNormalizedRect(rect)
     }
 
+    private static func smoothSamples(_ samples: [(time: Double, rect: CGRect)]) -> [(time: Double, rect: CGRect)] {
+        guard samples.count > 2 else { return samples }
+        let count = samples.count
+        var smoothed = samples
+        for i in 1..<(count - 1) {
+            let p0 = samples[max(0, i - 1)].rect
+            let p1 = samples[i].rect
+            let p2 = samples[min(count - 1, i + 1)].rect
+            let midX = p0.midX * 0.25 + p1.midX * 0.50 + p2.midX * 0.25
+            let midY = p0.midY * 0.25 + p1.midY * 0.50 + p2.midY * 0.25
+            let rect = CGRect(
+                x: midX - p1.width / 2.0,
+                y: midY - p1.height / 2.0,
+                width: p1.width,
+                height: p1.height
+            )
+            smoothed[i] = (time: samples[i].time, rect: clampNormalizedRect(rect))
+        }
+        return smoothed
+    }
+
+    private static func optimizeKeyframes(
+        samples: [(time: Double, rect: CGRect)],
+        pixelSize: CGSize,
+        maxKeyframes: Int = 60
+    ) -> [(time: Double, rect: CGRect)] {
+        guard samples.count > 2 else { return samples }
+
+        let widthPixels = max(1.0, abs(pixelSize.width))
+        let heightPixels = max(1.0, abs(pixelSize.height))
+        let baseTolerance = max(6.0, min(widthPixels, heightPixels) * 0.008)
+
+        var tolerance = baseTolerance
+        var selectedIndices: [Int] = []
+
+        // ponytail: iterative tolerance scaling caps keyframe count to prevent bloated FFmpeg commands
+        for _ in 0..<5 {
+            var keep = Set<Int>()
+            keep.insert(0)
+            keep.insert(samples.count - 1)
+            simplifyRange(
+                start: 0,
+                end: samples.count - 1,
+                samples: samples,
+                widthPixels: widthPixels,
+                heightPixels: heightPixels,
+                tolerance: tolerance,
+                keep: &keep
+            )
+            selectedIndices = keep.sorted()
+            if selectedIndices.count <= maxKeyframes {
+                break
+            }
+            tolerance *= 1.4
+        }
+
+        var prunedIndices: [Int] = [selectedIndices[0]]
+        for i in 1..<selectedIndices.count {
+            let prevIdx = prunedIndices.last!
+            let currIdx = selectedIndices[i]
+            let isLast = (i == selectedIndices.count - 1)
+
+            if isLast {
+                prunedIndices.append(currIdx)
+                break
+            }
+
+            let timeDelta = samples[currIdx].time - samples[prevIdx].time
+            let prevRect = samples[prevIdx].rect
+            let currRect = samples[currIdx].rect
+            let dx = (currRect.midX - prevRect.midX) * widthPixels
+            let dy = (currRect.midY - prevRect.midY) * heightPixels
+            let dist = hypot(dx, dy)
+
+            if timeDelta >= 0.25 || dist > tolerance {
+                prunedIndices.append(currIdx)
+            }
+        }
+
+        return prunedIndices.map { samples[$0] }
+    }
+
+    private static func simplifyRange(
+        start: Int,
+        end: Int,
+        samples: [(time: Double, rect: CGRect)],
+        widthPixels: CGFloat,
+        heightPixels: CGFloat,
+        tolerance: CGFloat,
+        keep: inout Set<Int>
+    ) {
+        guard end > start + 1 else { return }
+
+        let t0 = samples[start].time
+        let t1 = samples[end].time
+        let duration = t1 - t0
+        guard duration > 0.000001 else { return }
+
+        let x0 = samples[start].rect.midX * widthPixels
+        let y0 = samples[start].rect.midY * heightPixels
+        let x1 = samples[end].rect.midX * widthPixels
+        let y1 = samples[end].rect.midY * heightPixels
+
+        var maxDist: CGFloat = 0.0
+        var maxIdx = start
+
+        for i in (start + 1)..<end {
+            let t = samples[i].time
+            let alpha = CGFloat((t - t0) / duration)
+            let expectedX = x0 + alpha * (x1 - x0)
+            let expectedY = y0 + alpha * (y1 - y0)
+            let actualX = samples[i].rect.midX * widthPixels
+            let actualY = samples[i].rect.midY * heightPixels
+            let dist = hypot(actualX - expectedX, actualY - expectedY)
+
+            if dist > maxDist {
+                maxDist = dist
+                maxIdx = i
+            }
+        }
+
+        if maxDist > tolerance {
+            keep.insert(maxIdx)
+            simplifyRange(start: start, end: maxIdx, samples: samples, widthPixels: widthPixels, heightPixels: heightPixels, tolerance: tolerance, keep: &keep)
+            simplifyRange(start: maxIdx, end: end, samples: samples, widthPixels: widthPixels, heightPixels: heightPixels, tolerance: tolerance, keep: &keep)
+        }
+    }
+
     private enum TrackerAxis {
         case horizontal
         case vertical
@@ -320,7 +461,7 @@ enum CropTrackerService {
     }
 
     private static func resolvedSmoothingAlpha(axis: TrackerAxis) -> CGFloat {
-        axis == .vertical ? 0.90 : 0.82
+        axis == .vertical ? 0.32 : 0.28
     }
 
     private static func cropRectAnchored(on pivotPoint: CGPoint, cropSize: CGSize, pivot: CGPoint) -> CGRect {
@@ -372,9 +513,5 @@ enum CropTrackerService {
 
         guard cropW > 0, cropH > 0 else { return nil }
         return "\(cropX):\(cropY):\(cropW):\(cropH)"
-    }
-
-    private static func frameIndex(for time: Double, fps: Double) -> Int {
-        max(0, Int(round(max(0.0, time) * max(1.0, fps))))
     }
 }
