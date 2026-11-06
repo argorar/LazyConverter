@@ -116,7 +116,7 @@ class FFmpegConverter {
                 stabilizationTransformURL: nil,
                 outputURL: intermediateURL,
                 stabilizationEnabledOverride: false,
-                includeOutputSizeLimit: !request.loopEnabled
+                includeOutputSizeLimit: false
             )
             logCommand(executablePath: executablePath, arguments: pass1Args)
 
@@ -144,42 +144,21 @@ class FFmpegConverter {
                 )
             }
 
-            if request.loopEnabled {
-                // With loop: pass 1 → boomerang → watermark overlay
-                executeMainAndOptionalLoop(
-                    request: request,
-                    executablePath: executablePath,
-                    arguments: pass1Args,
-                    videoDuration: effectiveDuration,
-                    completionCallback: { pass1Result in
-                        switch pass1Result {
-                        case .success(let resultURL):
-                            runPass2(resultURL)
-                        case .failure(let error):
-                            try? FileManager.default.removeItem(at: intermediateURL)
-                            cleanupWatermark()
-                            completionCallback(.failure(error))
-                        }
+            executeFFmpeg(
+                executablePath: executablePath,
+                arguments: pass1Args,
+                videoDuration: effectiveDuration,
+                completionCallback: { pass1Result in
+                    switch pass1Result {
+                    case .success:
+                        runPass2(intermediateURL)
+                    case .failure(let error):
+                        try? FileManager.default.removeItem(at: intermediateURL)
+                        cleanupWatermark()
+                        completionCallback(.failure(error))
                     }
-                )
-            } else {
-                // Without loop: pass 1 → watermark overlay
-                executeFFmpeg(
-                    executablePath: executablePath,
-                    arguments: pass1Args,
-                    videoDuration: effectiveDuration,
-                    completionCallback: { pass1Result in
-                        switch pass1Result {
-                        case .success:
-                            runPass2(intermediateURL)
-                        case .failure(let error):
-                            try? FileManager.default.removeItem(at: intermediateURL)
-                            cleanupWatermark()
-                            completionCallback(.failure(error))
-                        }
-                    }
-                )
-            }
+                }
+            )
             return
         }
 
@@ -189,11 +168,10 @@ class FFmpegConverter {
             stabilizationTransformURL: nil,
             outputURL: request.outputURL,
             stabilizationEnabledOverride: false,
-            includeOutputSizeLimit: !request.loopEnabled
+            includeOutputSizeLimit: true
         )
         logCommand(executablePath: executablePath, arguments: mainArguments)
-        executeMainAndOptionalLoop(
-            request: request,
+        executeFFmpeg(
             executablePath: executablePath,
             arguments: mainArguments,
             videoDuration: effectiveDuration,
@@ -430,57 +408,6 @@ class FFmpegConverter {
         videoDuration: Double,
         completionCallback: @escaping (Result<URL, FFmpegError>) -> Void
     ) {
-        if request.loopEnabled {
-            let tempOutputURL = makeTemporaryOutputURL(
-                in: request.outputURL.deletingLastPathComponent(),
-                baseName: request.outputURL.deletingPathExtension().lastPathComponent,
-                fileExtension: request.outputURL.pathExtension
-            )
-
-            var firstPassArgs = arguments
-            if !firstPassArgs.isEmpty {
-                firstPassArgs[firstPassArgs.count - 1] = tempOutputURL.path
-            }
-
-            logCommand(executablePath: executablePath, arguments: firstPassArgs)
-            executeFFmpeg(
-                executablePath: executablePath,
-                arguments: firstPassArgs,
-                videoDuration: videoDuration,
-                completionCallback: { firstResult in
-                    switch firstResult {
-                    case .success:
-                        let boomerangArgs = self.buildBoomerangCommand(
-                            inputURL: tempOutputURL,
-                            outputURL: request.outputURL,
-                            format: request.format,
-                            quality: request.quality,
-                            useGPU: request.useGPU,
-                            hasAudio: request.videoInfo?.hasAudio == true
-                                && request.speedPercent == 100.0 && !request.dynamicSpeedEnabled,
-                            maxOutputSizeMB: request.maxOutputSizeMB,
-                            duration: videoDuration * 2,
-                            colorInfo: request.videoInfo?.colorInfo
-                        )
-                        self.logCommand(executablePath: executablePath, arguments: boomerangArgs)
-                        self.executeFFmpeg(
-                            executablePath: executablePath,
-                            arguments: boomerangArgs,
-                            videoDuration: videoDuration * 2,
-                            completionCallback: { secondResult in
-                                try? FileManager.default.removeItem(at: tempOutputURL)
-                                completionCallback(secondResult)
-                            }
-                        )
-                    case .failure(let error):
-                        try? FileManager.default.removeItem(at: tempOutputURL)
-                        completionCallback(.failure(error))
-                    }
-                }
-            )
-            return
-        }
-
         executeFFmpeg(
             executablePath: executablePath,
             arguments: arguments,
@@ -679,7 +606,7 @@ class FFmpegConverter {
             if let dynamicSpeedFilter {
                 videoFilters.append(dynamicSpeedFilter)
             } else if hasStaticSpeedChange {
-                let duration = resolvedOutputDuration(request)
+                let duration = resolvedBaseDuration(request)
                 videoFilters.append(
                     SpeedMapPoint.buildSpeedSetptsFilter(
                         duration: duration, speed: speed, resetPTSWhenNoSpeed: false))
@@ -693,7 +620,37 @@ class FFmpegConverter {
             }
         }
         
-        if filterComplexArgs.isEmpty {
+        if request.loopEnabled {
+            var graph = filterComplexArgs.joined(separator: " ")
+
+            if !videoFilters.isEmpty {
+                let separator = graph.isEmpty ? "" : " "
+                graph += "\(separator)\(finalVideoPad)\(videoFilters.joined(separator: ","))[v_proc];"
+                finalVideoPad = "[v_proc]"
+            }
+
+            if canKeepAudio && !audioFilters.isEmpty {
+                let separator = graph.isEmpty ? "" : " "
+                graph += "\(separator)\(finalAudioPad)\(audioFilters.joined(separator: ","))[a_proc];"
+                finalAudioPad = "[a_proc]"
+            }
+
+            let separator = graph.isEmpty ? "" : " "
+            if canKeepAudio {
+                graph += "\(separator)\(finalVideoPad)split=2[v_fwd][v_to_rev];[v_to_rev]reverse,setpts=PTS-STARTPTS[v_rev];\(finalAudioPad)asplit=2[a_fwd][a_to_rev];[a_to_rev]areverse,asetpts=PTS-STARTPTS[a_rev];[v_fwd][a_fwd][v_rev][a_rev]concat=n=2:v=1:a=1[v_loop][a_loop]"
+                finalVideoPad = "[v_loop]"
+                finalAudioPad = "[a_loop]"
+            } else {
+                graph += "\(separator)\(finalVideoPad)split=2[v_fwd][v_to_rev];[v_to_rev]reverse,setpts=PTS-STARTPTS[v_rev];[v_fwd][v_rev]concat=n=2:v=1:a=0[v_loop]"
+                finalVideoPad = "[v_loop]"
+            }
+
+            arguments += ["-filter_complex", graph]
+            arguments += ["-map", finalVideoPad]
+            if canKeepAudio {
+                arguments += ["-map", finalAudioPad]
+            }
+        } else if filterComplexArgs.isEmpty {
             if !videoFilters.isEmpty {
                 arguments += ["-vf", videoFilters.joined(separator: ",")]
             }
@@ -849,11 +806,16 @@ class FFmpegConverter {
         return (start, end)
     }
     
-    func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
+    func resolvedBaseDuration(_ request: FFmpegConversionRequest) -> Double {
         if !request.trimSegments.isEmpty {
             return request.trimSegments.reduce(0.0) { $0 + max(0.0, $1.end - $1.start) }
         }
         return max(0.0, request.videoInfo?.duration ?? 0.0)
+    }
+
+    func resolvedOutputDuration(_ request: FFmpegConversionRequest) -> Double {
+        let base = resolvedBaseDuration(request)
+        return request.loopEnabled ? (base * 2.0) : base
     }
 
     private func buildStabilizationDetectCommand(
