@@ -34,14 +34,16 @@ enum VideoStabilizationLevel: String, CaseIterable, Codable {
         }
     }
 
-    func buildDetectFilter(transformsPath: String) -> String {
+    func buildDetectFilter(transformsPath: String, targetFPS: Double? = nil) -> String {
         let escaped = escapeFilterValue(transformsPath)
-        return "fps=30000/1001,vidstabdetect=result='\(escaped)':\(detectParameters)"
+        let fpsPrefix = targetFPS.map { "fps=\($0)," } ?? ""
+        return "\(fpsPrefix)lutyuv=y=gammaval(0.6),vidstabdetect=result='\(escaped)':\(detectParameters),lutyuv=y=gammaval(1/0.6)"
     }
 
-    func buildTransformFilter(transformsPath: String) -> String {
+    func buildTransformFilter(transformsPath: String, targetFPS: Double? = nil) -> String {
         let escaped = escapeFilterValue(transformsPath)
-        return "fps=30000/1001,vidstabtransform=input='\(escaped)':\(transformParameters),unsharp=5:5:0.5:3:3:0.2"
+        let fpsPrefix = targetFPS.map { "fps=\($0)," } ?? ""
+        return "\(fpsPrefix)lutyuv=y=gammaval(0.6),vidstabtransform=input='\(escaped)':\(transformParameters),lutyuv=y=gammaval(1/0.6),unsharp=5:5:0.5:3:3:0.2"
     }
 
     private func escapeFilterValue(_ value: String) -> String {
