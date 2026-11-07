@@ -39,8 +39,9 @@ struct VideoPreviewPanel: View {
 
             // Player
             if let unwrappedPlayer = player, unwrappedPlayer.currentItem != nil {
-                PlayerSurfaceView(player: unwrappedPlayer)
+                PlayerSurfaceView(player: unwrappedPlayer, onDoubleClick: { openFullscreen() })
                     .frame(height: 500)
+                    .clipped()
                     .cornerRadius(8)
                     .overlay {
                         GeometryReader { geo in
@@ -114,6 +115,7 @@ struct VideoPreviewPanel: View {
                                 }
                             }
                         }
+                        .allowsHitTesting(viewModel.cropEnabled || viewModel.watermarkConfig.isEnabled || viewModel.dynamicSpeedEnabled)
                     }
             } else {
                 ZStack {
@@ -155,6 +157,15 @@ struct VideoPreviewPanel: View {
                     .controlSize(.small)
                     .frame(width: playerControlButtonSize, height: playerControlButtonSize)
                     .disabled(!hasAudioInCurrentVideo)
+                    .help(lang.t("player.mute"))
+
+                    Button(action: captureSnapshot) {
+                        Image(systemName: "camera")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .frame(width: playerControlButtonSize, height: playerControlButtonSize)
+                    .help(lang.t("player.snapshot"))
 
                     Button(action: openFullscreen) {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -325,6 +336,11 @@ struct VideoPreviewPanel: View {
 
         if event.charactersIgnoringModifiers?.lowercased() == "m" {
             toggleMute()
+            return nil
+        }
+
+        if event.charactersIgnoringModifiers?.lowercased() == "e" {
+            captureSnapshot()
             return nil
         }
 
@@ -642,8 +658,58 @@ struct VideoPreviewPanel: View {
             hasAudio: hasAudioInCurrentVideo,
             langManager: lang
         )
+        controller.onSnapshot = { [self] in
+            self.captureSnapshot()
+        }
         controller.showFullscreen()
         self.fullscreenWindowController = controller
+    }
+
+    private func captureSnapshot() {
+        guard let currentItem = player?.currentItem,
+              let inputURL = videoInfo?.originalURL,
+              let ffmpegPath = FFmpegConverter.shared.resolvedFFmpegPath() else { return }
+
+        let time = currentItem.currentTime()
+        let seconds = time.seconds.isFinite ? time.seconds : currentTime
+
+        let outputDir = viewModel.outputDirectory.resolveURL()
+        let originalBase = inputURL.deletingPathExtension().lastPathComponent
+        let baseName = originalBase.isEmpty ? "snapshot" : originalBase
+        let totalSec = max(0, Int(seconds))
+        let h = totalSec / 3600
+        let m = (totalSec % 3600) / 60
+        let s = totalSec % 60
+        let ms = Int((seconds.truncatingRemainder(dividingBy: 1.0)) * 1000)
+        let timeStr = String(format: "%02dh%02dm%02ds_%03d", h, m, s, ms)
+
+        var destinationURL = outputDir.appendingPathComponent("\(baseName)_\(timeStr).png")
+        var counter = 1
+        while FileManager.default.fileExists(atPath: destinationURL.path) {
+            destinationURL = outputDir.appendingPathComponent("\(baseName)_\(timeStr)_\(counter).png")
+            counter += 1
+        }
+
+        Task.detached(priority: .userInitiated) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ffmpegPath)
+            process.arguments = [
+                "-ss", String(format: "%.3f", seconds),
+                "-i", inputURL.path,
+                "-vframes", "1",
+                "-y",
+                destinationURL.path
+            ]
+            try? process.run()
+            process.waitUntilExit()
+
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                await MainActor.run {
+                    NSSound(named: "Purr")?.play()
+                    self.viewModel.statusMessage = "📸 \(destinationURL.lastPathComponent)"
+                }
+            }
+        }
     }
 
     private func syncMuteButtonState() {
@@ -1169,26 +1235,38 @@ private struct DynamicSpeedOverlayView: View {
 
 struct PlayerSurfaceView: NSViewRepresentable {
     let player: AVPlayer
+    var onDoubleClick: (() -> Void)? = nil
 
     func makeNSView(context: Context) -> PlayerSurfaceNSView {
         let view = PlayerSurfaceNSView()
         view.playerLayer.videoGravity = .resizeAspect
         view.playerLayer.player = player
+        view.onDoubleClick = onDoubleClick
         return view
     }
 
     func updateNSView(_ nsView: PlayerSurfaceNSView, context: Context) {
-        nsView.playerLayer.player = player
+        if nsView.playerLayer.player !== player {
+            nsView.playerLayer.player = player
+            nsView.resetZoom()
+        }
+        nsView.onDoubleClick = onDoubleClick
     }
 }
 
 final class PlayerSurfaceNSView: NSView {
     let playerLayer = AVPlayerLayer()
+    var onDoubleClick: (() -> Void)? = nil
+    private var zoomScale: CGFloat = 1.0
+    private var panOffset: CGPoint = .zero
+    private var dragStart: CGPoint?
+    private var panStart: CGPoint = .zero
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
+        layer?.masksToBounds = true
         layer?.addSublayer(playerLayer)
     }
 
@@ -1196,9 +1274,97 @@ final class PlayerSurfaceNSView: NSView {
         nil
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     override func layout() {
         super.layout()
-        playerLayer.frame = bounds
+        if zoomScale <= 1.001 {
+            playerLayer.frame = bounds
+        }
+        updateTransform()
+    }
+
+    override func magnify(with event: NSEvent) {
+        let newScale = min(max(zoomScale + event.magnification, 1.0), 5.0)
+        zoomScale = newScale
+        if zoomScale <= 1.001 {
+            zoomScale = 1.0
+            panOffset = .zero
+        } else {
+            clampPan()
+        }
+        updateTransform()
+    }
+
+    override func smartMagnify(with event: NSEvent) {
+        if zoomScale > 1.01 {
+            resetZoom()
+        } else {
+            zoomScale = 2.0
+            clampPan()
+            updateTransform()
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            if zoomScale > 1.01 {
+                resetZoom()
+            } else {
+                onDoubleClick?()
+            }
+            return
+        }
+        if zoomScale > 1.01 {
+            dragStart = convert(event.locationInWindow, from: nil)
+            panStart = panOffset
+        } else {
+            super.mouseDown(with: event)
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard zoomScale > 1.01, let start = dragStart else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let current = convert(event.locationInWindow, from: nil)
+        panOffset = CGPoint(x: panStart.x + (current.x - start.x), y: panStart.y + (current.y - start.y))
+        clampPan()
+        updateTransform()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        dragStart = nil
+        super.mouseUp(with: event)
+    }
+
+    func resetZoom() {
+        zoomScale = 1.0
+        panOffset = .zero
+        updateTransform()
+    }
+
+    private func clampPan() {
+        let maxPanX = max(0, (zoomScale - 1.0) * bounds.width / 2.0)
+        let maxPanY = max(0, (zoomScale - 1.0) * bounds.height / 2.0)
+        panOffset.x = min(max(panOffset.x, -maxPanX), maxPanX)
+        panOffset.y = min(max(panOffset.y, -maxPanY), maxPanY)
+    }
+
+    private func updateTransform() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if zoomScale <= 1.001 {
+            playerLayer.transform = CATransform3DIdentity
+        } else {
+            let s = CATransform3DMakeScale(zoomScale, zoomScale, 1.0)
+            let t = CATransform3DMakeTranslation(panOffset.x, panOffset.y, 0)
+            playerLayer.transform = CATransform3DConcat(s, t)
+        }
+        CATransaction.commit()
     }
 }
 
@@ -1206,6 +1372,7 @@ final class PlayerSurfaceNSView: NSView {
 
 final class FullscreenPlayerWindowController: NSObject {
     private var window: NSWindow?
+    private var playerLayer: AVPlayerLayer?
     private var liveTimer: Timer?
     private var controlsTimer: Timer?
     private var scrollEndTimer: Timer?
@@ -1219,6 +1386,11 @@ final class FullscreenPlayerWindowController: NSObject {
     private let player: AVPlayer
     private let hasAudio: Bool
     private var isClosed = false
+    var onSnapshot: (() -> Void)? = nil
+    private var zoomScale: CGFloat = 1.0
+    private var panOffset: CGPoint = .zero
+    private var dragStart: CGPoint?
+    private var panStart: CGPoint = .zero
 
     init(player: AVPlayer, hasAudio: Bool, langManager: LanguageManager) {
         self.player = player
@@ -1247,10 +1419,12 @@ final class FullscreenPlayerWindowController: NSObject {
         playerLayer.player = player
         playerLayer.videoGravity = .resizeAspect
         playerLayer.frame = NSRect(origin: .zero, size: screen.frame.size)
+        self.playerLayer = playerLayer
 
         let containerView = NSView(frame: NSRect(origin: .zero, size: screen.frame.size))
         containerView.wantsLayer = true
         containerView.layer?.backgroundColor = NSColor.black.cgColor
+        containerView.layer?.masksToBounds = true
         containerView.layer?.addSublayer(playerLayer)
 
         let barWidth = min(720, screen.frame.size.width - 80)
@@ -1309,6 +1483,9 @@ final class FullscreenPlayerWindowController: NSObject {
         controlsTimer = nil
         scrollEndTimer?.invalidate()
         scrollEndTimer = nil
+
+        resetZoom()
+        playerLayer = nil
 
         if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
@@ -1380,8 +1557,16 @@ final class FullscreenPlayerWindowController: NSObject {
                     self.showControls()
                     return nil
                 }
+                if event.charactersIgnoringModifiers?.lowercased() == "e" {
+                    self.onSnapshot?()
+                    return nil
+                }
                 if event.charactersIgnoringModifiers?.lowercased() == "f" {
                     self.close()
+                    return nil
+                }
+                if event.charactersIgnoringModifiers == "0" {
+                    self.resetZoom()
                     return nil
                 }
                 return event
@@ -1391,9 +1576,25 @@ final class FullscreenPlayerWindowController: NSObject {
 
     private func installMouseMonitor() {
         mouseMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .scrollWheel]
+            matching: [.mouseMoved, .leftMouseDown, .leftMouseUp, .leftMouseDragged, .scrollWheel, .magnify, .smartMagnify]
         ) { [weak self] event in
             guard let self, !self.isClosed else { return event }
+
+            if event.type == .magnify {
+                self.handleMagnify(delta: event.magnification)
+                self.showControls()
+                return nil
+            }
+
+            if event.type == .smartMagnify {
+                if self.zoomScale > 1.01 {
+                    self.resetZoom()
+                } else {
+                    self.setZoom(2.0)
+                }
+                self.showControls()
+                return nil
+            }
 
             if event.type == .scrollWheel {
                 self.handleScrollWheel(event)
@@ -1409,10 +1610,27 @@ final class FullscreenPlayerWindowController: NSObject {
                     }
                 }
                 if event.clickCount == 2 {
+                    if self.zoomScale > 1.01 {
+                        self.resetZoom()
+                        return nil
+                    }
                     self.close()
                     return nil
                 }
+                if self.zoomScale > 1.01 {
+                    self.dragStart = event.locationInWindow
+                    self.panStart = self.panOffset
+                }
+            } else if event.type == .leftMouseDragged {
+                if self.zoomScale > 1.01, let start = self.dragStart {
+                    let current = event.locationInWindow
+                    self.panOffset = CGPoint(x: self.panStart.x + (current.x - start.x), y: self.panStart.y + (current.y - start.y))
+                    self.clampPan()
+                    self.updateTransform()
+                    return nil
+                }
             } else if event.type == .leftMouseUp {
+                self.dragStart = nil
                 if self.isScrubbing {
                     self.isScrubbing = false
                     if self.wasPlayingBeforeScrub {
@@ -1486,14 +1704,66 @@ final class FullscreenPlayerWindowController: NSObject {
     private func startLiveTimer() {
         liveTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self, !self.isClosed else { return }
-            if let layer = self.window?.contentView?.layer?.sublayers?.first as? AVPlayerLayer,
-               let frame = self.window?.contentView?.bounds {
-                if layer.frame != frame {
-                    layer.frame = frame
+            if self.zoomScale <= 1.001 {
+                if let layer = self.playerLayer,
+                   let frame = self.window?.contentView?.bounds {
+                    if layer.frame != frame {
+                        layer.frame = frame
+                    }
                 }
             }
             self.syncProgress()
         }
+    }
+
+    private func handleMagnify(delta: CGFloat) {
+        let newScale = min(max(zoomScale + delta, 1.0), 5.0)
+        zoomScale = newScale
+        if zoomScale <= 1.001 {
+            zoomScale = 1.0
+            panOffset = .zero
+        } else {
+            clampPan()
+        }
+        updateTransform()
+    }
+
+    private func setZoom(_ scale: CGFloat) {
+        zoomScale = min(max(scale, 1.0), 5.0)
+        if zoomScale <= 1.001 {
+            panOffset = .zero
+        } else {
+            clampPan()
+        }
+        updateTransform()
+    }
+
+    private func resetZoom() {
+        zoomScale = 1.0
+        panOffset = .zero
+        updateTransform()
+    }
+
+    private func clampPan() {
+        guard let win = window else { return }
+        let maxPanX = max(0, (zoomScale - 1.0) * win.frame.width / 2.0)
+        let maxPanY = max(0, (zoomScale - 1.0) * win.frame.height / 2.0)
+        panOffset.x = min(max(panOffset.x, -maxPanX), maxPanX)
+        panOffset.y = min(max(panOffset.y, -maxPanY), maxPanY)
+    }
+
+    private func updateTransform() {
+        guard let layer = playerLayer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if zoomScale <= 1.001 {
+            layer.transform = CATransform3DIdentity
+        } else {
+            let s = CATransform3DMakeScale(zoomScale, zoomScale, 1.0)
+            let t = CATransform3DMakeTranslation(panOffset.x, panOffset.y, 0)
+            layer.transform = CATransform3DConcat(s, t)
+        }
+        CATransaction.commit()
     }
 
     private func syncProgress() {

@@ -30,7 +30,9 @@
 "button.end" = "End";
 "button.clear" = "Clear";
 "player.waiting" = "Waiting for player...";
-"player.fullscreen" = "Fullscreen";
+"player.mute" = "Mute / Unmute (M)";
+"player.fullscreen" = "Fullscreen (F)";
+"player.snapshot" = "Capture frame (E)";
 "frame.current" = "⏱️ Current frame:";
 "update.title" = "Information!";
 "update.message" = "LazyConverter has a new version available.";
