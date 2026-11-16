@@ -122,13 +122,41 @@ struct SettingsPanel: View {
                         .toggleStyle(.switch)
                     Toggle(lang.t("crop.tracker"), isOn: $viewModel.cropTrackerEnabled)
                         .toggleStyle(.switch)
-                    if viewModel.isTrackingCrop {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text(lang.t("crop.tracking"))
+                    if viewModel.cropTrackerEnabled {
+                        if viewModel.isTrackingCrop {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text(lang.t("crop.tracking"))
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.accentColor)
+                                Button(action: {
+                                    viewModel.cancelCropTracking()
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(lang.t("action.stop"))
+                            }
+                        } else {
+                            Button(action: {
+                                viewModel.calculateCropTracking()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: viewModel.hasTrackedCrop ? "checkmark.circle.fill" : "wand.and.stars")
+                                    Text(viewModel.hasTrackedCrop ? lang.t("crop.recalculate") : lang.t("crop.calculate"))
+                                    if viewModel.hasTrackedCrop && !viewModel.cropDynamicKeyframes.isEmpty {
+                                        Text("(\(viewModel.cropDynamicKeyframes.count))")
+                                            .font(.system(size: 9, weight: .regular, design: .monospaced))
+                                    }
+                                }
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .tint(viewModel.hasTrackedCrop ? .secondary : .accentColor)
+                            .disabled(viewModel.selectedFileURL == nil || viewModel.isProcessing)
                         }
                     }
                     Spacer()

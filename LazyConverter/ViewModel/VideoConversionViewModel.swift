@@ -50,6 +50,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                 dynamicStartFrameIndex = nil
                 dynamicAutoEndFrameIndex = nil
                 cropTrackerEnabled = false
+                hasTrackedCrop = false
                 cropDynamicLockedAspectRatio = nil
             } else {
                 captureDynamicCropAspectRatioIfNeeded()
@@ -61,10 +62,18 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         didSet {
             if cropTrackerEnabled {
                 cropDynamicEnabled = true
+            } else {
+                hasTrackedCrop = false
+                if isTrackingCrop {
+                    activeTrackerJobID = nil
+                    isTrackingCrop = false
+                }
             }
         }
     }
     @Published var isTrackingCrop: Bool = false
+    @Published var hasTrackedCrop: Bool = false
+    @Published var isDraggingCrop: Bool = false
     @Published private(set) var cropDynamicKeyframes: [Int: CropDynamicKeyframe] = [:]
     @Published private(set) var cropDynamicLockedAspectRatio: CGFloat?
     @Published var cropRect: CGRect = CGRect(x: 0.25, y: 0.25, width: 0.5, height: 0.5) // valores en 0–1
@@ -117,8 +126,12 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         
         cropRect = CGRect(x: newX, y: newY, width: newNormW, height: newNormH)
     }
-    @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot
-    @Published var cropTrackerScale: CGFloat = CropTrackerTarget.defaultScale
+    @Published var cropTrackerPivot: CGPoint = CropTrackerTarget.defaultPivot {
+        didSet { hasTrackedCrop = false }
+    }
+    @Published var cropTrackerScale: CGFloat = CropTrackerTarget.defaultScale {
+        didSet { hasTrackedCrop = false }
+    }
     @Published var stabilizationEnabled: Bool = false
     @Published var stabilizationLevel: VideoStabilizationLevel = .medium
     @Published var loopEnabled: Bool = false
@@ -242,6 +255,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropTrackerScale = CropTrackerTarget.defaultScale
         cropTrackerEnabled = false
+        hasTrackedCrop = false
         cropDynamicKeyframes.removeAll()
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
@@ -319,6 +333,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         dynamicStartFrameIndex = nil
         dynamicAutoEndFrameIndex = nil
         isTrackingCrop = false
+        hasTrackedCrop = false
         activeTrackerJobID = nil
         watermarkConfig = .default
     }
@@ -354,6 +369,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropEnabled = false
         cropDynamicEnabled = false
         cropTrackerEnabled = false
+        hasTrackedCrop = false
         cropTrackerPivot = CropTrackerTarget.defaultPivot
         cropTrackerScale = CropTrackerTarget.defaultScale
         cropDynamicKeyframes.removeAll()
@@ -704,6 +720,85 @@ class VideoConversionViewModel: NSObject, ObservableObject {
         cropDynamicLockedAspectRatio = width / height
     }
 
+    /// Interpolates `cropRect` from `cropDynamicKeyframes` at the given time.
+    /// Uses easeInOutSine (<=4 keyframes) or linear (>4 keyframes), matching
+    /// the easing strategy used by `CropDynamicKeyframe.buildDynamicCropFilter`.
+    func updateCropRectFromDynamicKeyframes(at time: Double) {
+        guard cropDynamicEnabled, !isDraggingCrop else { return }
+        let sorted = cropDynamicKeyframes.values.sorted { $0.time < $1.time }
+        guard !sorted.isEmpty else { return }
+        guard let videoSize = videoInfo?.videoSize,
+              abs(videoSize.width) > 0, abs(videoSize.height) > 0 else { return }
+
+        let totalW = Double(max(1, abs(videoSize.width)))
+        let totalH = Double(max(1, abs(videoSize.height)))
+
+        func parse(_ crop: String) -> (x: Double, y: Double, w: Double, h: Double)? {
+            let parts = crop.split(separator: ":")
+            guard parts.count == 4,
+                  let x = Double(parts[0]), let y = Double(parts[1]),
+                  let w = Double(parts[2]), let h = Double(parts[3]) else { return nil }
+            return (x, y, w, h)
+        }
+
+        if sorted.count == 1 {
+            guard let a = parse(sorted[0].crop) else { return }
+            let rect = clampNormalizedRect(CGRect(
+                x: a.x / totalW,
+                y: a.y / totalH,
+                width: a.w / totalW,
+                height: a.h / totalH
+            ))
+            if cropRect != rect {
+                cropRect = rect
+            }
+            return
+        }
+
+        // Find the two bracketing keyframes
+        var before = sorted[0]
+        var after = sorted[sorted.count - 1]
+        for kf in sorted {
+            if kf.time <= time { before = kf }
+        }
+        for kf in sorted.reversed() {
+            if kf.time >= time { after = kf }
+        }
+
+        guard let a = parse(before.crop), let b = parse(after.crop) else { return }
+
+        let t: Double
+        if before.time >= after.time {
+            t = 0
+        } else {
+            t = min(max((time - before.time) / (after.time - before.time), 0), 1)
+        }
+
+        // Matches CropDynamicKeyframe.buildDynamicCropFilter easing
+        let ease: Double
+        if sorted.count > 4 {
+            ease = t
+        } else {
+            ease = 0.5 * (1.0 - cos(t * .pi))
+        }
+
+        let px = a.x + (b.x - a.x) * ease
+        let py = a.y + (b.y - a.y) * ease
+        let pw = a.w + (b.w - a.w) * ease
+        let ph = a.h + (b.h - a.h) * ease
+
+        let newRect = CGRect(
+            x: px / totalW,
+            y: py / totalH,
+            width: pw / totalW,
+            height: ph / totalH
+        )
+        let clamped = clampNormalizedRect(newRect)
+        if cropRect != clamped {
+            cropRect = clamped
+        }
+    }
+
     private func cropString(from normalizedRect: CGRect) -> String? {
         guard let videoSize = videoInfo?.videoSize else { return nil }
         let rect = clampNormalizedRect(normalizedRect)
@@ -940,12 +1035,78 @@ class VideoConversionViewModel: NSObject, ObservableObject {
 
         prepareConversionState()
 
-        if cropEnabled && cropTrackerEnabled {
+        if cropEnabled && cropTrackerEnabled && !hasTrackedCrop {
             runTrackerAndConvert(inputURL: inputURL)
             return
         }
 
         continueConversion(using: inputURL)
+    }
+
+    /// Runs crop tracker calculation ahead of conversion so the user can preview the result.
+    func calculateCropTracking() {
+        guard let inputURL = selectedFileURL else {
+            errorMessage = lang?.t("error.no_file_selected") ?? "No file selected"
+            return
+        }
+        guard !isTrackingCrop else { return }
+
+        isTrackingCrop = true
+        statusMessage = lang?.t("status.tracking_crop") ?? "Tracking selected area..."
+        let jobID = UUID()
+        activeTrackerJobID = jobID
+
+        let initialRect = cropRect
+        let trackerPivot = cropTrackerPivot
+        let trackerScale = cropTrackerScale
+        let trimStartValue = trimSegments.map { $0.start }.min()
+        let trimEndValue = trimSegments.map { $0.end }.max()
+        let info = videoInfo
+
+        Task(priority: .userInitiated) { [weak self] in
+            do {
+                let trackedKeyframes = try await CropTrackerService.track(
+                    inputURL: inputURL,
+                    initialCropRect: initialRect,
+                    trackerPivot: trackerPivot,
+                    trackerScale: trackerScale,
+                    trimStart: trimStartValue,
+                    trimEnd: trimEndValue,
+                    videoInfo: info
+                )
+
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    guard self.activeTrackerJobID == jobID else { return }
+                    self.activeTrackerJobID = nil
+                    self.isTrackingCrop = false
+                    self.hasTrackedCrop = true
+                    self.cropDynamicEnabled = true
+                    self.applyTrackedKeyframes(trackedKeyframes)
+                    self.updateCropRectFromDynamicKeyframes(at: self.liveCurrentTime)
+                    let format = self.lang?.t("crop.tracked_success") ?? "✓ %d frames tracked"
+                    self.statusMessage = String(format: format, trackedKeyframes.count)
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    guard self.activeTrackerJobID == jobID else { return }
+                    self.activeTrackerJobID = nil
+                    self.isTrackingCrop = false
+                    self.hasTrackedCrop = false
+                    self.statusMessage = self.lang?.t("status.conversion_error") ?? "Conversion error"
+                    self.errorMessage = self.lang?.t("error.tracker_failed") ?? "Unable to track selected area"
+                    self.errorLog = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    func cancelCropTracking() {
+        guard isTrackingCrop else { return }
+        activeTrackerJobID = nil
+        isTrackingCrop = false
+        statusMessage = lang?.t("status.tracking_cancelled") ?? "Tracking cancelled"
     }
 
     var maxOutputSizeMB: Int? {
@@ -992,6 +1153,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     guard self.activeTrackerJobID == jobID, self.isProcessing else { return }
                     self.activeTrackerJobID = nil
                     self.isTrackingCrop = false
+                    self.hasTrackedCrop = true
                     self.cropDynamicEnabled = true
                     self.applyTrackedKeyframes(trackedKeyframes)
                     self.continueConversion(using: inputURL)
@@ -1002,6 +1164,7 @@ class VideoConversionViewModel: NSObject, ObservableObject {
                     guard self.activeTrackerJobID == jobID else { return }
                     self.activeTrackerJobID = nil
                     self.isTrackingCrop = false
+                    self.hasTrackedCrop = false
                     self.isProcessing = false
                     self.statusMessage = self.lang?.t("status.conversion_error") ?? "Conversion error"
                     self.errorMessage = self.lang?.t("error.tracker_failed") ?? "Unable to track selected area"

@@ -49,6 +49,7 @@ struct VideoPreviewPanel: View {
                                 if viewModel.cropEnabled {
                                     CropOverlayView(
                                         cropRect: $viewModel.cropRect,
+                                        isDraggingCrop: $viewModel.isDraggingCrop,
                                         trackerPivot: $viewModel.cropTrackerPivot,
                                         trackerScale: $viewModel.cropTrackerScale,
                                         videoSize: CGSize(
@@ -410,6 +411,7 @@ struct VideoPreviewPanel: View {
         if abs(viewModel.liveCurrentTime - targetSeconds) > 0.01 {
             viewModel.liveCurrentTime = targetSeconds
         }
+        viewModel.updateCropRectFromDynamicKeyframes(at: targetSeconds)
 
         // Consume event so parent ScrollView does not move while seeking.
         return nil
@@ -489,7 +491,8 @@ struct VideoPreviewPanel: View {
 
             let newTime = player.currentTime().seconds
             if !newTime.isNaN && newTime >= 0 {
-                if abs(currentTime - newTime) > 0.01 {
+                let timeChanged = abs(currentTime - newTime) > 0.01
+                if timeChanged {
                     currentTime = newTime
                 }
                 if abs(viewModel.liveCurrentTime - newTime) > 0.01 {
@@ -500,6 +503,9 @@ struct VideoPreviewPanel: View {
                     if abs(scrubPosition - bounded) > 0.01 {
                         scrubPosition = bounded
                     }
+                }
+                if timeChanged && !isUserScrubbing {
+                    viewModel.updateCropRectFromDynamicKeyframes(at: newTime)
                 }
             }
         }
@@ -606,6 +612,7 @@ struct VideoPreviewPanel: View {
                 if abs(self.viewModel.liveCurrentTime - boundedSeconds) > 0.01 {
                     self.viewModel.liveCurrentTime = boundedSeconds
                 }
+                self.viewModel.updateCropRectFromDynamicKeyframes(at: boundedSeconds)
 
                 if keepPlaying {
                     self.updatePlayerRate(self.viewModel.speedPercent)
@@ -750,6 +757,7 @@ struct VideoPreviewPanel: View {
 
         if abs(currentTime - bounded) > 0.01 { currentTime = bounded }
         if abs(viewModel.liveCurrentTime - bounded) > 0.01 { viewModel.liveCurrentTime = bounded }
+        viewModel.updateCropRectFromDynamicKeyframes(at: bounded)
     }
 
     private func startScrubbingSession() {

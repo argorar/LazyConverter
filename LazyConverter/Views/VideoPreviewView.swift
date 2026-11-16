@@ -10,31 +10,35 @@ import SwiftUI
 struct VideoPreviewView: View {
     let videoInfo: VideoInfo
     @EnvironmentObject var theme: ThemeManager
+    @EnvironmentObject var lang: LanguageManager
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             // Info del Video
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Image(systemName: "doc.text.fill")
-                        .foregroundColor(.accentColor)
-                    Text(videoInfo.fileName)
-                        .font(.system(size: 14, weight: .medium))
-                        .lineLimit(1)
-                    Spacer()
-                }
-                
-                HStack(spacing: 20) {
-                    infoItem("⏱️", videoInfo.durationString)
-                    infoItem("📏", videoInfo.sizeString)
-                    infoItem("🎞️", String(format: "%.2f FPS", videoInfo.frameRate))
-                    infoItem("💾", String(format: "%.1f MB", videoInfo.fileSizeMB))
-                    infoItem(videoInfo.hasAudio ? "🔊" : "🔇", videoInfo.hasAudio ? "Sí" : "No")
-                    infoItem("🎨", videoInfo.colorInfo.pixelFormat)
-                }
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "film")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Text(videoInfo.fileName)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                Spacer()
             }
+            
+            HStack(spacing: 16) {
+                infoItem("clock", videoInfo.durationString)
+                infoItem("aspectratio", videoInfo.sizeString)
+                infoItem("film", String(format: "%.2f FPS", videoInfo.frameRate))
+                infoItem("internaldrive", String(format: "%.1f MB", videoInfo.fileSizeMB))
+                infoItem(
+                    videoInfo.hasAudio ? "speaker.wave.2" : "speaker.slash",
+                    lang.t(videoInfo.hasAudio ? "common.yes" : "common.no")
+                )
+                infoItem("paintpalette", videoInfo.colorInfo.pixelFormat)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .monospacedDigit()
+            .foregroundColor(.secondary)
         }
         .padding(12)
         .adaptiveCard(
@@ -46,9 +50,11 @@ struct VideoPreviewView: View {
         )
     }
     
-    private func infoItem(_ icon: String, _ value: String) -> some View {
+    private func infoItem(_ systemName: String, _ value: String) -> some View {
         HStack(spacing: 4) {
-            Text(icon)
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .regular))
+                .frame(width: 13)
             Text(value)
         }
     }

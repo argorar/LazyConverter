@@ -10,6 +10,7 @@ import AppKit
 
 struct CropOverlayView: View {
     @Binding var cropRect: CGRect
+    var isDraggingCrop: Binding<Bool>? = nil
     @Binding var trackerPivot: CGPoint
     @Binding var trackerScale: CGFloat
     let videoSize: CGSize
@@ -232,6 +233,7 @@ struct CropOverlayView: View {
             .onChanged { value in
                 guard !NSEvent.modifierFlags.contains(.command) else { return }
                 isDragging = true
+                isDraggingCrop?.wrappedValue = true
                 
                 let dxNorm = value.translation.width / videoFrame.width
                 let dyNorm = value.translation.height / videoFrame.height
@@ -247,10 +249,12 @@ struct CropOverlayView: View {
             .onEnded { _ in
                 guard !NSEvent.modifierFlags.contains(.command) else {
                     isDragging = false
+                    isDraggingCrop?.wrappedValue = false
                     return
                 }
                 baseCropRect = cropRect
                 isDragging = false
+                isDraggingCrop?.wrappedValue = false
             }
     }
 
