@@ -47,6 +47,12 @@
 "crop.dynamicInfo" = "Dynamic speichert Crop-Schlüsselbilder über die Zeit und interpoliert die Bewegung dazwischen.";
 "crop.trackerInfo" = "Tracker verfolgt die ausgewählten Pixel und erzeugt beim Konvertieren automatisch dynamische Crop-Keyframes.";
 "crop.tracking" = "Tracking...";
+"crop.calculate" = "Berechnen";
+"crop.recalculate" = "Neu berechnen";
+"crop.tracked_success" = "✓ %d Frames verfolgt";
+"status.tracking_cancelled" = "Verfolgung abgebrochen";
+"common.yes" = "Ja";
+"common.no" = "Nein";
 "speed.title" = "Videogeschwindigkeit";
 "action.convert" = "Konvertieren";
 "action.stop" = "Stopp";
