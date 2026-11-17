@@ -4,244 +4,464 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LazyConverter - Simple Video Conversion for macOS</title>
+  <title>LazyConverter — Native macOS Video Conversion & Light Editing</title>
   <meta name="description"
-    content="LazyConverter is a native macOS app that converts videos quickly, simply, using FFmpeg." />
+    content="LazyConverter is a native macOS app for fast, simple, and versatile video conversion and editing with FFmpeg." />
+  <link rel="icon" type="image/png" href="app-icon-dark.png" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" href="app-icon.png" media="(prefers-color-scheme: light)" />
+  <link rel="apple-touch-icon" href="app-icon-dark.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <div class="glass-orb orb-a" aria-hidden="true"></div>
-  <div class="glass-orb orb-b" aria-hidden="true"></div>
-  <div class="bg-noise" aria-hidden="true"></div>
+  <!-- Top Navigation -->
+  <nav class="site-nav">
+    <div class="nav-container">
+      <a class="brand" href="#">
+        <img class="brand-icon-img" src="app-icon-dark.png" alt="LazyConverter" width="28" height="28" />
+        <span>LazyConverter</span>
+      </a>
 
-  <header class="hero">
-    <div class="hero-copy">
-      <div class="lang-toggle" aria-label="Language selector">
-        <button class="lang-btn active" type="button" data-lang="en">EN</button>
-        <button class="lang-btn" type="button" data-lang="es">ES</button>
+      <div class="nav-links">
+        <a class="nav-link" href="#features" data-i18n="navFeatures">Features</a>
+        <a class="nav-link" href="#workflow" data-i18n="navWorkflow">Workflow</a>
+        <a class="nav-link" href="#requirements" data-i18n="navRequirements">Requirements</a>
       </div>
-      <p class="eyebrow reveal" data-i18n="eyebrow">macOS • SwiftUI • FFmpeg</p>
-      <h1 class="reveal" data-i18n="heroTitle">Convert videos effortlessly, right on your Mac.</h1>
-      <p class="lead reveal" data-i18n="heroLead">
-        LazyConverter is a native app for fast conversion and light editing with FFmpeg.
-      </p>
-      <div class="hero-actions reveal">
-        <a class="btn ghost" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer"
-          data-i18n="ctaGithub">View on GitHub</a>
-        <a class="btn ghost" href="#features" data-i18n="ctaFeatures">See features</a>
-        <a class="btn primary" href="https://github.com/argorar/LazyConverter/releases/latest" target="_blank"
-          rel="noreferrer" data-i18n="ctaDownload">Download</a>
+
+      <div class="nav-actions">
+        <div class="lang-toggle" aria-label="Language selector">
+          <button class="lang-btn active" type="button" data-lang="en">EN</button>
+          <button class="lang-btn" type="button" data-lang="es">ES</button>
+        </div>
+
+        <a class="nav-btn-icon" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer" title="GitHub Repository">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+          </svg>
+        </a>
+
+        <a class="btn primary tabular-nums" href="https://github.com/argorar/LazyConverter/releases/latest" target="_blank" rel="noreferrer" data-i18n="ctaDownload">
+          Download
+        </a>
       </div>
-      <div class="hero-meta"></div>
     </div>
-    <div class="hero-visual reveal">
-      <div class="mock-frame">
-        <div class="mock-screen">
-          <img src="https://github.com/argorar/LazyConverter/raw/main/interface.png"
-            alt="Captura de la interfaz de LazyConverter" />
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <h1 class="reveal" data-i18n="heroTitle">Convert and edit video effortlessly on your Mac</h1>
+          <p class="hero-lead reveal" data-i18n="heroLead">
+            Fast format conversion, trimming, visual cropping and more powered by FFmpeg. Lightweight, versatile, and instant.
+          </p>
+          <div class="hero-actions reveal">
+            <a class="btn primary" id="download-btn" href="https://github.com/argorar/LazyConverter/releases/latest" target="_blank" rel="noreferrer" data-i18n="ctaDownload">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download for Mac</span>
+            </a>
+            <a class="btn secondary" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer" data-i18n="ctaGithub">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+              </svg>
+              <span>View on GitHub</span>
+            </a>
+          </div>
+          <div class="specs-bar reveal">
+            <span class="spec-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span data-i18n="specPlatform">macOS 14.0+ (Universal)</span>
+            </span>
+            <span class="spec-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span data-i18n="specPerformance">GPU-accelerated</span>
+            </span>
+            <span class="spec-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5" />
+                <line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
+              <span data-i18n="specFFmpeg">Powered by FFmpeg</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Window Frame (Moments) -->
+        <div class="hero-visual reveal">
+          <div class="window-frame">
+            <img src="interface.png" alt="LazyConverter interface on macOS" width="1200" height="750" loading="eager" />
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <main>
+    <!-- Features Section -->
     <section id="features" class="section">
-      <div class="section-title reveal">
-        <h2 data-i18n="featuresTitle">Key features</h2>
-        <p data-i18n="featuresSubtitle">A compact set of tools for conversion and light editing.</p>
-      </div>
-      <div class="grid">
-        <article class="card reveal">
-          <h3 data-i18n="feature1Title">Flexible conversion</h3>
-          <p data-i18n="feature1Body">Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K,
-            1080p, 720p, etc.).</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature7Title">Interpolation</h3>
-          <p data-i18n="feature7Body">Improve motion smoothness for cleaner playback.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature2Title">Speed and trimming</h3>
-          <p data-i18n="feature2Body">Change speed between 0.5x and 2x with real-time preview. Set trim start and end
-            using the current playback time.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature3Title">Visual crop</h3>
-          <p data-i18n="feature3Body">On-screen overlay with handles to define the export area. Normalized coordinates
-            for any resolution.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature4Title">Auto analysis</h3>
-          <p data-i18n="feature4Body">Automatically detects resolution, duration, file size, and FPS when you load a
-            video.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature5Title">Smart preview</h3>
-          <p data-i18n="feature5Body">Native AVPlayer integration with time readout and crop overlay when enabled.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature8Title">Dynamic speed</h3>
-          <p data-i18n="feature8Body">Adjust video speed dynamically over time using keyframes.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature9Title">Dynamic crop</h3>
-          <p data-i18n="feature9Body">Animate your crop area to reframe shots or track subjects.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature10Title">Dynamic zoom</h3>
-          <p data-i18n="feature10Body">Create smooth pan and zoom effects for a cinematic feel.</p>
-        </article>
-        <article class="card reveal">
-          <h3 data-i18n="feature6Title">Watermark</h3>
-          <p data-i18n="feature6Body">Add customized text to your videos.</p>
-        </article>
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-eyebrow" data-i18n="featuresEyebrow">Capabilities</p>
+          <h2 class="section-title" data-i18n="featuresTitle">Key features</h2>
+          <p class="section-subtitle" data-i18n="featuresSubtitle">A compact set of tools for conversion, trimming, and light editing.</p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+              </svg>
+            </div>
+            <h3 data-i18n="feature1Title">Flexible conversion</h3>
+            <p data-i18n="feature1Body">Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <rect x="9" y="9" width="6" height="6" />
+                <line x1="9" y1="1" x2="9" y2="4" />
+                <line x1="15" y1="1" x2="15" y2="4" />
+                <line x1="9" y1="20" x2="9" y2="23" />
+                <line x1="15" y1="20" x2="15" y2="23" />
+                <line x1="20" y1="9" x2="23" y2="9" />
+                <line x1="20" y1="14" x2="23" y2="14" />
+                <line x1="1" y1="9" x2="4" y2="9" />
+                <line x1="1" y1="14" x2="4" y2="14" />
+              </svg>
+            </div>
+            <h3 data-i18n="feature7Title">Interpolation</h3>
+            <p data-i18n="feature7Body">Improve motion smoothness for cleaner playback with GPU-accelerated RIFE frame interpolation.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="6" cy="6" r="3"></circle>
+                <circle cx="6" cy="18" r="3"></circle>
+                <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="feature2Title">Speed and trimming</h3>
+            <p data-i18n="feature2Body">Change speed between 0.5x and 2x with real-time preview. Set trim start and end using current playback time.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+                <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+              </svg>
+            </div>
+            <h3 data-i18n="feature3Title">Visual crop</h3>
+            <p data-i18n="feature3Body">On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="feature4Title">Auto analysis</h3>
+            <p data-i18n="feature4Body">Automatically detects resolution, duration, file size, and FPS when you load a video.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+            <h3 data-i18n="feature5Title">Smart preview</h3>
+            <p data-i18n="feature5Body">Native AVPlayer integration with live time readout and crop overlay when enabled.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <h3 data-i18n="feature8Title">Dynamic speed</h3>
+            <p data-i18n="feature8Body">Adjust video speed dynamically over time using keyframes.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+              </svg>
+            </div>
+            <h3 data-i18n="feature9Title">Dynamic crop</h3>
+            <p data-i18n="feature9Body">Animate your crop area to reframe shots or track subjects cleanly across time.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="feature10Title">Dynamic zoom</h3>
+            <p data-i18n="feature10Body">Create smooth pan and zoom effects for a cinematic feel directly on Mac.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                <line x1="9" y1="20" x2="15" y2="20"></line>
+                <line x1="12" y1="4" x2="12" y2="20"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="feature6Title">Watermark</h3>
+            <p data-i18n="feature6Body">Add customized text watermarks to your videos with full font and position control.</p>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section class="section split">
-      <div class="section-title reveal">
-        <h2 data-i18n="workflowTitle">Fast workflow</h2>
-        <p data-i18n="workflowSubtitle">Three steps from raw file to final export.</p>
-      </div>
-      <div class="steps">
-        <div class="step reveal">
-          <span class="step-num">1</span>
-          <p data-i18n="workflowStep1">Drag a video in or select the file.</p>
+    <!-- Workflow Section -->
+    <section id="workflow" class="section">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="section-eyebrow" data-i18n="workflowEyebrow">Process</p>
+          <h2 class="section-title" data-i18n="workflowTitle">Fast workflow</h2>
+          <p class="section-subtitle" data-i18n="workflowSubtitle">Three steps from raw file to final export.</p>
         </div>
-        <div class="step reveal">
-          <span class="step-num">2</span>
-          <p data-i18n="workflowStep2">Adjust format, resolution, quality, and speed, trim, or crop options.</p>
-        </div>
-        <div class="step reveal">
-          <span class="step-num">3</span>
-          <p data-i18n="workflowStep3">Convert and receive a notification when the process finishes.</p>
+
+        <div class="workflow-grid">
+          <div class="workflow-card reveal">
+            <span class="workflow-num tabular-nums">1</span>
+            <div>
+              <h3 data-i18n="workflowStep1Title">Import file</h3>
+              <p data-i18n="workflowStep1">Drag a video in or click to select your file from Finder.</p>
+            </div>
+          </div>
+
+          <div class="workflow-card reveal">
+            <span class="workflow-num tabular-nums">2</span>
+            <div>
+              <h3 data-i18n="workflowStep2Title">Tune parameters</h3>
+              <p data-i18n="workflowStep2">Adjust format, resolution, quality, speed, trim, or crop options.</p>
+            </div>
+          </div>
+
+          <div class="workflow-card reveal">
+            <span class="workflow-num tabular-nums">3</span>
+            <div>
+              <h3 data-i18n="workflowStep3Title">Export instantly</h3>
+              <p data-i18n="workflowStep3">Convert with one click and receive a notification when the process finishes.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section split" id="requirements">
-      <div class="section-title reveal">
-        <h2 data-i18n="reqTitle">Requirements</h2>
-        <p data-i18n="reqSubtitle">To run this app you need to have <strong>FFmpeg</strong> installed on your system.
-        </p>
-        <p data-i18n="reqCommandText" style="margin-top: 12px;">Execute the next commands to install them:</p>
-      </div>
-      <div class="terminal-box reveal">
-        <pre><code>brew tap homebrew-ffmpeg/ffmpeg
-brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
+    <!-- Requirements Section -->
+    <section id="requirements" class="section">
+      <div class="container">
+        <div class="split-layout">
+          <div class="requirements-info reveal">
+            <p class="section-eyebrow" data-i18n="reqEyebrow">Setup</p>
+            <h2 class="section-title" data-i18n="reqTitle">Requirements</h2>
+            <p data-i18n="reqSubtitle">
+              To run the standard app you need to have <strong>FFmpeg</strong> installed on your system. Alternatively, download the Standalone build with bundled binaries.
+            </p>
+            <p data-i18n="reqCommandText">Execute the following commands in Terminal with Homebrew:</p>
+          </div>
+
+          <div class="terminal-card reveal">
+            <div class="terminal-header">
+              <span class="terminal-title">Terminal — zsh</span>
+              <button class="copy-btn" id="copy-btn" type="button" aria-label="Copy terminal command">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copy-btn-text" data-i18n="copyCommand">Copy</span>
+              </button>
+            </div>
+            <pre class="terminal-body"><code id="code-snippet"><span class="terminal-prompt">$</span>brew tap homebrew-ffmpeg/ffmpeg
+<span class="terminal-prompt">$</span>brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
+          </div>
+        </div>
       </div>
     </section>
 
+    <!-- Call to Action Banner -->
     <section class="section">
-      <div class="cta reveal">
-        <div>
-          <h2 data-i18n="ctaTitle">Ready for macOS</h2>
-          <p data-i18n="ctaBody">LazyConverter is built for Mac users who want simple, fast, and private conversion.</p>
+      <div class="container">
+        <div class="cta-card reveal">
+          <div class="cta-content">
+            <img class="cta-app-icon" src="app-icon-dark.png" alt="LazyConverter" width="52" height="52" />
+            <div>
+              <h2 data-i18n="ctaTitle">Ready for macOS</h2>
+              <p data-i18n="ctaBody">LazyConverter is built for Mac users who want simple, fast, and flexible video processing.</p>
+            </div>
+          </div>
+          <div class="cta-actions">
+            <a class="btn primary tabular-nums" href="https://github.com/argorar/LazyConverter/releases/latest" target="_blank" rel="noreferrer" data-i18n="ctaDownload">
+              Download for Mac
+            </a>
+            <a class="btn secondary" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer" data-i18n="ctaRepo">
+              Repository
+            </a>
+          </div>
         </div>
-        <a class="btn primary" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer"
-          data-i18n="ctaRepo">Repository</a>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <p data-i18n="footer">LazyConverter — Video conversion made simple on Mac.</p>
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-inner">
+        <span data-i18n="footer">LazyConverter — Video conversion made simple on Mac.</span>
+        <div class="footer-links">
+          <a class="footer-link" href="https://github.com/argorar/LazyConverter/blob/main/LICENSE" target="_blank" rel="noreferrer">MIT License</a>
+          <a class="footer-link" href="https://github.com/argorar/LazyConverter" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+    </div>
   </footer>
 
   <script>
     const translations = {
       en: {
-        eyebrow: "macOS • SwiftUI • FFmpeg",
-        heroTitle: "Convert videos effortlessly, right on your Mac.",
-        heroLead:
-          "LazyConverter is a native app for fast conversion and light editing with FFmpeg.",
+        navFeatures: "Features",
+        navWorkflow: "Workflow",
+        navRequirements: "Requirements",
+        heroTitle: "Convert and edit video effortlessly on your Mac",
+        heroLead: "Fast format conversion, trimming, visual cropping and more powered by FFmpeg. Lightweight, versatile, and instant.",
         ctaGithub: "View on GitHub",
         ctaFeatures: "See features",
-        ctaDownload: "Download",
+        ctaDownload: "Download for Mac",
+        specPlatform: "macOS 14.0+ (Universal)",
+        specPerformance: "GPU-accelerated",
+        specFFmpeg: "Powered by FFmpeg",
+        featuresEyebrow: "Capabilities",
         featuresTitle: "Key features",
-        featuresSubtitle: "A compact set of tools for conversion and light editing.",
+        featuresSubtitle: "A compact set of tools for conversion, trimming, and light editing.",
         feature1Title: "Flexible conversion",
-        feature1Body:
-          "Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).",
+        feature1Body: "Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).",
+        feature7Title: "Interpolation",
+        feature7Body: "Improve motion smoothness for cleaner playback with GPU-accelerated RIFE frame interpolation.",
         feature2Title: "Speed and trimming",
-        feature2Body:
-          "Change speed between 0.5x and 2x with real-time preview. Set trim start and end using the current playback time.",
+        feature2Body: "Change speed between 0.5x and 2x with real-time preview. Set trim start and end using current playback time.",
         feature3Title: "Visual crop",
-        feature3Body:
-          "On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.",
+        feature3Body: "On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.",
         feature4Title: "Auto analysis",
-        feature4Body:
-          "Automatically detects resolution, duration, file size, and FPS when you load a video.",
+        feature4Body: "Automatically detects resolution, duration, file size, and FPS when you load a video.",
         feature5Title: "Smart preview",
-        feature5Body:
-          "Native AVPlayer integration with time readout and crop overlay when enabled.",
+        feature5Body: "Native AVPlayer integration with live time readout and crop overlay when enabled.",
         feature8Title: "Dynamic speed",
         feature8Body: "Adjust video speed dynamically over time using keyframes.",
         feature9Title: "Dynamic crop",
-        feature9Body: "Animate your crop area to reframe shots or track subjects.",
+        feature9Body: "Animate your crop area to reframe shots or track subjects cleanly across time.",
         feature10Title: "Dynamic zoom",
-        feature10Body: "Create smooth pan and zoom effects for a cinematic feel.",
+        feature10Body: "Create smooth pan and zoom effects for a cinematic feel directly on Mac.",
         feature6Title: "Watermark",
-        feature6Body: "Add custom text watermarks to your videos.",
+        feature6Body: "Add customized text watermarks to your videos with full font and position control.",
+        workflowEyebrow: "Process",
         workflowTitle: "Fast workflow",
         workflowSubtitle: "Three steps from raw file to final export.",
-        workflowStep1: "Drag a video in or select the file.",
-        workflowStep2: "Adjust format, resolution, quality, and speed, trim, or crop options.",
-        workflowStep3: "Convert and receive a notification when the process finishes.",
+        workflowStep1Title: "Import file",
+        workflowStep1: "Drag a video in or click to select your file from Finder.",
+        workflowStep2Title: "Tune parameters",
+        workflowStep2: "Adjust format, resolution, quality, speed, trim, or crop options.",
+        workflowStep3Title: "Export instantly",
+        workflowStep3: "Convert with one click and receive a notification when the process finishes.",
+        reqEyebrow: "Setup",
         reqTitle: "Requirements",
-        reqSubtitle: "To run this app you need to have <strong>FFmpeg</strong> installed on your system.",
-        reqCommandText: "Execute the next commands to install them:",
+        reqSubtitle: "To run the standard app you need to have <strong>FFmpeg</strong> installed on your system. Alternatively, download the Standalone build with bundled binaries.",
+        reqCommandText: "Execute the following commands in Terminal with Homebrew:",
+        copyCommand: "Copy",
+        copiedCommand: "Copied",
         ctaTitle: "Ready for macOS",
-        ctaBody: "LazyConverter is built for Mac users who want simple, fast, and private conversion.",
+        ctaBody: "LazyConverter is built for Mac users who want simple, fast, and flexible video processing.",
         ctaRepo: "Repository",
         footer: "LazyConverter — Video conversion made simple on Mac."
       },
       es: {
-        eyebrow: "macOS • SwiftUI • FFmpeg",
-        heroTitle: "Convierte videos sin esfuerzo, directo en tu Mac.",
-        heroLead:
-          "LazyConverter es una app nativa para conversión rápida y edición con FFmpeg.",
+        navFeatures: "Características",
+        navWorkflow: "Flujo",
+        navRequirements: "Requisitos",
+        heroTitle: "Convierte y edita video sin esfuerzo en tu Mac",
+        heroLead: "Conversión de formatos, recortes visuales, ajuste de velocidad y más con FFmpeg. Ligero, versátil y al instante.",
         ctaGithub: "Ver en GitHub",
         ctaFeatures: "Ver características",
-        ctaDownload: "Descargar",
+        ctaDownload: "Descargar para Mac",
+        specPlatform: "macOS 14.0+ (Universal)",
+        specPerformance: "Aceleración por GPU",
+        specFFmpeg: "Impulsado por FFmpeg",
+        featuresEyebrow: "Capacidades",
         featuresTitle: "Características clave",
-        featuresSubtitle: "Un set compacto de herramientas para conversión y edición.",
+        featuresSubtitle: "Un set compacto de herramientas para conversión, recorte y edición.",
         feature1Title: "Conversión flexible",
-        feature1Body:
-          "Exporta a MP4, MKV y otros formatos comunes. Ajusta resolución (original, 4K, 1080p, 720p, etc.).",
+        feature1Body: "Exporta a MP4, MKV y otros formatos comunes. Ajusta resolución (original, 4K, 1080p, 720p, etc.).",
+        feature7Title: "Interpolación",
+        feature7Body: "Mejora la fluidez de movimiento mediante interpolación de cuadros RIFE acelerada por GPU.",
         feature2Title: "Velocidad y recorte",
-        feature2Body:
-          "Cambia la velocidad entre 0,5x y 2x con vista previa en tiempo real. Define inicio y fin del recorte usando la reproducción actual.",
+        feature2Body: "Cambia la velocidad entre 0,5x y 2x con vista previa en tiempo real. Define inicio y fin del recorte con precisión.",
         feature3Title: "Recorte visual (crop)",
-        feature3Body:
-          "Overlay visual con handles para definir el área de exportación. Coordenadas normalizadas para cualquier resolución.",
+        feature3Body: "Overlay en pantalla con controles táctiles para definir el área de exportación con coordenadas normalizadas.",
         feature4Title: "Autoanálisis",
-        feature4Body:
-          "Detecta resolución, duración, tamaño de archivo y FPS automáticamente al cargar el video.",
+        feature4Body: "Detecta resolución, duración, tamaño de archivo y FPS automáticamente al abrir cualquier video.",
         feature5Title: "Vista previa inteligente",
-        feature5Body:
-          "Integración nativa con AVPlayer, lectura de tiempo y overlay de crop cuando está habilitado.",
+        feature5Body: "Integración nativa con AVPlayer, lectura de tiempo y overlay visual en tiempo real.",
         feature8Title: "Velocidad dinámica",
         feature8Body: "Ajusta la velocidad del video dinámicamente a lo largo del tiempo usando fotogramas clave.",
         feature9Title: "Crop dinámico",
-        feature9Body: "Anima el área de recorte para reencuadrar tomas o seguir sujetos.",
+        feature9Body: "Anima el área de recorte para reencuadrar tomas o seguir sujetos con fluidez.",
         feature10Title: "Zoom dinámico",
         feature10Body: "Crea paneos y efectos de zoom suaves para un acabado cinematográfico.",
         feature6Title: "Marca de agua",
-        feature6Body: "Añade marcas de agua de texto para personalizar tus videos.",
+        feature6Body: "Añade marcas de agua de texto personalizadas con control de tipografía y posición.",
+        workflowEyebrow: "Proceso",
         workflowTitle: "Flujo de trabajo rápido",
         workflowSubtitle: "Tres pasos para pasar de archivo crudo a exportación final.",
-        workflowStep1: "Arrastra un video o selecciona el archivo.",
-        workflowStep2: "Ajusta formato, resolución, calidad y opciones de velocidad, recorte o crop.",
-        workflowStep3: "Convierte y recibe una notificación cuando el proceso termina.",
+        workflowStep1Title: "Importar archivo",
+        workflowStep1: "Arrastra un video o haz clic para seleccionarlo desde Finder.",
+        workflowStep2Title: "Ajustar parámetros",
+        workflowStep2: "Configura formato, resolución, calidad, velocidad o recorte visual.",
+        workflowStep3Title: "Exportar al instante",
+        workflowStep3: "Convierte con un solo clic y recibe una notificación al terminar el proceso.",
+        reqEyebrow: "Configuración",
         reqTitle: "Requisitos",
-        reqSubtitle: "Para usar esta app necesitas tener <strong>FFmpeg</strong> instalado en tu sistema.",
-        reqCommandText: "Ejecuta los siguientes comandos para instalarlos:",
-        ctaTitle: "Lista para macOS",
-        ctaBody: "LazyConverter está pensada para usuarios de Mac que quieren conversión simple, rápida y privada.",
+        reqSubtitle: "Para la versión estándar necesitas tener <strong>FFmpeg</strong> instalado. También puedes descargar la versión Standalone con binarios integrados.",
+        reqCommandText: "Ejecuta los siguientes comandos en tu Terminal con Homebrew:",
+        copyCommand: "Copiar",
+        copiedCommand: "Copiado",
+        ctaTitle: "Listo para tu Mac",
+        ctaBody: "LazyConverter está pensado para usuarios de Mac que quieren procesamiento de video simple, rápido y flexible.",
         ctaRepo: "Repositorio",
-        footer: "LazyConverter — Conversión de video simple en Mac."
+        footer: "LazyConverter — Conversión de video nativa y simple para Mac."
       }
     };
 
@@ -266,40 +486,57 @@ brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
         window.setTimeout(() => {
           applyLang(btn.dataset.lang);
           document.body.classList.remove("lang-fade");
-        }, 160);
+        }, 140);
       })
     );
 
+    // Initial setup
     applyLang("en");
-    window.addEventListener("load", () => {
-      const downloadBtn = document.getElementById("download-btn");
-      if (downloadBtn) downloadBtn.focus();
 
-      // Scroll animations setup
-      const observerOptions = { root: null, rootMargin: '0px', threshold: 0.1 };
-      const observer = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-            observer.unobserve(entry.target);
-          }
-        });
-      }, observerOptions);
-
-      // Add stagger delays to hero elements
-      document.querySelectorAll('.hero-copy .reveal').forEach((el, index) => {
-        el.style.transitionDelay = `${index * 100}ms`;
+    // Copy to clipboard for terminal snippet
+    const copyBtn = document.getElementById("copy-btn");
+    const copyBtnText = document.getElementById("copy-btn-text");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const commands = "brew tap homebrew-ffmpeg/ffmpeg\nbrew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab";
+        try {
+          await navigator.clipboard.writeText(commands);
+          copyBtn.classList.add("copied");
+          const lang = document.documentElement.lang || "en";
+          copyBtnText.textContent = translations[lang].copiedCommand;
+          window.setTimeout(() => {
+            copyBtn.classList.remove("copied");
+            copyBtnText.textContent = translations[lang].copyCommand;
+          }, 2000);
+        } catch (e) {
+          console.error("Clipboard write failed", e);
+        }
       });
+    }
 
-      // Add stagger delays to grid and steps children
-      document.querySelectorAll('.grid, .steps').forEach(container => {
-        Array.from(container.children).forEach((child, index) => {
-          child.style.transitionDelay = `${index * 100}ms`;
-        });
+    // Scroll reveal observer
+    const observerOptions = { root: null, rootMargin: '0px 0px -40px 0px', threshold: 0.1 };
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          obs.unobserve(entry.target);
+        }
       });
+    }, observerOptions);
 
-      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    // Stagger delays
+    document.querySelectorAll('.hero-copy .reveal').forEach((el, index) => {
+      el.style.transitionDelay = `${index * 50}ms`;
     });
+
+    document.querySelectorAll('.features-grid, .workflow-grid').forEach(container => {
+      Array.from(container.children).forEach((child, index) => {
+        child.style.transitionDelay = `${(index % 4) * 50}ms`;
+      });
+    });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   </script>
 </body>
 
