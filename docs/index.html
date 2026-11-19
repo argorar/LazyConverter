@@ -126,7 +126,7 @@
               </svg>
             </div>
             <h3 data-i18n="feature1Title">Flexible conversion</h3>
-            <p data-i18n="feature1Body">Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).</p>
+            <p data-i18n="feature1Body">Export to MP4, MKV, MOV, WebM, and AV1. Adjust resolution (original, 4K, 1080p, 720p) and CRF quality.</p>
           </article>
 
           <article class="feature-card reveal">
@@ -134,18 +134,80 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="4" y="4" width="16" height="16" rx="2" />
                 <rect x="9" y="9" width="6" height="6" />
-                <line x1="9" y1="1" x2="9" y2="4" />
-                <line x1="15" y1="1" x2="15" y2="4" />
-                <line x1="9" y1="20" x2="9" y2="23" />
-                <line x1="15" y1="20" x2="15" y2="23" />
-                <line x1="20" y1="9" x2="23" y2="9" />
-                <line x1="20" y1="14" x2="23" y2="14" />
-                <line x1="1" y1="9" x2="4" y2="9" />
-                <line x1="1" y1="14" x2="4" y2="14" />
+                <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
+                <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
+                <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
+                <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
               </svg>
             </div>
-            <h3 data-i18n="feature7Title">Interpolation</h3>
-            <p data-i18n="feature7Body">Improve motion smoothness for cleaner playback with GPU-accelerated RIFE frame interpolation.</p>
+            <h3 data-i18n="feature7Title">RIFE interpolation</h3>
+            <p data-i18n="feature7Body">Boost frame rates up to 60fps or 120fps with GPU-accelerated RIFE neural network interpolation.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="14.31" y1="8" x2="20.05" y2="17.94"></line>
+                <line x1="9.69" y1="8" x2="21.17" y2="8"></line>
+                <line x1="7.38" y1="12" x2="13.12" y2="2.06"></line>
+                <line x1="9.69" y1="16" x2="3.95" y2="6.06"></line>
+                <line x1="14.31" y1="16" x2="2.83" y2="16"></line>
+                <line x1="16.62" y1="12" x2="10.88" y2="21.94"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="featureStabilizationTitle">Stabilization & denoise</h3>
+            <p data-i18n="featureStabilizationBody">Eliminate camera shake with libvidstab (low, medium, high) and clean sensor noise with hqdn3d.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="featureYtDlpTitle">YouTube & web downloads</h3>
+            <p data-i18n="featureYtDlpBody">Paste video links via yt-dlp, preview selected segments, and download only the clip you need.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="featureQueueTitle">Batch conversion queue</h3>
+            <p data-i18n="featureQueueBody">Drop multiple videos into the queue drawer to batch process them in the background with live progress.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <h3 data-i18n="featureMergeTitle">Video merger</h3>
+            <p data-i18n="featureMergeBody">Combine and concatenate multiple video clips into a single continuous file with custom ordering.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+                <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+              </svg>
+            </div>
+            <h3 data-i18n="feature3Title">Visual & tracked crop</h3>
+            <p data-i18n="feature3Body">On-screen handles with aspect ratio locks, plus an automated pixel tracker that follows subjects over time.</p>
           </article>
 
           <article class="feature-card reveal">
@@ -158,41 +220,8 @@
                 <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
               </svg>
             </div>
-            <h3 data-i18n="feature2Title">Speed and trimming</h3>
-            <p data-i18n="feature2Body">Change speed between 0.5x and 2x with real-time preview. Set trim start and end using current playback time.</p>
-          </article>
-
-          <article class="feature-card reveal">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
-                <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
-              </svg>
-            </div>
-            <h3 data-i18n="feature3Title">Visual crop</h3>
-            <p data-i18n="feature3Body">On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.</p>
-          </article>
-
-          <article class="feature-card reveal">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-            </div>
-            <h3 data-i18n="feature4Title">Auto analysis</h3>
-            <p data-i18n="feature4Body">Automatically detects resolution, duration, file size, and FPS when you load a video.</p>
-          </article>
-
-          <article class="feature-card reveal">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-            </div>
-            <h3 data-i18n="feature5Title">Smart preview</h3>
-            <p data-i18n="feature5Body">Native AVPlayer integration with live time readout and crop overlay when enabled.</p>
+            <h3 data-i18n="feature2Title">Multi-segment trim & speed</h3>
+            <p data-i18n="feature2Body">Cut multiple segments in one pass and adjust playback speed between 0.5x and 2x with live preview.</p>
           </article>
 
           <article class="feature-card reveal">
@@ -202,20 +231,7 @@
               </svg>
             </div>
             <h3 data-i18n="feature8Title">Dynamic speed</h3>
-            <p data-i18n="feature8Body">Adjust video speed dynamically over time using keyframes.</p>
-          </article>
-
-          <article class="feature-card reveal">
-            <div class="feature-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-              </svg>
-            </div>
-            <h3 data-i18n="feature9Title">Dynamic crop</h3>
-            <p data-i18n="feature9Body">Animate your crop area to reframe shots or track subjects cleanly across time.</p>
+            <p data-i18n="feature8Body">Draw custom velocity curves over time using interactive speed map keyframes.</p>
           </article>
 
           <article class="feature-card reveal">
@@ -228,19 +244,38 @@
               </svg>
             </div>
             <h3 data-i18n="feature10Title">Dynamic zoom</h3>
-            <p data-i18n="feature10Body">Create smooth pan and zoom effects for a cinematic feel directly on Mac.</p>
+            <p data-i18n="feature10Body">Create smooth pan and zoom effects for a cinematic feel directly on your video timeline.</p>
           </article>
 
           <article class="feature-card reveal">
             <div class="feature-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="4 7 4 4 20 4 20 7"></polyline>
-                <line x1="9" y1="20" x2="15" y2="20"></line>
-                <line x1="12" y1="4" x2="12" y2="20"></line>
+                <line x1="22" y1="12" x2="2" y2="12"></line>
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                <line x1="6" y1="16" x2="6.01" y2="16"></line>
+                <line x1="10" y1="16" x2="10.01" y2="16"></line>
               </svg>
             </div>
-            <h3 data-i18n="feature6Title">Watermark</h3>
-            <p data-i18n="feature6Body">Add customized text watermarks to your videos with full font and position control.</p>
+            <h3 data-i18n="featureSizeLimitTitle">Target size limit</h3>
+            <p data-i18n="featureSizeLimitBody">Set maximum output size in MB for Discord or email, with optional GPU super-compression.</p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </div>
+            <h3 data-i18n="feature6Title">Watermarks & color</h3>
+            <p data-i18n="feature6Body">Position custom text watermarks and fine-tune brightness, contrast, saturation, and gamma in real time.</p>
           </article>
         </div>
       </div>
@@ -291,7 +326,7 @@
             <p class="section-eyebrow" data-i18n="reqEyebrow">Setup</p>
             <h2 class="section-title" data-i18n="reqTitle">Requirements</h2>
             <p data-i18n="reqSubtitle">
-              To run the standard app you need to have <strong>FFmpeg</strong> installed on your system. Alternatively, download the Standalone build with bundled binaries.
+              To run the standard app you need to have <strong>FFmpeg</strong> (with <code>--with-libvidstab</code> for stabilization) and optional <strong>yt-dlp</strong> for web downloads. Alternatively, download the Standalone build with bundled binaries.
             </p>
             <p data-i18n="reqCommandText">Execute the following commands in Terminal with Homebrew:</p>
           </div>
@@ -308,7 +343,8 @@
               </button>
             </div>
             <pre class="terminal-body"><code id="code-snippet"><span class="terminal-prompt">$</span>brew tap homebrew-ffmpeg/ffmpeg
-<span class="terminal-prompt">$</span>brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab</code></pre>
+<span class="terminal-prompt">$</span>brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab
+<span class="terminal-prompt">$</span>brew install yt-dlp</code></pre>
           </div>
         </div>
       </div>
@@ -360,7 +396,6 @@
         heroTitle: "Convert and edit video effortlessly on your Mac",
         heroLead: "Fast format conversion, trimming, visual cropping and more powered by FFmpeg. Lightweight, versatile, and instant.",
         ctaGithub: "View on GitHub",
-        ctaFeatures: "See features",
         ctaDownload: "Download for Mac",
         specPlatform: "macOS 14.0+ (Universal)",
         specPerformance: "GPU-accelerated",
@@ -369,25 +404,29 @@
         featuresTitle: "Key features",
         featuresSubtitle: "A compact set of tools for conversion, trimming, and light editing.",
         feature1Title: "Flexible conversion",
-        feature1Body: "Export to MP4, MKV, and other common formats. Adjust resolution (original, 4K, 1080p, 720p, etc.).",
-        feature7Title: "Interpolation",
-        feature7Body: "Improve motion smoothness for cleaner playback with GPU-accelerated RIFE frame interpolation.",
-        feature2Title: "Speed and trimming",
-        feature2Body: "Change speed between 0.5x and 2x with real-time preview. Set trim start and end using current playback time.",
-        feature3Title: "Visual crop",
-        feature3Body: "On-screen overlay with handles to define the export area. Normalized coordinates for any resolution.",
-        feature4Title: "Auto analysis",
-        feature4Body: "Automatically detects resolution, duration, file size, and FPS when you load a video.",
-        feature5Title: "Smart preview",
-        feature5Body: "Native AVPlayer integration with live time readout and crop overlay when enabled.",
+        feature1Body: "Export to MP4, MKV, MOV, WebM, and AV1. Adjust resolution (original, 4K, 1080p, 720p) and CRF quality.",
+        feature7Title: "RIFE interpolation",
+        feature7Body: "Boost frame rates up to 60fps or 120fps with GPU-accelerated RIFE neural network interpolation.",
+        featureStabilizationTitle: "Stabilization & denoise",
+        featureStabilizationBody: "Eliminate camera shake with libvidstab (low, medium, high) and clean sensor noise with hqdn3d.",
+        featureYtDlpTitle: "YouTube & web downloads",
+        featureYtDlpBody: "Paste video links via yt-dlp, preview selected segments, and download only the clip you need.",
+        featureQueueTitle: "Batch conversion queue",
+        featureQueueBody: "Drop multiple videos into the queue drawer to batch process them in the background with live progress.",
+        featureMergeTitle: "Video merger",
+        featureMergeBody: "Combine and concatenate multiple video clips into a single continuous file with custom ordering.",
+        feature3Title: "Visual & tracked crop",
+        feature3Body: "On-screen handles with aspect ratio locks, plus an automated pixel tracker that follows subjects over time.",
+        feature2Title: "Multi-segment trim & speed",
+        feature2Body: "Cut multiple segments in one pass and adjust playback speed between 0.5x and 2x with live preview.",
         feature8Title: "Dynamic speed",
-        feature8Body: "Adjust video speed dynamically over time using keyframes.",
-        feature9Title: "Dynamic crop",
-        feature9Body: "Animate your crop area to reframe shots or track subjects cleanly across time.",
+        feature8Body: "Draw custom velocity curves over time using interactive speed map keyframes.",
         feature10Title: "Dynamic zoom",
-        feature10Body: "Create smooth pan and zoom effects for a cinematic feel directly on Mac.",
-        feature6Title: "Watermark",
-        feature6Body: "Add customized text watermarks to your videos with full font and position control.",
+        feature10Body: "Create smooth pan and zoom effects for a cinematic feel directly on your video timeline.",
+        featureSizeLimitTitle: "Target size limit",
+        featureSizeLimitBody: "Set maximum output size in MB for Discord or email, with optional GPU super-compression.",
+        feature6Title: "Watermarks & color",
+        feature6Body: "Position custom text watermarks and fine-tune brightness, contrast, saturation, and gamma in real time.",
         workflowEyebrow: "Process",
         workflowTitle: "Fast workflow",
         workflowSubtitle: "Three steps from raw file to final export.",
@@ -399,7 +438,7 @@
         workflowStep3: "Convert with one click and receive a notification when the process finishes.",
         reqEyebrow: "Setup",
         reqTitle: "Requirements",
-        reqSubtitle: "To run the standard app you need to have <strong>FFmpeg</strong> installed on your system. Alternatively, download the Standalone build with bundled binaries.",
+        reqSubtitle: "To run the standard app you need to have <strong>FFmpeg</strong> (with <code>--with-libvidstab</code> for stabilization) and optional <strong>yt-dlp</strong> for web downloads. Alternatively, download the Standalone build with bundled binaries.",
         reqCommandText: "Execute the following commands in Terminal with Homebrew:",
         copyCommand: "Copy",
         copiedCommand: "Copied",
@@ -415,7 +454,6 @@
         heroTitle: "Convierte y edita video sin esfuerzo en tu Mac",
         heroLead: "Conversión de formatos, recortes visuales, ajuste de velocidad y más con FFmpeg. Ligero, versátil y al instante.",
         ctaGithub: "Ver en GitHub",
-        ctaFeatures: "Ver características",
         ctaDownload: "Descargar para Mac",
         specPlatform: "macOS 14.0+ (Universal)",
         specPerformance: "Aceleración por GPU",
@@ -424,25 +462,29 @@
         featuresTitle: "Características clave",
         featuresSubtitle: "Un set compacto de herramientas para conversión, recorte y edición.",
         feature1Title: "Conversión flexible",
-        feature1Body: "Exporta a MP4, MKV y otros formatos comunes. Ajusta resolución (original, 4K, 1080p, 720p, etc.).",
-        feature7Title: "Interpolación",
-        feature7Body: "Mejora la fluidez de movimiento mediante interpolación de cuadros RIFE acelerada por GPU.",
-        feature2Title: "Velocidad y recorte",
-        feature2Body: "Cambia la velocidad entre 0,5x y 2x con vista previa en tiempo real. Define inicio y fin del recorte con precisión.",
-        feature3Title: "Recorte visual (crop)",
-        feature3Body: "Overlay en pantalla con controles táctiles para definir el área de exportación con coordenadas normalizadas.",
-        feature4Title: "Autoanálisis",
-        feature4Body: "Detecta resolución, duración, tamaño de archivo y FPS automáticamente al abrir cualquier video.",
-        feature5Title: "Vista previa inteligente",
-        feature5Body: "Integración nativa con AVPlayer, lectura de tiempo y overlay visual en tiempo real.",
+        feature1Body: "Exporta a MP4, MKV, MOV, WebM y AV1. Ajusta resolución (original, 4K, 1080p, 720p) y calidad CRF.",
+        feature7Title: "Interpolación RIFE",
+        feature7Body: "Aumenta la tasa de cuadros a 60fps o 120fps con la red neuronal RIFE acelerada por GPU.",
+        featureStabilizationTitle: "Estabilización y denoise",
+        featureStabilizationBody: "Elimina temblores de cámara con libvidstab (bajo, medio, alto) y reduce ruido de sensor con hqdn3d.",
+        featureYtDlpTitle: "Descargas de YouTube y web",
+        featureYtDlpBody: "Pega enlaces de video con yt-dlp, previsualiza fragmentos y descarga solo el segmento deseado.",
+        featureQueueTitle: "Cola de conversión por lotes",
+        featureQueueBody: "Arrastra múltiples videos a la cola lateral para procesarlos en segundo plano con progreso en vivo.",
+        featureMergeTitle: "Unión de videos",
+        featureMergeBody: "Combina y concatena múltiples clips en un único archivo continuo con orden personalizado.",
+        feature3Title: "Recorte visual y tracking",
+        feature3Body: "Controles en pantalla con bloqueo de aspecto y seguimiento automático de píxeles para sujetos en movimiento.",
+        feature2Title: "Recorte multisegmento y velocidad",
+        feature2Body: "Corta múltiples fragmentos en un solo paso y ajusta la velocidad entre 0,5x y 2x con vista previa.",
         feature8Title: "Velocidad dinámica",
-        feature8Body: "Ajusta la velocidad del video dinámicamente a lo largo del tiempo usando fotogramas clave.",
-        feature9Title: "Crop dinámico",
-        feature9Body: "Anima el área de recorte para reencuadrar tomas o seguir sujetos con fluidez.",
+        feature8Body: "Dibuja curvas de velocidad personalizadas en el tiempo mediante fotogramas clave interactivos.",
         feature10Title: "Zoom dinámico",
-        feature10Body: "Crea paneos y efectos de zoom suaves para un acabado cinematográfico.",
-        feature6Title: "Marca de agua",
-        feature6Body: "Añade marcas de agua de texto personalizadas con control de tipografía y posición.",
+        feature10Body: "Crea paneos y efectos de zoom suaves para un acabado cinematográfico en la línea de tiempo.",
+        featureSizeLimitTitle: "Límite de tamaño objetivo",
+        featureSizeLimitBody: "Fija un peso máximo en MB para Discord o correo, con supercompresión opcional por GPU.",
+        feature6Title: "Marcas de agua y color",
+        feature6Body: "Añade marcas de agua de texto y ajusta brillo, contraste, saturación y gamma en tiempo real.",
         workflowEyebrow: "Proceso",
         workflowTitle: "Flujo de trabajo rápido",
         workflowSubtitle: "Tres pasos para pasar de archivo crudo a exportación final.",
@@ -454,7 +496,7 @@
         workflowStep3: "Convierte con un solo clic y recibe una notificación al terminar el proceso.",
         reqEyebrow: "Configuración",
         reqTitle: "Requisitos",
-        reqSubtitle: "Para la versión estándar necesitas tener <strong>FFmpeg</strong> instalado. También puedes descargar la versión Standalone con binarios integrados.",
+        reqSubtitle: "Para la versión estándar necesitas tener <strong>FFmpeg</strong> (con <code>--with-libvidstab</code> para estabilización) y opcionalmente <strong>yt-dlp</strong> para descargas web. También puedes descargar la versión Standalone con binarios integrados.",
         reqCommandText: "Ejecuta los siguientes comandos en tu Terminal con Homebrew:",
         copyCommand: "Copiar",
         copiedCommand: "Copiado",
@@ -498,7 +540,7 @@
     const copyBtnText = document.getElementById("copy-btn-text");
     if (copyBtn) {
       copyBtn.addEventListener("click", async () => {
-        const commands = "brew tap homebrew-ffmpeg/ffmpeg\nbrew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab";
+        const commands = "brew tap homebrew-ffmpeg/ffmpeg\nbrew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-libvidstab\nbrew install yt-dlp";
         try {
           await navigator.clipboard.writeText(commands);
           copyBtn.classList.add("copied");
