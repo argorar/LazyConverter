@@ -50,7 +50,7 @@ Automatically shows:
 - Configure the **rife-ncnn-vulkan** executable from Advanced Settings
 - Requires the `rife-ncnn-vulkan` executable and its `rife-v4.25` model folder to remain together
 
-  Download the required macOS binaries from the [official rife-ncnn-vulkan releases](https://github.com/nihui/rife-ncnn-vulkan/releases), extract them, and select the `rife-ncnn-vulkan` executable in **Advanced Settings**.
+  Download the required macOS binaries from the [official rife-ncnn-vulkan releases](https://github.com/TNTwise/rife-ncnn-vulkan/releases), extract them, and select the `rife-ncnn-vulkan` executable in **Advanced Settings**.
 
 ## 🚀 Quick Start
 
